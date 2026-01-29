@@ -41,7 +41,7 @@ ifndef TITLE
 	@exit 1
 endif
 	@echo "Creating new post: $(TITLE)"
-	hugo new posts/$(shell echo "$(TITLE)" | tr '[:upper:]' '[:lower:]' | tr ' ' '-').md
+	hugo new posts/$(shell echo "$(TITLE)" | tr '[:upper:]' '[:lower:]' | tr ' ' '-' | sed 's/[^a-z0-9-]//g').md
 
 # Build with production settings (minified, production environment)
 deploy:
