@@ -1,0 +1,18 @@
+baseURL = 'https://example.org/'
+languageCode = 'en-us'
+title = 'My Blog'
+theme = 'PaperMod'
+
+[params]
+    defaultTheme = 'auto'
+    # Show full post content in home page or just summary
+    # homeInfoParams
+    # Title = "Hi there \uD83D\uDC4B"
+    # Content = "Welcome to my blog"
+
+[menu]
+  [[menu.main]]
+    identifier = "posts"
+    name = "Posts"
+    url = "/posts/"
+    weight = 10
