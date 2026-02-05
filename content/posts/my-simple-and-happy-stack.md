@@ -186,8 +186,7 @@ For styling, I optimize for:
 That’s why I use:
 - **PicoCSS v2** for clean defaults
 - **DaisyUI** when utility components make sense
-- **PicoDaisy**, my own hybrid library  
-  👉 https://josuebrunel.github.io/picodaisy/
+- **PicoDaisy**, my own hybrid library (https://josuebrunel.github.io/picodaisy/)
 
 The goal isn’t flashy UI—it’s shipping changes without emotional damage.
 
