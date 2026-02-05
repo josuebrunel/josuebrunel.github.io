@@ -1,7 +1,7 @@
 baseURL = 'https://example.org/'
 languageCode = 'en-us'
-title = 'My Blog'
-theme = 'PaperMod'
+title = 'Welcome into my head'
+theme = 'hugo-vitae'
 
 [params]
     defaultTheme = 'auto'
