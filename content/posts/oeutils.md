@@ -6,7 +6,7 @@ tags: ["openerp", "python", "xmlrpc", "api"]
 categories: ["Projects"]
 ---
 
-##OEUTILS
+## OEUTILS
 
 __oeutils__ is a small python wrapper of the xml-rpc API for OpenERP. It is useful when it comes to  manipulate your OpenERP objects.
 It is not as powerful as __erppeek__ yet but i hope that with your help one day it will ^_^.
@@ -15,7 +15,7 @@ It's kind of a personal project and i wanted to be able to do almost the same th
 This tool lacks a lot of thing so far, but i hope that over time i will be able to improve it.
 I'm sure that i'll be laughing in the next 2 years while seeing this.
 
-###Features
+### Features
 With __oeutils__ you are able to :
 
 * Create objects
@@ -33,9 +33,9 @@ With __oeutils__ you are able to :
 * Get models fields
 
 
-###How to
+### How to
 
-####Connexion
+#### Connexion
 
 ```python
 >>>from oeutils import Openerp
@@ -43,7 +43,7 @@ With __oeutils__ you are able to :
 >>>o.connect()
 
 ```
-####Methods
+#### Methods
 
 ```python
 >>>m = 'family.family'

@@ -6,11 +6,11 @@ tags: ["openerp", "python", "xml"]
 categories: ["Openerp"]
 ---
 
-###__Pre-requis__
+### __Pre-requis__
 
 Connaissances en programmation [python](http://www.python.org/)
 
-###__Context__
+### __Context__
 
 * OS : Ubuntu 12.04
 
@@ -22,7 +22,7 @@ Connaissances en programmation [python](http://www.python.org/)
 
 On supposera que Openerp 6 est deja installe et tourne en [localhost:8069](http://localhost:8069) 
 
-###__Architecture d'un module openerp (>=6)__
+### __Architecture d'un module openerp (>=6)__
 
 Un module openerp est généralement composé de fichiers et repertoires suivants. 
 
@@ -53,7 +53,7 @@ ___workflow___ : Dossier contenant la definition d'un workflow ([voir](http://do
 
 
 
-###__A- Un hello world__ 
+### __A- Un hello world__ 
 
 Pour notre __hello world__ j'ai pensé à un module nous permettant d'enregistrer une famille et ses membres . 
 
@@ -131,7 +131,7 @@ Documentation sur l'objet [osv](http://doc.openerp.com/v6.0/developer/2_5_Object
 
 Documentation sur l'objet [fields](http://doc.openerp.com/v6.0/developer/2_5_Objects_Fields_Methods/field_type.html)
 
-####**explications** :
+        # default : dictionnaire des valeurs par defaut
 
 *_defaults['lastname']*, j'ai utilisé une fonction *lambda* afin de permettre que le champ _lastname_ soit automatiquement rempli en se servant du context *family_id* definit dans le fichier *family_view.xml* au sein de l'objet *family*. 
 Mais cela ne se fera que dans la condition ou un *membre* sera crée à partir du menu(vue,interface) d'une *famille*. 
@@ -243,7 +243,7 @@ Mais cela ne se fera que dans la condition ou un *membre* sera crée à partir d
 ```
 Documentation sur les [vues](http://doc.openerp.com/v6.0/developer/2_6_views_events/views/design_element.html)
 
-###__B- Installation du module__
+#### **explications** :
 
 Pour installer notre module, il nous faut l'ajouter au differents modules de OpenERP afin qu'il soit reconnu .
 Ceci necessite de copier le dossier de notre module (__family__) dans le dossiers __addons__ du serveur 

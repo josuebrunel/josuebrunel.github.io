@@ -6,7 +6,7 @@ tags: ["python", "bottle", "peewee", "web"]
 categories: ["Projects"]
 ---
 
-##What's __BoWee__
+## What's __BoWee__
 
 **BoWee** is a **bottle** project builder. It generates an project architecture and useful files for **bottle** projects.
 It was previously name _TinyCocktail_ , but it has been changed. 
@@ -18,7 +18,7 @@ It's currently in development but it's quite usable, i advise you to use a ___vi
 
 **BoWee** uses **peewee** as ORM and obviously **bottle** as Web Framework. 
 
-##Requirements
+## Requirements
 To be able to use *BoWee*, it's required to :
 
 * Know and have installed Peewee
@@ -31,14 +31,14 @@ Those packages can be installed like this:
 yosuke@loking:~$sudo pip install bottle peewee
 
 ```
-##Download
+## Download
 
 You can directly download **bowee** [here](/images/bowee/bowee-1.1.tar.gz) or check the [github repository](https://github.com/josuebrunel/bowee) to see the last updates.
 
 
-##Installation
+## Installation
 
-####Via the tar.gz
+#### Via the tar.gz
 
 ```console
 (bottle)yosuke@loking:~$ tar xvzf bowee-1.1.tar.gz 
@@ -76,13 +76,13 @@ Writing /home/yosuke/.virtualenvs/bottle/lib/python2.7/site-packages/bowee-1.1-p
 
 
 ```
-####Via pip
+#### Via pip
 ```console
 
 yosuke@loking:~$sudo pip install bowee
 
 ```
-##Turorial
+## Turorial
 
 ```console
 

@@ -6,11 +6,11 @@ tags: ["makefile", "c", "c++"]
 categories: ["Programming"]
 ---
 
-###Makefile
+### Makefile
 
 Un **makefile** est tout simplement un fichier de configuration (script) contenant des instructions qui sont lus et executées par un programme de type **make** (gmake,...). 
 
-####A quoi sert il ?
+#### A quoi sert il ?
 
 Il permet de construire automatiquement des ___executable___ (tres souvent) , des ___libraries___, des ___architectures___ de dossier ou des actions ___diverses___ . En gros , enormement de choses .
 
@@ -20,7 +20,7 @@ Guillaume> Pourquoi ne pas juste ecrire un script shell, python pour le faire ?
 ```
 La principale difference entre une **makefile** et un **script normal** est que les instructions d'un **makefile** ne sont executées que si **necessaires**, c.a.d qu'une action (règle) qui a deja été accomplie, ne sera plus reexecutée.
 
-####Comment fonctionne t-il ?
+#### Comment fonctionne t-il ?
 Il fonctionne tout simplement par verification de statisfactions de dépendances. Je m'explique par l'algorithme qui suit :
 Pour faire mon __tea__ (avec l'accent british s'il vous plait!!) j'ai généralement besoin d'une __cup__ , de l'eau 
 et un __tea bag__ (twisted mind, get away!!!). On supposera qu'on a déja notre tasse.
@@ -51,7 +51,7 @@ et un __tea bag__ (twisted mind, get away!!!). On supposera qu'on a déja notre 
 A la prochaine execution, on n'aura plus besoin de se procurer de l'eau par exemple, dans le cas ou la dependance
 est toujours satisfaite .
 
-####Comment ecrire un Makefile ?
+#### Comment ecrire un Makefile ?
 
 Context : 
 
@@ -103,7 +103,7 @@ un fichier main.c
 
 ```c
 #include<my_putchar.h>
-#incluce<my_putstr.h>
+#include <my_putstr.h>
 
 int main(int argc, char **argv){
 	my_putchar('O');
@@ -118,7 +118,7 @@ int main(int argc, char **argv){
 
 
 ```
-####complilation separee en ligne de commande
+	# ifndef __my_putchar__
 
 ```console
 jimmy@mcmillan:~$cc -Wall -c main.c my_putchar.c my_putstr.c

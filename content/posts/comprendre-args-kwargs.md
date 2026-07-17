@@ -31,7 +31,7 @@ __varargs__ : ___*args___ et ___**kwargs___
 
 On va faire quelques petites experiences
 
-###Experience 1 : ___*___
+### Experience 1 : ___*___
 
 
 ```python
@@ -76,7 +76,7 @@ attends 3 paramètres et non 4.
 Pour conclure , **_*_** sert a deballer les éléments d'une _liste_, d'un
 _tuple_ ... On ne l'utilise que lors d'un appel de foncton ou méthode.
 
-###Experience 2: ___*args___
+### Experience 2: ___*args___
 
 ```python
 >>> def my_func(x, *args):
@@ -393,7 +393,7 @@ invoque un _save(insert=True)_ ,couple **clé** et **valeur**, donc
 **kwargs['insert']=True** (kwargs est devenu un dictionnaire) #1. Ensuite en
 passe **kwargs** en le deballant grace a ******. ce qui fait a ce que le
 deuxieme appel de **save()** soit **_super(Fislton, self).save(insert=True)_**
-#2, ce qui correspond a notre définition dans la classe **Papa**.
+# 2, ce qui correspond a notre définition dans la classe **Papa**.
 
 Voila, c'est fini, j'espère que vous avez une meilleur comprehension des
 **unpackers** et des **varargs** en python.

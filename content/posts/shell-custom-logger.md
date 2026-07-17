@@ -100,7 +100,7 @@ export -f _notice
 * *export -f* permet d'exporter une fonction bash et la rend accessible a bash et tous les processus fils de bash. Ce qui permet 
 a ces differentes fonctions d'etre utilisées dans un script bash.
 
-### Utilisation
+    ## If a LOG_OUTPUT variable is defined,
 
 Un test rapide dans votre shell
 
@@ -120,7 +120,7 @@ yosuke@loking$> cat myfile.log
 ```
 Voila !!!
 
-### Contribution 
+    ## the logger will write to a file pointed to by the variable
 
 Si vous trouvez des ameliorations n'hesitez pas a forker ce [repo](https://github.com/josuebrunel/myscripts) et a m'envoyer un pull request.
 

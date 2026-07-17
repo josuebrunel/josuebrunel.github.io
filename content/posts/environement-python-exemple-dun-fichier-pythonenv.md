@@ -77,7 +77,7 @@ class Database(object):
         """
         return self.cr.rowcount
 
-  class MySqlite(Database):
+class MySqlite(Database):
     """Simple SQlite3 class handler
     """
 

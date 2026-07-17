@@ -23,7 +23,7 @@ Context :
 *	serveur de  bdd developpement : 192.168.1.3 # HOSTNAME = preprod
 *   Le nom de notre base de données est __pikachu__
 
-###Production
+### Production
 
 Se connecter au serveur de base de données
 
@@ -45,7 +45,7 @@ postgres@prod:/root/backup$ pg_dump pikachu -U postgres > ./backup/db_backup
 ```
 **db_backup** est le nom du fichier contenant la base de données exportée
 
-###Developpement
+	# su postgres
 
 ```console
 prod:~#ssh root@192.168.1.3

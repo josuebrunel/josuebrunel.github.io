@@ -4,6 +4,7 @@ date: 2014-11-19 20:12:06
 author: "Josue Kouka"
 tags: ["virtualenv", "python"]
 categories: ["Programming"]
+draft: true
 ---
 
 Il arrive des moments ou pour des raisons particulieres, l'on voudrait creer un *environment virtual python* 

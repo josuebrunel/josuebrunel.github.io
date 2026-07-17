@@ -11,7 +11,7 @@ Oui oui, ça fait des années.  Depuis le temps que j'ai envie d'écrire cette i
 la flemme d'écrire un article. 
 Enfin bref comme dirait [Franklin](http://www.youtube.com/watch?v=tYVNZrDh5y0).
 
-## INSTALLATION ##
+## INSTALLATION
 
 ```console
 yosuke@loking:~$ mkvirtualenv bottle
@@ -26,7 +26,7 @@ Cleaning up...
 ```
 On a créé un environement virtuel (virtualenvwrapper) puis fait l'installation de **bottle** dans cette envrinement.
 
-## HELLO WORLD ##
+## HELLO WORLD
 
 ```python
 from bottle import route, run, template
@@ -45,17 +45,17 @@ def hello_name(name):
 
 @route('/hello/age/<age:int>') # <var:int>, 'int' est un filtre
 def tell_age(age):
-'''Returns Age
-'''
-return "You're %s" %(age,)
+    '''Returns Age
+    '''
+    return "You're %s" %(age,)
 
 run(host='localhost', port='8888', reloader=True, debug=True)
 
 ```
-####Explications###
+#### Explications
 
-## REQUETTES ##
+## REQUETTES
 
-### -Get ###
+### -Get
 
-### -Post ###
+### -Post

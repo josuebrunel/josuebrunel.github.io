@@ -9,7 +9,7 @@ categories: ["Programming"]
 Salut !! le but de ce post est d'aider ceux qui debutent avec python a creer un environement minimal 
 au developpement python .
 
-###A- Autocomplention sur le shell python
+### A- Autocomplention sur le shell python
 
 Vu que vous aurez a enormement utiliser le shell python, ce petit script permettant l'auto-completion vous sera fort utile.
 Dans votre **home directory** creer un fichier .pythonenv.py avec le contenu suivant
@@ -32,19 +32,19 @@ export PYTHONSTARTUP=$HOME/.pythonenv.py
 ```
 Relancez votre terminal et l'autocompletion sur votre shell python sera active
 
-###B- **VirtualEnv** et **VirtualenvWrapper**
+    # Python Shell Environment
 
 [__VirtualEnv__](http://pypi.python.org/pypi/virtualenv) est un petit outil python permettant de creer des environements isoles dans lequel vous pourrez installer des packages sans interferer avec d'autres environements virtuels ou votre environement systeme .
 Son utilite se fait fortement ressentir losque l'on est amene a travailler sur des versions differentes d'un meme packages ou lorsque l'on veut tester des packages.
 __VirtualEnvWrapper__ est un **wrapper** comme son nom l'indique, qui expose plusieurs fonctionalites de **virtualenv** de maniere assez simple.
 
-####Installation
+### B- **VirtualEnv** et **VirtualenvWrapper**
 
 ```console
 yosuke@loking:~/workspace$pip install virtualenvwrapper
 
 ```
-####Utilisation
+#### Installation
 
 ```console
 yosuke@loking:~/workspace$ mkvirtualenv konoha #creation de nottre environement virtuel

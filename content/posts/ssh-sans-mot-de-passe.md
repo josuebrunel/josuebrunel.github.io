@@ -24,7 +24,7 @@ Vous êtes fatigué de ....
 Petit guide sur comment faire pour eviter d'en avoir marre.
 
 ```console
-huey@freeman:~$ssh -t keygen rsa
+huey@freeman:~$ssh-keygen -t rsa
 Generating public/private rsa key pair.
 Enter file in which to save the key (/home/huey/.ssh/id_rsa): 
 Created directory '/home/huey/.ssh'.

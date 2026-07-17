@@ -15,7 +15,7 @@ A couple weeks ago a lost all my markdown files, by the way i write my articles 
 blog, i decided to to find a way (seriously, above all the time) to retrieve my markdown files. 
 I've found 2 very convevial tools to do so. But i'm just going to talk about one of them : ***html2markdown*** . The other one being ***pandoc***.
 
-###Installation
+### Installation
 ----------------------
 On your terminal guys 
 
@@ -23,7 +23,7 @@ On your terminal guys
 yosuke@loking:~$ sudo aptitude install html2markdown
 
 ```
-###How to 
+### How to 
 ----------------
 ```console
 yosuke@loking:~$ html2markdown myfile.html >> myfile.md
