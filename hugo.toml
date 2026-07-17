@@ -1,6 +1,6 @@
-baseURL = 'https://example.org/'
+baseURL = 'https://josuebrunel.github.io/'
 languageCode = 'en-us'
-title = 'Josue Brunel'
+title = 'Josue Kouka'
 theme = 'hugo-vitae'
 [pagination]
     pagerSize = 10
@@ -15,7 +15,7 @@ copyright = '© Josue Brunel'
     subtitle = 'Code, Linux, and open source — one post at a time.'
     keywords = ['python', 'go', 'linux', 'programming', 'open source']
     description = 'Personal blog of Josue Brunel — software engineer writing about Python, Go, Linux, and open source.'
-    avatar = 'images/loking_id_face.jpg'
+    avatar = 'images/fg.jpg'
     hideAuthor = true
     readingTime = true
     wordCount = false
