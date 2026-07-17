@@ -1,17 +1,17 @@
 ---
-title: "Building PulseDash — Replacing a Dead Wearable's Apps"
+title: "Building PulseDash - Replacing a Dead Wearable's Apps"
 date: 2026-07-17
 description: "How I reverse-engineered the BLE protocol and built an open-source companion app for the Pulse Series One after the manufacturer disappeared."
 tags: ["flutter", "ble", "go", "reverse-engineering", "wearable"]
 ---
 
-A few months back, I dug an old wearable out of a drawer — the **Pulse Series One**. It's a solid fitness band: heart rate, SpO₂, speed, cadence, sleep tracking. There's just one problem: the company behind it is gone. The official mobile apps were pulled years ago, and their cloud dashboard just shows a 404 now.
+A friend recently gave me an old wearable - the **Pulse Series One**. When I tried to use it, I discovered the device had been abandoned and the mobile app was no longer available. It's a solid fitness band: heart rate, SpO₂, speed, cadence, sleep tracking. The official mobile apps were pulled years ago, and their cloud dashboard just shows a 404 now.
 
 So I had a perfectly good brick that could still stream data over Bluetooth LE but had no way to see it. Naturally, I built my own.
 
-**PulseDash** is the result — an open-source Flutter app and Go backend that brings the Pulse Series One back to life. [Check it out on GitHub](https://github.com/josuebrunel/pulsedash).
+**PulseDash** is the result - an open-source Flutter app and Go backend that brings the Pulse Series One back to life. [Check it out on GitHub](https://github.com/josuebrunel/pulsedash).
 
-{{< figure src="/img/pulsedash/pulse-dashboard.jpg" alt="PulseDash live dashboard" caption="The main dashboard — live metrics from the wearable, no cloud required." >}}
+{{< figure src="/img/pulsedash/pulse-dashboard.jpg" alt="PulseDash live dashboard" caption="The main dashboard - live metrics from the wearable, no cloud required." >}}
 
 ---
 
@@ -70,7 +70,7 @@ Data flows two ways:
 
 I needed BLE support, local persistence, and cross-platform in one shot. Flutter with `flutter_blue_plus` gave me a single Dart codebase, and platform channels handled the Android foreground service bits. `sqflite` for SQLite is battle-tested, and `fl_chart` for charts is pure Dart with zero native baggage.
 
-No state management framework — the app's simple enough that `ChangeNotifier` + `ListenableBuilder` does the job. The BLE service is a single `ChangeNotifier` that exposes device state and live metrics, and the home screen rebuilds on change notifications. For a single-device, single-screen app, pulling in Riverpod or Bloc would've been overkill.
+No state management framework - the app's simple enough that `ChangeNotifier` + `ListenableBuilder` does the job. The BLE service is a single `ChangeNotifier` that exposes device state and live metrics, and the home screen rebuilds on change notifications. For a single-device, single-screen app, pulling in Riverpod or Bloc would've been overkill.
 
 ### Why Go for the Backend?
 
@@ -87,7 +87,7 @@ Three endpoints, zero framework dependencies. The binary compiles to a single st
 
 ### Why `modernc.org/sqlite`?
 
-I wanted zero-dependency deployment — no CGo, no system SQLite library, no database daemon to manage. `modernc.org/sqlite` is a pure Go translation of SQLite. The whole backend is one `go build` away from a working binary. For single-user or family use, SQLite handles the load just fine.
+I wanted zero-dependency deployment - no CGo, no system SQLite library, no database daemon to manage. `modernc.org/sqlite` is a pure Go translation of SQLite. The whole backend is one `go build` away from a working binary. For single-user or family use, SQLite handles the load just fine.
 
 ### Why Templ for the Dashboard?
 
@@ -106,7 +106,7 @@ setInterval(loadData, 5000);
 
 ## Sniffing the Protocol
 
-First step was figuring out what data the device actually broadcasts. I fired up a BLE scanner and started taking notes. The Pulse Series One exposes a handful of GATT services — some standard, some custom:
+First step was figuring out what data the device actually broadcasts. I fired up a BLE scanner and started taking notes. The Pulse Series One exposes a handful of GATT services - some standard, some custom:
 
 | Characteristic | UUID | Standard | Parsing |
 |---|---|---|---|
@@ -118,7 +118,7 @@ First step was figuring out what data the device actually broadcasts. I fired up
 | Custom Vendor (FFF7) | `0000fff7` | Proprietary | Not parseable |
 | Custom Vendor (FFF6) | `0000fff6` | Proprietary | Write-only, triggers memory sync |
 
-The first five follow documented Bluetooth SIG specs. The last two are the device's proprietary channel — and that's where I hit a wall.
+The first five follow documented Bluetooth SIG specs. The last two are the device's proprietary channel - and that's where I hit a wall.
 
 ---
 
@@ -148,7 +148,7 @@ Within a few hours I had live heart rate and battery on screen. The easy part wa
 
 ## The GATT 133 Nightmare
 
-Android's BLE stack is notoriously flaky across vendors. On my Samsung test device, connections kept failing with **GATT_ERROR 133** — a transient internal error the Bluetooth stack throws when the controller firmware gets into a bad state.
+Android's BLE stack is notoriously flaky across vendors. On my Samsung test device, connections kept failing with **GATT_ERROR 133** - a transient internal error the Bluetooth stack throws when the controller firmware gets into a bad state.
 
 The [fix](https://github.com/josuebrunel/pulsedash/commit/e67d2a6) involved three things:
 
@@ -196,7 +196,7 @@ override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
 }
 ```
 
-The wake lock has a 4-hour safety timeout — if something goes wrong, the system can reclaim it. `START_STICKY` means Android restarts the service if it gets killed.
+The wake lock has a 4-hour safety timeout - if something goes wrong, the system can reclaim it. `START_STICKY` means Android restarts the service if it gets killed.
 
 The [Flutter bridge](https://github.com/josuebrunel/pulsedash/commit/20cfc74) communicates via `MethodChannel`:
 
@@ -212,13 +212,13 @@ The service starts when BLE connects and stops on disconnect. The app also check
 
 ## The SFLOAT Wars
 
-SpO₂ data arrives as IEEE-11073 16-bit SFLOAT values — a compact format with a 4-bit signed exponent and a 12-bit signed mantissa:
+SpO₂ data arrives as IEEE-11073 16-bit SFLOAT values - a compact format with a 4-bit signed exponent and a 12-bit signed mantissa:
 
 ```
 value = mantissa × 10^exponent
 ```
 
-The spec sounds simple, but the Pulse Series One sends sentinel values — `0x07FF` (NaN), `0x07FE` (+Infinity), `0x0800` (NRes), `0x0801` (Reserved), `0x0802` (-Infinity) — that you have to filter out. And some packets just don't follow the spec at all.
+The spec sounds simple, but the Pulse Series One sends sentinel values - `0x07FF` (NaN), `0x07FE` (+Infinity), `0x0800` (NRes), `0x0801` (Reserved), `0x0802` (-Infinity) - that you have to filter out. And some packets just don't follow the spec at all.
 
 The initial parser [missed several metrics entirely](https://github.com/josuebrunel/pulsedash/commit/9a6a059). After adding test fixtures from real device captures, the parser grew fallback heuristics:
 
@@ -243,7 +243,7 @@ If SFLOAT parsing fails, the parser tries reading the raw byte directly (if it f
 
 ## Rename and Production Audit
 
-Halfway through, I realized "Pulse" was way too generic. The [rename to PulseDash](https://github.com/josuebrunel/pulsedash/commit/945b0f7) touched every file — Android package (`com.pulse.pulse_app` → `com.pulse.pulsedash`), Dart package (`pulse_app` → `pulse_dash`), database filename, notification labels, ProGuard rules, even the MaterialApp title.
+Halfway through, I realized "Pulse" was way too generic. The [rename to PulseDash](https://github.com/josuebrunel/pulsedash/commit/945b0f7) touched every file - Android package (`com.pulse.pulse_app` → `com.pulse.pulsedash`), Dart package (`pulse_app` → `pulse_dash`), database filename, notification labels, ProGuard rules, even the MaterialApp title.
 
 The [production audit](https://github.com/josuebrunel/pulsedash/commit/c1b6b87) that followed was long overdue:
 - Extracted the monolithic `main.dart` (954 lines → services, screens, widgets)
@@ -313,7 +313,7 @@ CREATE TABLE metrics (
 );
 ```
 
-The server also has a `connected_devices` table for nicknames and auto-connect preferences — a mobile-only thing that never syncs to the backend.
+The server also has a `connected_devices` table for nicknames and auto-connect preferences - a mobile-only thing that never syncs to the backend.
 
 ---
 
@@ -337,7 +337,7 @@ With the foundation solid, I wanted parity with the original app's historical vi
 └──────────────────────────────┘
 ```
 
-The charts view uses `fl_chart` — a pure-Dart charting library — to render time-series lines. It pulls the last 50 readings from local SQLite, plots the most recent 30 for performance, and auto-refreshes every 3 seconds:
+The charts view uses `fl_chart` - a pure-Dart charting library - to render time-series lines. It pulls the last 50 readings from local SQLite, plots the most recent 30 for performance, and auto-refreshes every 3 seconds:
 
 ```dart
 Timer.periodic(const Duration(seconds: 3), (_) => _loadReadings());
@@ -349,9 +349,9 @@ Session analytics (average, max, min) display below each chart.
 
 ---
 
-## The Proprietary Sync Tool — And What We Can't Read
+## The Proprietary Sync Tool - And What We Can't Read
 
-The device stores historical session data in its internal memory — stuff that accumulated when the app wasn't connected. Accessing it requires writing a command to the custom FFF6 characteristic, which triggers the device to replay stored data through the FFF7 notification channel.
+The device stores historical session data in its internal memory - stuff that accumulated when the app wasn't connected. Accessing it requires writing a command to the custom FFF6 characteristic, which triggers the device to replay stored data through the FFF7 notification channel.
 
 The [proprietary sync tool](https://github.com/josuebrunel/pulsedash/commit/e63b6fc) lets you send raw hex commands to FFF6:
 
@@ -359,7 +359,7 @@ The [proprietary sync tool](https://github.com/josuebrunel/pulsedash/commit/e63b
 await _bleService.writeCustomHex('AB030200');
 ```
 
-The device pushes data back through FFF7, but here's the rub — **that data is encrypted, or uses a proprietary binary format I couldn't crack**. The parser returns an empty `ParsedMetric` for FFF7 and logs the raw bytes:
+The device pushes data back through FFF7, but here's the rub - **that data is encrypted, or uses a proprietary binary format I couldn't crack**. The parser returns an empty `ParsedMetric` for FFF7 and logs the raw bytes:
 
 ```
 [Pulse] Unknown char 0000fff7-... → [0xB3, 0xE8, 0x14, 0xA2, 0x7F, ...]
@@ -372,15 +372,15 @@ I tried a few approaches:
 - **Consistent headers**: Some packets share the same first byte, hinting at a command-response protocol.
 - **Without a key or known-plaintext pairs**, there's no way to decrypt the payload.
 
-{{< figure src="/img/pulsedash/proprietary-sync.jpg" alt="Proprietary sync tool with hex input" caption="The proprietary sync panel — gateway to the device's internal memory, locked behind encryption." >}}
+{{< figure src="/img/pulsedash/proprietary-sync.jpg" alt="Proprietary sync tool with hex input" caption="The proprietary sync panel - gateway to the device's internal memory, locked behind encryption." >}}
 
-This is the hard limit. If your device sat in a drawer for two years, those past sessions are unfortunately unrecoverable through PulseDash.
+This is the hard limit. If your device has historical memory from before PulseDash, those past sessions are unfortunately unrecoverable through PulseDash.
 
 ---
 
 ## The Go Backend
 
-The last piece was a [self-hosted Go backend](https://github.com/josuebrunel/pulsedash/commit/68f20fc). It's deliberately minimal — standard library HTTP server, pure-Go SQLite, three endpoints.
+The last piece was a [self-hosted Go backend](https://github.com/josuebrunel/pulsedash/commit/68f20fc). It's deliberately minimal - standard library HTTP server, pure-Go SQLite, three endpoints.
 
 ### Server Structure
 
@@ -519,7 +519,7 @@ PulseDash does what I need. Live metrics, local storage, server sync, historical
 - Live web dashboard with Chart.js
 
 **What doesn't (yet):**
-- **Historical memory sync** — encrypted proprietary protocol on FFF6/FFF7 is still a mystery
+- **Historical memory sync** - encrypted proprietary protocol on FFF6/FFF7 is still a mystery
 - Multi-device simultaneous connections
 - Automatic background sync
 - GPS integration for outdoor routes
@@ -527,7 +527,7 @@ PulseDash does what I need. Live metrics, local storage, server sync, historical
 - Data export (CSV/JSON)
 - BLE bonding management
 
-{{< figure src="/img/pulsedash/scan-sheet.png" alt="BLE scan bottom sheet" caption="Scanning for nearby wearables — the app discovers and connects to the Pulse Series One." >}}
+{{< figure src="/img/pulsedash/scan-sheet.png" alt="BLE scan bottom sheet" caption="Scanning for nearby wearables - the app discovers and connects to the Pulse Series One." >}}
 
 ---
 
@@ -537,9 +537,9 @@ Building a companion app for an abandoned wearable is a weird mix of archaeology
 
 **On BLE**: Never trust the Android stack. Add retries, guard your `setState` calls, subscribe before you enable notifications. Every vendor has their own quirks.
 
-**On reverse-engineering**: Standard GATT characteristics are your friends. Proprietary vendor characteristics are a gamble — without docs, you might never crack the protocol.
+**On reverse-engineering**: Standard GATT characteristics are your friends. Proprietary vendor characteristics are a gamble - without docs, you might never crack the protocol.
 
-**On tooling**: Go is perfect for small self-hosted backends. One binary with embedded SQLite deploys anywhere — VPS, Raspberry Pi, Docker, you name it. Zero runtime dependencies.
+**On tooling**: Go is perfect for small self-hosted backends. One binary with embedded SQLite deploys anywhere - VPS, Raspberry Pi, Docker, you name it. Zero runtime dependencies.
 
 **On scope**: I could've spent months trying to crack the encrypted historical memory protocol. Instead, I shipped something useful that covers 90% of what I need. Perfect is the enemy of deployed.
 
