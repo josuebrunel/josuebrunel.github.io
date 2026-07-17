@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Xml on Josue Kouka</title><link>https://josuebrunel.github.io/tags/xml/</link><description>Recent content in Xml on josuebrunel.github.io</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><lastBuildDate>Thu, 04 Oct 2012 00:00:00 +0000</lastBuildDate><atom:link href="https://josuebrunel.github.io/tags/xml/index.xml" rel="self" type="application/rss+xml"/><item><title>Openerp Module Development : Partie I</title><link>https://josuebrunel.github.io/posts/openerp-module-development-partie-i/</link><pubDate>Thu, 04 Oct 2012 00:00:00 +0000</pubDate><guid>https://josuebrunel.github.io/posts/openerp-module-development-partie-i/</guid><description>
+Pre-requis Connaissances en programmation python
+Context OS : Ubuntu 12.04
+Python : 2.7
+Openerp : 6.1
+Host : localhost
+On supposera que …</description></item></channel></rss>

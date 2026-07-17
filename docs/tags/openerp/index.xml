@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Openerp on Josue Kouka</title><link>https://josuebrunel.github.io/tags/openerp/</link><description>Recent content in Openerp on josuebrunel.github.io</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><lastBuildDate>Sat, 23 Mar 2013 00:00:00 +0000</lastBuildDate><atom:link href="https://josuebrunel.github.io/tags/openerp/index.xml" rel="self" type="application/rss+xml"/><item><title>oeutils</title><link>https://josuebrunel.github.io/posts/oeutils/</link><pubDate>Sat, 23 Mar 2013 00:00:00 +0000</pubDate><guid>https://josuebrunel.github.io/posts/oeutils/</guid><description>
+OEUTILS oeutils is a small python wrapper of the xml-rpc API for OpenERP. It is useful when it comes to manipulate your OpenERP objects. It …</description></item><item><title>Migration base de donnee Openerp production a developpement</title><link>https://josuebrunel.github.io/posts/db_migration/</link><pubDate>Mon, 04 Feb 2013 00:00:00 +0000</pubDate><guid>https://josuebrunel.github.io/posts/db_migration/</guid><description>
+Salut !!!! Etant un petit programmeur openerp , il m’arrive tres souvent de vouloir travailler avec un environement de production. Chose …</description></item><item><title>Openerp Module Development : Partie I</title><link>https://josuebrunel.github.io/posts/openerp-module-development-partie-i/</link><pubDate>Thu, 04 Oct 2012 00:00:00 +0000</pubDate><guid>https://josuebrunel.github.io/posts/openerp-module-development-partie-i/</guid><description>
+Pre-requis Connaissances en programmation python
+Context OS : Ubuntu 12.04
+Python : 2.7
+Openerp : 6.1
+Host : localhost
+On supposera que …</description></item></channel></rss>
