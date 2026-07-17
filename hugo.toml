@@ -2,7 +2,8 @@ baseURL = 'https://example.org/'
 languageCode = 'en-us'
 title = 'Josue Brunel'
 theme = 'hugo-vitae'
-paginate = 10
+[pagination]
+    pagerSize = 10
 copyright = '© Josue Brunel'
 
 [taxonomies]
