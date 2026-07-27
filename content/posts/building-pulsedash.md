@@ -13,6 +13,17 @@ So I had a perfectly good brick that could still stream data over Bluetooth LE b
 
 {{< figure src="/img/pulsedash/pulse-dashboard.jpg" alt="PulseDash live dashboard" caption="The main dashboard - live metrics from the wearable, no cloud required." >}}
 
+**Quick start**, if you just want to run the backend and look at the dashboard:
+
+```bash
+git clone https://github.com/josuebrunel/pulsedash.git
+cd pulsedash/backend
+docker compose up
+# dashboard at http://localhost:8080
+```
+
+The Flutter app needs an Android device and a real Pulse Series One to be useful, but the backend and dashboard run standalone against whatever data you sync into it.
+
 ---
 
 ## Architecture Overview
@@ -119,6 +130,8 @@ First step was figuring out what data the device actually broadcasts. I fired up
 | Custom Vendor (FFF6) | `0000fff6` | Proprietary | Write-only, triggers memory sync |
 
 The first five follow documented Bluetooth SIG specs. The last two are the device's proprietary channel - and that's where I hit a wall.
+
+This isn't a novel problem - projects like [Gadgetbridge](https://gadgetbridge.org/) have been reverse-engineering wearable BLE protocols at scale for years, across dozens of vendors. I didn't reference their source for the Pulse Series One specifically (it wasn't in their supported-device list), but the standard-GATT-first, proprietary-vendor-channel-second split described below is exactly the pattern they've documented repeatedly.
 
 ---
 
@@ -376,11 +389,13 @@ I tried a few approaches:
 
 This is the hard limit. If your device has historical memory from before PulseDash, those past sessions are unfortunately unrecoverable through PulseDash.
 
+**If you own a Pulse Series One and have captured FFF7 packets** - especially any pair where you know what triggered them - [open a discussion on the repo](https://github.com/josuebrunel/pulsedash/discussions). Known-plaintext pairs are exactly what's missing to make progress on this, and I'd rather crowdsource it than let it sit unsolved.
+
 ---
 
 ## The Go Backend
 
-The last piece was a [self-hosted Go backend](https://github.com/josuebrunel/pulsedash/commit/68f20fc). It's deliberately minimal - standard library HTTP server, pure-Go SQLite, three endpoints.
+The last piece was a [self-hosted Go backend](https://github.com/josuebrunel/pulsedash/commit/68f20fc). It's deliberately minimal - standard library HTTP server, pure-Go SQLite, three endpoints. It's the same "one binary, embedded SQLite, zero runtime dependencies" philosophy I lay out in more detail in [My SaaS Tech Stack]({{< ref "my-simple-and-happy-stack.md" >}}) - here applied to a much smaller project than a SaaS backend.
 
 ### Server Structure
 
