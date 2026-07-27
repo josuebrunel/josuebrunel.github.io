@@ -2,7 +2,8 @@
 title: "html to markdown"
 date: 2013-07-07 08:07:14
 author: "Josue Kouka"
-tags: ["linux", "html", "markdwon", "shell"]
+description: "Converting HTML files to Markdown from the command line, in bulk, using html2markdown or pandoc."
+tags: ["linux", "html", "markdown", "shell"]
 categories: ["Linux"]
 ---
 
