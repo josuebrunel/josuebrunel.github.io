@@ -2,6 +2,7 @@
 title: "How to install fonts on linux"
 date: 2013-01-20
 author: "Josue Kouka"
+description: "Installing the Monaco TTF font on Linux and refreshing the font cache with fc-cache."
 tags: ["linux", "font"]
 categories: ["Linux"]
 ---
