@@ -220,6 +220,28 @@ _, err := riverClient.Insert(ctx, SendEmailArgs{
 
 One datastore, one backup strategy, one mental model. No broker cluster to maintain, no network partition to worry about, no schema synchronization between systems. Background jobs should be boring, and RiverQueue makes them boring in the best way.
 
+Wiring workers up is equally boring, which is the point:
+
+```go
+workers := river.NewWorkers()
+river.AddWorker(workers, &SendEmailWorker{mailer: mailClient})
+
+riverClient, err := river.NewClient(riverpgxv5.New(dbPool), &river.Config{
+    Queues: map[string]river.QueueConfig{
+        river.QueueDefault: {MaxWorkers: 10},
+    },
+    Workers: workers,
+})
+if err != nil {
+    log.Fatal(err)
+}
+if err := riverClient.Start(ctx); err != nil {
+    log.Fatal(err)
+}
+```
+
+`riverClient.Start` runs in the same binary as the HTTP server - one process, one deploy artifact, no separate worker fleet to keep in sync with the API.
+
 ---
 
 ## Redis: Powerful, Dangerous, Used With Adult Supervision
@@ -233,6 +255,8 @@ In this stack, Redis is:
 
 It is **not** a source of truth.  
 It is **not** the backbone of the system.
+
+Concretely, "session state" means the session token itself lives in Redis with a TTL, but the user record it points to is always PostgreSQL. If a session key expires or Redis is flushed, the user just logs in again - no data is lost, because Redis was never holding anything that mattered long-term.
 
 Used intentionally, Redis speeds things up without turning the app into a distributed puzzle. If Redis goes down, the app still works - it's just slower.
 
@@ -251,6 +275,12 @@ The goal isn't flashy UI - it's shipping changes without emotional damage. A but
 
 ---
 
+## Testing: No Framework Needed Here Either
+
+The same "reach for the standard library first" instinct applies to testing. Handlers and queries get table-driven tests using plain `testing.T`, generics, and `t.Helper()` for readable failures - no assertion library, no mocking framework. I wrote up the actual pattern in [How to Test Go Code Without a Test Framework]({{< ref "how-to-test-go-code-without-a-test-framework.md" >}}); it's the same philosophy as everything above, just applied to tests instead of infrastructure.
+
+---
+
 ## The Unexpected Benefit: Operational Peace
 
 This stack has a feature I value more than benchmarks:
@@ -262,6 +292,10 @@ Deployments are a single binary scp'd to a server. Rollbacks are the previous bi
 Failures are understandable. When something breaks, the signal-to-noise ratio is high. A Go stack trace tells me exactly which line panicked. An Echo error log tells me which route and method. A Postgres query log tells me which query is slow.
 
 No frontend-backend negotiations about API contracts. No distributed-system cosplay. Just a small set of tools working together quietly.
+
+**What I'd reconsider**: RiverQueue's job dashboard is bare-bones compared to something like Sidekiq's - if you need rich visibility into queue depth and retry history, you're writing your own views on top of `river_job`, not getting them for free. That's a real cost of picking the boring, embedded option over a dedicated queue product with a mature UI.
+
+I apply the same "boring beats clever" instinct outside of SaaS work too - see [Building PulseDash]({{< ref "building-pulsedash.md" >}}) for the same Go-plus-embedded-SQLite approach on a much smaller, self-hosted project.
 
 ---
 
