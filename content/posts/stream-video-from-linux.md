@@ -2,6 +2,7 @@
 title: "Stream video from Linux"
 date: 2014-02-02
 author: "Josue Kouka"
+description: "Using PS3 Media Server to stream local media over UPnP to devices on your LAN."
 tags: ["linux", "media", "video", "streaming"]
 categories: ["Linux"]
 ---
