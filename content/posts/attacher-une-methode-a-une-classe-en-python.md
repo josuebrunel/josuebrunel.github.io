@@ -2,9 +2,12 @@
 title: "Attacher une methode a une classe en python"
 date: 2015-01-17 15:25:31
 author: "Josue Kouka"
-tags: ["python", "programming", "poo", "oop"]
+description: "Binding a plain function to a class instance at runtime with types.MethodType, and how that differs from a regular instance method."
+tags: ["python", "programming", "oop"]
 categories: ["Programming"]
 ---
+
+> **Note (2026):** Written for Python 2 (`print`, `type(x)` returning `instancemethod`) - the `types.MethodType` mechanism itself still works in Python 3, but the REPL output shown below won't match exactly.
 
 Serieusement, je ne vois pas trop dans quelle condition ceci peut etre utile, disons que c'est juste bon a savoir.
 
