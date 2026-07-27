@@ -2,6 +2,7 @@
 title: "About Me"
 date: 2012-10-02
 author: "Josue Kouka"
+description: "A short bio: Linux, FOSS, Python, and C/C++."
 tags: ["Hello World"]
 categories: ["About Me"]
 ---
