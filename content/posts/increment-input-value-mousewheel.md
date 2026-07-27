@@ -2,6 +2,7 @@
 title: "Increment input value using mousewheel in javascript"
 date: 2015-01-28 18:14:08
 author: "Josue Kouka"
+description: "A small jQuery snippet to increment or decrement a numeric input's value by scrolling the mouse wheel over it."
 tags: ["web", "javascript", "js", "jquery"]
 categories: ["Programming"]
 ---
