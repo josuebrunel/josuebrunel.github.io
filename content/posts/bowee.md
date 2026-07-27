@@ -2,6 +2,7 @@
 title: "Bowee"
 date: 2013-01-15
 author: "Josue Kouka"
+description: "Introducing BoWee, a Bottle + Peewee scaffolding tool for quickly bootstrapping small Python web apps."
 tags: ["python", "bottle", "peewee", "web"]
 categories: ["Projects"]
 ---
