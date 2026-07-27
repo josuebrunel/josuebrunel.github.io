@@ -2,6 +2,7 @@
 title: "ssh sans mot de passe"
 date: 2012-12-20
 author: "Josue Kouka"
+description: "Setting up passwordless SSH login using key-based authentication."
 tags: ["linux", "ssh", "server"]
 categories: ["Linux"]
 ---
