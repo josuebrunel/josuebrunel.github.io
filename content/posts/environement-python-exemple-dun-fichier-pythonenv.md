@@ -2,9 +2,12 @@
 title: "Environement Python : exemple d'un fichier .pythonenv"
 date: 2014-11-19 21:03:02
 author: "Josue Kouka"
+description: "An example .pythonenv startup file with a small Database/MySqlite abstract-class pattern for the Python REPL."
 tags: ["python", "programming"]
 categories: ["Programming"]
 ---
+
+> **Note (2026):** Python 2 syntax (`print query`, `except Exception, e`, old-style `__metaclass__`). Kept as a historical code sample rather than rewritten.
 
 ```python
 import os
