@@ -2,6 +2,7 @@
 title: "Backing up your wireless networks data on linux"
 date: 2013-10-17
 author: "Josue Kouka"
+description: "Backing up NetworkManager's system-connections directory to restore saved Wi-Fi credentials on a new Linux install."
 tags: ["linux", "wifi"]
 categories: ["Linux"]
 ---
