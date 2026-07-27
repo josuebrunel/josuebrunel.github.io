@@ -2,9 +2,12 @@
 title: "Comprendre *, **, *args, **kwargs"
 date: 2013-03-26
 author: "Josue Kouka"
+description: "A REPL-driven walkthrough of Python's unpacking operators (* and **) and *args/**kwargs, including a real inheritance use case."
 tags: ["python"]
 categories: ["Programming"]
 ---
+
+> **Note (2026):** This post uses Python 2 syntax (`print x`, `except Exception, e`) and won't run as-is on Python 3. The concepts - `*`/`**` unpacking and `*args`/`**kwargs` - are unchanged in Python 3; only the `print` statement and exception syntax would need updating. Kept as-is for now rather than silently rewritten.
 
 Hi guys !!!
 
