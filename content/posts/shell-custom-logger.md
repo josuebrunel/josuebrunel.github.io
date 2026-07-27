@@ -2,6 +2,7 @@
 title: "Exemple de custom Logger en shell"
 date: 2015-02-25 18:14:08
 author: "Josue Kouka"
+description: "A small bash logging module with leveled log functions (_info, _debug, etc.) built on the logger command."
 tags: ["shell", "bash", "logging", "logger"]
 categories: ["Linux"]
 ---
