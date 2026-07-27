@@ -2,6 +2,7 @@
 title: "Simple Concurrent Web Scraping in Go with Geziyor, GoQuery, and Headless Chrome"
 date: 2024-10-17
 author: "Josué"
+description: "Using Geziyor, GoQuery, and headless Chrome to build concurrent Go web scrapers - from static HTML to JavaScript-rendered pages."
 tags: ["golang", "scraping", "web"]
 ---
 
@@ -9,7 +10,7 @@ Web scraping is a powerful technique for extracting data from websites, and Go p
 
 We'll use Geziyor for its powerful scraping capabilities and built-in concurrency, GoQuery for HTML parsing, and headless Chrome for JavaScript rendering.
 
-## TLDR: source code
+If you've read [How to Test Go Code Without a Test Framework]({{< ref "how-to-test-go-code-without-a-test-framework.md" >}}), the `DataExporter[T]` pattern below will feel familiar - same generics-over-reflection instinct, applied to scraping instead of assertions.
 
 ## Installation
 
@@ -195,12 +196,49 @@ func main() {
 }
 ```
 
+## Being a Good Citizen: Rate Limiting and Retries
+
+Everything above scrapes as fast as the target server lets it, which is exactly the kind of thing that gets an IP banned. Geziyor exposes `RequestDelay` and `ConcurrentRequests` on `Options` to cap that:
+
+```go
+g := geziyor.NewGeziyor(&geziyor.Options{
+    StartURLs:          []string{"http://quotes.toscrape.com/"},
+    ParseFunc:          quotesParse,
+    Exporters:          []export.Exporter{&exporter},
+    ConcurrentRequests: 2,               // at most 2 requests in flight at once
+    RequestDelay:       500 * time.Millisecond, // pause between requests
+})
+```
+
+And a request-level retry for the pages that do fail (timeouts, 5xx, flaky JS rendering):
+
+```go
+func quotesParseWithRetry(g *geziyor.Geziyor, r *client.Response) {
+    if r.Response.StatusCode >= 500 {
+        if r.Request.Meta["retries"] == nil {
+            r.Request.Meta["retries"] = 0
+        }
+        retries := r.Request.Meta["retries"].(int)
+        if retries < 3 {
+            r.Request.Meta["retries"] = retries + 1
+            g.Get(r.Request.URL.String(), quotesParseWithRetry)
+            return
+        }
+        slog.Warn("giving up after 3 retries", "url", r.Request.URL.String())
+        return
+    }
+    quotesParse(g, r)
+}
+```
+
+Neither of these is exotic - it's the same "wrap the thing that can fail" instinct as anywhere else in Go - but it's the difference between a scraper you run once and one you can leave running.
+
 ## Key Points
 
 - **Headless Chrome**: By setting the `BrowserEndpoint` option, we tell Geziyor to use our headless Chrome instance for rendering JavaScript.
 - **GetRendered**: Instead of the regular `Get` method, we use `GetRendered` to ensure JavaScript is executed before scraping.
 - **Manual Concurrency**: We implement manual concurrency using goroutines and a WaitGroup. This gives us fine-grained control over the scraping process.
-- **Error Handling**: In a production environment, you'd want to add error handling and potentially implement retries for failed requests.
+- **Rate limiting and retries**: `RequestDelay`, `ConcurrentRequests`, and a retry counter in request metadata keep the scraper polite and resilient, as shown above.
 
 ## Conclusion
 
