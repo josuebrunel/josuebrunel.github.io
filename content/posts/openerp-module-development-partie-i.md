@@ -1,7 +1,8 @@
 ---
-title: "Openerp Module Development : Partie I"
+title: "Openerp Module Development"
 date: 2012-10-04
 author: "Josue Kouka"
+description: "Writing a first OpenERP module from scratch: manifest, model, XML views, menus, and installing it on a local server."
 tags: ["openerp", "python", "xml"]
 categories: ["Openerp"]
 ---
@@ -288,4 +289,6 @@ Vous devriez voir le module __family__ apparaitre sur le menu
 ![Alt members](/images/openerp/members.png)
 
 
-Voila finie cette première partie , vous etes maintenant capable d'écrire un simple module openerp et de créer toutes les familles du [jeu des 7 familles](http://fr.wikipedia.org/wiki/7_familles) .
+Voila, vous etes maintenant capable d'écrire un simple module openerp et de créer toutes les familles du [jeu des 7 familles](http://fr.wikipedia.org/wiki/7_familles) .
+
+> **Note (2026):** Cet article devait a l'origine avoir une suite ("Partie II") qui n'a jamais ete ecrite - le titre a ete simplifie en consequence. Par ailleurs, OpenERP a depuis ete renomme et a evolue en [Odoo](https://www.odoo.com/documentation/), dont l'architecture de modules reste proche de celle decrite ici mais dont l'API a evolue (ORM, decorateurs `@api`, etc.). Ce qui suit reste une bonne introduction au *concept* d'un module OpenERP/Odoo, mais pour du code fonctionnel aujourd'hui, referez-vous a la documentation Odoo actuelle.
