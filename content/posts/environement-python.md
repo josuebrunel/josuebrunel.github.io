@@ -2,6 +2,7 @@
 title: "Environement Python"
 date: 2012-10-07
 author: "Josue Kouka"
+description: "Setting up a Python dev environment: REPL autocompletion via PYTHONSTARTUP, and installing virtualenv/virtualenvwrapper."
 tags: ["python", "shell"]
 categories: ["Programming"]
 ---
