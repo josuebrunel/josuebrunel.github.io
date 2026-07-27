@@ -1,16 +1,18 @@
 ---
-title: "Migration base de donnee Openerp production a developpement"
+title: "Copier une base PostgreSQL de production vers un serveur de developpement"
 date: 2013-02-04
 author: "Josue Kouka"
-tags: ["postgresql", "openerp", "linux", "database"]
-categories: ["Openerp"]
+description: "pg_dump, scp, psql: la sequence de commandes pour copier une base PostgreSQL de production vers un serveur de developpement, sans outil GUI."
+tags: ["postgresql", "linux", "database"]
+categories: ["Linux"]
 ---
 
 Salut !!!!
-Etant un petit programmeur _openerp_ , il m'arrive tres souvent de vouloir travailler avec un environement 
-de production. Chose assez simple a realiser , par rapport a openerp, car il suffit d'exporter la base de 
-donnees de __production__ et  l'importer en __developpement__ .
-Oui oui !!! je n'utilise pas d'outils GUI comme _pgAdmin_ ^_^ .
+Cet article a ete ecrit a l'origine pour un projet _OpenERP_, mais la technique elle-meme n'a rien de specifique
+a OpenERP : c'est simplement la sequence `pg_dump` / `scp` / `psql` pour copier n'importe quelle base PostgreSQL
+de production vers un serveur de developpement, sans outil GUI comme _pgAdmin_ ^_^. Les etapes qui suivent
+gardent volontairement le contexte OpenERP d'origine (les noms de services a arreter/relancer), mais la partie
+PostgreSQL se transpose telle quelle a n'importe quelle stack.
 
 Prérequis :
 
