@@ -2,7 +2,8 @@
 title: "Importer un module depuis un dossier cachee en python"
 date: 2015-01-12 07:58:30
 author: "Josue Kouka"
-tags: ["Python", "Programming"]
+description: "Comment charger dynamiquement un module Python depuis un dossier cache (ex: ~/.myapp/settings.py) avec imp.load_source, et son equivalent moderne importlib."
+tags: ["python", "programming"]
 categories: ["Programming"]
 ---
 
@@ -63,3 +64,23 @@ josue@LokingMac:/tmp/tests$
 Le module a retenir est ***[imp](https://docs.python.org/2/library/imp.html?highlight=imp#imp.load_source)*** 
 
 ***NB*** : **IL MARCHE POUR TOUT**
+
+### Mise a jour : `imp` est mort, vive `importlib`
+
+Le module `imp` a ete deprecie depuis Python 3.4 et **retire completement en Python 3.12** : le code ci-dessus ne
+fonctionne plus tel quel sur une installation recente. L'equivalent moderne est `importlib.util` :
+
+```python
+import importlib.util
+import os
+
+path = os.path.realpath('.myapp/settings.py')
+spec = importlib.util.spec_from_file_location('settings', path)
+settings = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(settings)
+
+print(settings.LOG_FILENAME, settings.LOG_FILESIZE)
+```
+
+Meme idee (charger un module Python depuis un chemin de fichier arbitraire), mais `spec_from_file_location` /
+`module_from_spec` / `exec_module` est la voie supportee aujourd'hui.
