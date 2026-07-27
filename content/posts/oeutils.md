@@ -2,9 +2,12 @@
 title: "oeutils"
 date: 2013-03-23
 author: "Josue Kouka"
+description: "oeutils: a small Python XML-RPC wrapper for OpenERP, inspired by erppeek. Kept here as a historical project writeup."
 tags: ["openerp", "python", "xmlrpc", "api"]
 categories: ["Projects"]
 ---
+
+> **Historical note (2026):** OpenERP was renamed and evolved into [Odoo](https://www.odoo.com/) years ago, and its XML-RPC API has moved on since this was written. `oeutils` itself is unmaintained. Kept here as a project writeup, not as a recommendation to use it today.
 
 ## OEUTILS
 
