@@ -2,6 +2,7 @@
 title: "How to import projects from another gitlab instance"
 date: 2015-05-27
 author: "Josue Kouka"
+description: "A short shell guide to migrating Omnibus GitLab repository data between two server instances."
 tags: ["shell", "bash", "git", "gitlab"]
 categories: ["Linux"]
 ---
