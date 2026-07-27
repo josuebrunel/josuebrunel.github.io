@@ -2,6 +2,7 @@
 title: "Introduction aux Makefiles"
 date: 2013-02-05
 author: "Josue Kouka"
+description: "A beginner's introduction to Makefiles: what they solve, and building one up from a small C example."
 tags: ["makefile", "c", "c++"]
 categories: ["Programming"]
 ---
