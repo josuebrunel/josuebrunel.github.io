@@ -5,7 +5,7 @@ description: "Nutmeg's stats now get read out loud by an LLM - savage player roa
 tags: ["golang", "llm", "self-hosted", "soccer", "side-project"]
 ---
 
-Last time I said this might be a post on its own, if it turned into something worth shipping instead of a pile of prompt-tuning regrets. It shipped. Nutmeg now writes its own trash talk.
+[Last time]({{< ref "why-i-built-nutmeg.md" >}}) I said this might be a post on its own, if it turned into something worth shipping instead of a pile of prompt-tuning regrets. It shipped. Nutmeg now writes its own trash talk.
 
 {{< figure src="/img/nutmeg/player-roast.png" alt="Nutmeg player profile showing an AI-generated roast: 'Seven goal contributions in two games and Josh still managed to lose a match.'" caption="Josh scored five goals and assisted twice in two games. He still lost one. The robot noticed." >}}
 
@@ -27,7 +27,7 @@ That single constraint solved most of the mean-vs-funny problem for free. A mode
 
 ## It Never Gets to Block the Match
 
-The generation itself happens in the background. You log a match, the score and stats save immediately like they always did, and a queued job goes and asks the model for a roast and a match report after the fact. If the model's slow, unreachable, or just returns something empty or broken, the request that logged your match never notices or waits on any of it. Worst case, you see "Full match report coming soon" for a few seconds until the job finishes.
+The generation itself happens in the background. You log a match, the score and stats save immediately like they always did, and a [queued job]({{< ref "my-simple-and-happy-stack.md" >}}) goes and asks the model for a roast and a match report after the fact. If the model's slow, unreachable, or just returns something empty or broken, the request that logged your match never notices or waits on any of it. Worst case, you see "Full match report coming soon" for a few seconds until the job finishes.
 
 That also means a bad generation never overwrites a good one. Every generation gets validated (not empty, not longer than the character budget, doesn't trip a blocklist) before it's allowed to replace whatever was there before. A failure just leaves the previous roast standing and gets logged - the site never shows you half-written garbage.
 

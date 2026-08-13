@@ -105,7 +105,8 @@ Every allergy showed up with no reaction, every time, silently.
 A third bug was uglier: a `NullPointerException` that only fired when
 opening a patient's Encounter view. There's no source jar for OSCAR's
 compiled classes, so I decompiled the live one with `javap -c -l` and read
-the bytecode. `RxPrescriptionData.toPrescription` was unboxing
+the bytecode - the same no-docs-read-the-artifact-instead move as
+[reverse-engineering the Pulse Series One's BLE protocol]({{< ref "building-pulsedash.md" >}}). `RxPrescriptionData.toPrescription` was unboxing
 `drug.getRepeat().intValue()` with no null check, while the field right
 next to it in the same method *did* have one. `hide_cpp`, `takemin`,
 `takemax` all map to Java primitives on OSCAR's Hibernate entity - a NULL
@@ -129,7 +130,8 @@ patients. It falls over on a real Synthea export, which can run well past
   that batch's patient IDs. It trades extra I/O for a hard ceiling on
   memory, which is the whole point: an export "well over 20GB" ingests
   without OOMing, no matter the machine.
-- A small worker pool does the writing:
+- A small worker pool does the writing, the same manual goroutines-and-WaitGroup
+  instinct as [Simple Concurrent Web Scraping in Go]({{< ref "simple-concurrent-web-scraping-in-go.md" >}}):
 
 ```go
 jobs := make(chan Patient)
@@ -161,10 +163,11 @@ The payoff, on the same dataset: **~18 minutes serial down to ~10 minutes
 parallel** for a fresh load, and **~18 minutes down to ~3.5 minutes** for
 an idempotent rerun against already-loaded data.
 
-None of this is exotic. That's the point. Goroutines and channels made the
-worker pool small enough to read in one sitting instead of a class
-hierarchy. A single static binary sits next to a Tomcat-and-MariaDB stack
-without dragging in a second runtime. And typed Go structs on the
+None of this is exotic. That's the point - the same [boring beats
+clever]({{< ref "my-simple-and-happy-stack.md" >}}) instinct as everywhere
+else. Goroutines and channels made the worker pool small enough to read in
+one sitting instead of a class hierarchy. A single static binary sits next
+to a Tomcat-and-MariaDB stack without dragging in a second runtime. And typed Go structs on the
 Synthea-to-OSCAR field mapping meant a wrong column showed up as a compile
 error - not a blank cell three screens deep in the GUI, discovered weeks
 later, like the ones above.

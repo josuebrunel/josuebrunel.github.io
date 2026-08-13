@@ -17,7 +17,7 @@ Actually is more ***Model View Template*** architecture like in the [Django Fram
 
 It's currently in development but it's quite usable, i advise you to use a ___virtual environment___ though. 
 
-**BoWee** uses **peewee** as ORM and obviously **bottle** as Web Framework. 
+**BoWee** uses **peewee** as ORM and obviously [**bottle**]({{< ref "introduction-a-bottle.md" >}}) as Web Framework. 
 
 ## Requirements
 To be able to use *BoWee*, it's required to :

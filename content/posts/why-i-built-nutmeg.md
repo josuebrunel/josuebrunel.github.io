@@ -141,6 +141,8 @@ mean about someone's bad week. If that turns into something worth shipping
 instead of a pile of prompt-tuning regrets, it's a post on its own - I'm not
 promising a Part 2 I haven't written yet.
 
+**Update:** it shipped - see [I Taught Nutmeg to Roast My Pickup Soccer Group]({{< ref "i-taught-nutmeg-to-roast-my-pickup-soccer-group.md" >}}).
+
 ---
 
 *Nutmeg is MIT-licensed and self-hosted. [View on GitHub](https://github.com/josuebrunel/nutmeg).*

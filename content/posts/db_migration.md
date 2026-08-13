@@ -8,7 +8,7 @@ categories: ["Linux"]
 ---
 
 Salut !!!!
-Cet article a ete ecrit a l'origine pour un projet _OpenERP_, mais la technique elle-meme n'a rien de specifique
+Cet article a ete ecrit a l'origine pour un projet [_OpenERP_]({{< ref "openerp-module-development-partie-i.md" >}}), mais la technique elle-meme n'a rien de specifique
 a OpenERP : c'est simplement la sequence `pg_dump` / `scp` / `psql` pour copier n'importe quelle base PostgreSQL
 de production vers un serveur de developpement, sans outil GUI comme _pgAdmin_ ^_^. Les etapes qui suivent
 gardent volontairement le contexte OpenERP d'origine (les noms de services a arreter/relancer), mais la partie

@@ -22,7 +22,7 @@ readline.parse_and_bind('tab: complete')
 print("Python env loaded . Enjoy autocompletion ^_^ ")
 
 ```
-*Note*:Vous pouvez vous servir du meme fichier pour importer differentes libraries que vous voudriez avoir au lancement de votre shell python (e.g sqlite3, peewee, tweepy, ...)
+*Note*:Vous pouvez vous servir du meme fichier pour importer differentes libraries que vous voudriez avoir au lancement de votre shell python (e.g sqlite3, peewee, tweepy, ...). Pour un exemple plus complet d'un fichier .pythonenv, voir [cet article]({{< ref "environement-python-exemple-dun-fichier-pythonenv.md" >}}).
 
 puis ajouter ces deux lignes a votre fichier .bashrc
 
@@ -37,7 +37,7 @@ Relancez votre terminal et l'autocompletion sur votre shell python sera active
 
 [__VirtualEnv__](http://pypi.python.org/pypi/virtualenv) est un petit outil python permettant de creer des environements isoles dans lequel vous pourrez installer des packages sans interferer avec d'autres environements virtuels ou votre environement systeme .
 Son utilite se fait fortement ressentir losque l'on est amene a travailler sur des versions differentes d'un meme packages ou lorsque l'on veut tester des packages.
-__VirtualEnvWrapper__ est un **wrapper** comme son nom l'indique, qui expose plusieurs fonctionalites de **virtualenv** de maniere assez simple.
+__VirtualEnvWrapper__ est un **wrapper** comme son nom l'indique, qui expose plusieurs fonctionalites de **virtualenv** de maniere assez simple. Pour creer un virtualenv avec une version specifique de python, voir [cet article]({{< ref "virtualenv-avec-une-autre-version-de-python.md" >}}).
 
 ### B- **VirtualEnv** et **VirtualenvWrapper**
 
