@@ -7,7 +7,7 @@ tags: ["golang", "healthcare", "emr", "data-migration", "synthea", "oscar"]
 
 I wanted to try OSCAR EMR for a project. OSCAR ships empty.
 
-No demo patients, no sample charts, no seeded data of any kind - just a
+No demo patients, no sample charts, no seeded data of any kind: just a
 login screen and a database shaped like a full electronic medical record
 with nothing in it. You can't evaluate an EMR, or demo one, by staring at
 an empty schema. I needed patients: people with allergies, prescriptions,
@@ -34,7 +34,7 @@ later, because it comes back to bite.
 To do that honestly, I needed OSCAR's *real* schema, not a stand-in. The
 first version shipped with a toy 246-line schema, six tables, enough to
 get something moving. A real migration test needs the real thing: the
-actual ~580-table Open-O/OSCAR 19 schema, vendored verbatim from upstream.
+actual ~580-table Open-O/OSCAR 19 schema, vendored as-is from upstream.
 `oscarinit.sql` alone is 13,209 lines. `oscardata_bc.sql` is another
 20,919. Loading that in the right order, and discovering that order
 *matters*, is where the archaeology starts.
@@ -42,7 +42,7 @@ actual ~580-table Open-O/OSCAR 19 schema, vendored verbatim from upstream.
 Two examples:
 
 - `bc_pharmacies.sql` references a `pharmacyInfo.uid` column that doesn't
-  exist yet when it runs - it's only added by `oscarinit_2025.sql`, a file
+  exist yet when it runs: it's only added by `oscarinit_2025.sql`, a file
   that loads *after* it in the upstream install order. I skipped
   pharmacies since I didn't need them, but the bug is still sitting there
   in OSCAR's own installer, unnoticed because nobody's tried to load that
@@ -62,21 +62,21 @@ backs up.
 The `dxresearch` table, OSCAR's problem list, has no description column at
 all. Only a code survives, tagged `coding_system = 'SNOMED'`. Whatever
 free text Synthea generated for that condition just doesn't have anywhere
-to go - it's dropped structurally, not by a bug, by design.
+to go: it's dropped structurally, not by a bug, by design.
 
 Immunizations taught me a different lesson: OSCAR has *two* tables for the
 same concept. A legacy `immunizations` table, which the application no
-longer reads - an obsolete text blob nobody bothered to remove - and a
-modern `preventions` table, which is what the GUI actually queries. Write
-to the wrong one and everything looks correct in your `INSERT` statement
-and invisible in the app. An EMR schema this old isn't one data model,
-it's several generations of one stacked on top of each other, and you have
-to know which layer is still alive.
+longer reads, and a modern `preventions` table, which is what the GUI
+actually queries. The legacy one is just an obsolete text blob nobody
+bothered to remove. Write to the wrong one and everything looks correct in
+your `INSERT` statement and invisible in the app. An EMR schema this old
+isn't one data model, it's several generations of one stacked on top of
+each other, and you have to know which layer is still alive.
 
 ## Synthea Has Its Own Opinions
 
 Not every quirk was OSCAR's fault. `imaging_studies.csv` writes one row
-per DICOM *instance*, not per study - a single CT scan that's one clinical
+per DICOM *instance*, not per study: a single CT scan that's one clinical
 event in real life shows up as dozens or hundreds of rows in the export.
 Loading that naively would've flooded OSCAR's `measurements` table with
 what looks like the same scan repeated 500 times. I collapsed rows by
@@ -93,7 +93,7 @@ sitting in the database, correct, queryable, `SELECT *`-able.
 
 The medication one turned out to be a column mismatch. OSCAR's
 `ListDrugs.jsp` renders the medication name by calling
-`RxPrescriptionData.getFullOutLine(drug.getSpecial())` - it never touches
+`RxPrescriptionData.getFullOutLine(drug.getSpecial())`: it never touches
 the `BN` column at all. I'd been writing the drug description into `BN`
 and leaving `special` empty. Correct data, wrong column, blank screen.
 
@@ -105,11 +105,11 @@ Every allergy showed up with no reaction, every time, silently.
 A third bug was uglier: a `NullPointerException` that only fired when
 opening a patient's Encounter view. There's no source jar for OSCAR's
 compiled classes, so I decompiled the live one with `javap -c -l` and read
-the bytecode - the same no-docs-read-the-artifact-instead move as
+the bytecode, the same no-docs-read-the-artifact-instead move as
 [reverse-engineering the Pulse Series One's BLE protocol]({{< ref "building-pulsedash.md" >}}). `RxPrescriptionData.toPrescription` was unboxing
 `drug.getRepeat().intValue()` with no null check, while the field right
 next to it in the same method *did* have one. `hide_cpp`, `takemin`,
-`takemax` all map to Java primitives on OSCAR's Hibernate entity - a NULL
+`takemax` all map to Java primitives on OSCAR's Hibernate entity: a NULL
 there isn't a missing value, it's an exception the first time anyone views
 that patient.
 
@@ -163,13 +163,13 @@ The payoff, on the same dataset: **~18 minutes serial down to ~10 minutes
 parallel** for a fresh load, and **~18 minutes down to ~3.5 minutes** for
 an idempotent rerun against already-loaded data.
 
-None of this is exotic. That's the point - the same [boring beats
+None of this is exotic. That's the point: the same [boring beats
 clever]({{< ref "my-simple-and-happy-stack.md" >}}) instinct as everywhere
 else. Goroutines and channels made the worker pool small enough to read in
 one sitting instead of a class hierarchy. A single static binary sits next
 to a Tomcat-and-MariaDB stack without dragging in a second runtime. And typed Go structs on the
 Synthea-to-OSCAR field mapping meant a wrong column showed up as a compile
-error - not a blank cell three screens deep in the GUI, discovered weeks
+error, not a blank cell three screens deep in the GUI, discovered weeks
 later, like the ones above.
 
 ## What Works, What Doesn't (Yet)
@@ -185,11 +185,11 @@ later, like the ones above.
 
 **What doesn't (yet):**
 - `claims.csv`, `devices.csv`, `organizations.csv`, `payers.csv`,
-  `providers.csv`, and `supplies.csv` all sit unused in the export - never
+  `providers.csv`, and `supplies.csv` all sit unused in the export: never
   ingested
 - Only the first allergy reaction gets captured; a second reaction, if
   Synthea generates one, is dropped
-- Provider access to a patient's program isn't handled generically - I had
+- Provider access to a patient's program isn't handled out of the box: I had
   to manually seed `program_provider` grants, because the vendored CAISI
   data doesn't grant any provider access to any program by default
 
@@ -200,7 +200,7 @@ measurement types, matching the source data's distinct-code count exactly.
 
 Once it was loaded, the next problem was a nicer one to have: *which*
 fake patient tells the best story in a demo. So I queried the loaded data
-and built a small cheat sheet - patient #257, "Mertz280, Rozella39," tops
+and built a small cheat sheet: patient #257, "Mertz280, Rozella39," tops
 the list with nearly 10,000 rows across every category; #514 has the
 heaviest medication and problem list; #831 is the one to pull up if
 someone wants to see CT imaging. OSCAR isn't empty anymore, and when I

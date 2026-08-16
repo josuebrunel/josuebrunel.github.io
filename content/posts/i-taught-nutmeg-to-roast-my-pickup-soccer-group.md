@@ -1,7 +1,7 @@
 ---
 title: "I Taught Nutmeg to Roast My Pickup Soccer Group (So I Wouldn't Have To)"
 date: 2026-08-03
-description: "Nutmeg's stats now get read out loud by an LLM - savage player roasts and full satirical match reports, grounded strictly in real numbers. Here's how it works and what almost went wrong."
+description: "Nutmeg's stats now get read out loud by an LLM: savage player roasts and full satirical match reports, grounded strictly in real numbers. Here's how it works and what almost went wrong."
 tags: ["golang", "llm", "self-hosted", "soccer", "side-project"]
 ---
 
@@ -11,7 +11,7 @@ tags: ["golang", "llm", "self-hosted", "soccer", "side-project"]
 
 ## What Actually Shipped
 
-I promised one thing: feed a player's stats to an LLM and let it write the roast. That part's live - every player's profile page has a box labeled **THE ROAST**, regenerated after every match they play in. But it grew past that. Nutmeg also writes a full match report after every game now, a fake sports-desk recap of who did what to whom, headline included.
+I promised one thing: feed a player's stats to an LLM and let it write the roast. That part's live: every player's profile page has a box labeled **THE ROAST**, regenerated after every match they play in. But it grew past that. Nutmeg also writes a full match report after every game now, a fake sports-desk recap of who did what to whom, headline included.
 
 {{< figure src="/img/nutmeg/match-article.png" alt="Nutmeg match report headlined 'Shawn Ascends To Godhood In Parulas' Narrow Triumph' after an 8-7 win" caption="Parulas won 8-7. Shawn had three goals and four assists. The headline writes itself, mostly because I told the model to write the headline." >}}
 
@@ -29,7 +29,7 @@ That single constraint solved most of the mean-vs-funny problem for free. A mode
 
 The generation itself happens in the background. You log a match, the score and stats save immediately like they always did, and a [queued job]({{< ref "my-simple-and-happy-stack.md" >}}) goes and asks the model for a roast and a match report after the fact. If the model's slow, unreachable, or just returns something empty or broken, the request that logged your match never notices or waits on any of it. Worst case, you see "Full match report coming soon" for a few seconds until the job finishes.
 
-That also means a bad generation never overwrites a good one. Every generation gets validated (not empty, not longer than the character budget, doesn't trip a blocklist) before it's allowed to replace whatever was there before. A failure just leaves the previous roast standing and gets logged - the site never shows you half-written garbage.
+That also means a bad generation never overwrites a good one. Every generation gets validated (not empty, not longer than the character budget, doesn't trip a blocklist) before it's allowed to replace whatever was there before. A failure just leaves the previous roast standing and gets logged: the site never shows you half-written garbage.
 
 ## Same Public Links, More to Read
 
@@ -39,14 +39,14 @@ The public share link I bragged about last time (no account, no signup, just cli
 
 **What works:**
 - The roasts and match reports are consistently funny without me babysitting every generation
-- Nobody's felt actually insulted yet - the "only real stats" rule is doing its job
+- Nobody's felt actually insulted yet: the "only real stats" rule is doing its job
 - It runs against a local model or Google's API interchangeably, so you're not locked into paying for tokens just to read jokes about your own five-a-side team
 - A bad or slow generation never blocks logging a match or shows broken content
 
 **What doesn't (yet):**
 - No memory across matches beyond the last ten, so a running rivalry doesn't build up the way a real commentator would reference "last time these two played"
 - The regenerate button has a cooldown, so if the first roast lands flat you're waiting ten minutes for a second opinion
-- Still no way to tune the tone per group - everyone gets the same savage-but-friendly default whether their group chat is savage or gentle
+- Still no way to tune the tone per group: everyone gets the same savage-but-friendly default whether their group chat is savage or gentle
 
 ## The Payoff
 
