@@ -5,7 +5,7 @@ description: "Getting a Synthea population usually means a Java CLI run and a bu
 tags: ["golang", "healthcare", "emr", "data-migration", "synthea", "oscar"]
 ---
 
-Last time, I loaded 1,163 synthetic patients into OSCAR EMR ({{< ref "oscar-emr-ships-empty.md" >}}). That post was mostly about what happens after you have the data: the schema archaeology, the load-order bugs, the rows that structurally don't fit anywhere. What it didn't dwell on is how I got that data in the first place: run Synthea's Java CLI, wait, and end up with a CSV/FHIR export that can run into the tens of gigabytes for a population you're going to shrink down to about ten tables' worth of fields anyway.
+Last time, I loaded 1,163 synthetic patients into [OSCAR EMR]({{< ref "oscar-emr-ships-empty.md" >}}). That post was mostly about what happens after you have the data: the schema archaeology, the load-order bugs, the rows that structurally don't fit anywhere. What it didn't dwell on is how I got that data in the first place: run Synthea's Java CLI, wait, and end up with a CSV/FHIR export that can run into the tens of gigabytes for a population you're going to shrink down to about ten tables' worth of fields anyway.
 
 That part bugged me enough to go back and remove it. `-generate` fabricates patients directly in memory, in bounded chunks, with no Synthea, no Java, no CSV export sitting on disk. Same shape of data going into OSCAR, none of the ceremony getting there.
 
