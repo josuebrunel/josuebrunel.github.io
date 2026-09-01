@@ -5,7 +5,7 @@ description: "Getting a Synthea population usually means a Java CLI run and a bu
 tags: ["golang", "healthcare", "emr", "data-migration", "synthea", "oscar"]
 ---
 
-Last time, I loaded 1,163 synthetic patients into [OSCAR EMR]({{< ref "oscar-emr-ships-empty.md" >}}). That post was mostly about what happens after you have the data: the schema archaeology, the load-order bugs, the rows that structurally don't fit anywhere. What it didn't dwell on is how I got that data in the first place: run Synthea's Java CLI, wait, and end up with a CSV/FHIR export that can run into the tens of gigabytes for a population you're going to shrink down to about ten tables' worth of fields anyway.
+Last time, I loaded **1,163** synthetic patients into [OSCAR EMR]({{< ref "oscar-emr-ships-empty.md" >}}). That post was mostly about what happens after you have the data: the schema archaeology, the load-order bugs, the rows that structurally don't fit anywhere. What it didn't dwell on is how I got that data in the first place. Synthea runs on Java and dumps a CSV/FHIR export that can run into the tens of gigabytes, all for a population you're going to shrink down to about ten tables' worth of fields.
 
 That part bugged me enough to go back and remove it. `-generate` fabricates patients directly in memory, in bounded chunks, with no Synthea, no Java, no CSV export sitting on disk. Same shape of data going into OSCAR, none of the ceremony getting there.
 
@@ -49,7 +49,7 @@ Each chunk gets generated, ingested, and dropped before the next one is built. A
 
 ## One writer, two producers
 
-The more interesting change is underneath: the old `ingestBatch` function got split so its database-writing internals live in a new `ingestPatientBatch(ctx, db, cfg, data)`, taking a `batchData` struct — patients, allergies, conditions, meds, immunizations, consults, diagnostics, imaging, procedures, care plans, each keyed by patient ID. Both the CSV path (`ingestBatch`, parsing Synthea's export) and the new in-memory path (`generateChunk`) build that same struct and hand it to the same writer.
+The more interesting change is underneath: the old `ingestBatch` function got split so its database-writing internals live in a new `ingestPatientBatch(ctx, db, cfg, data)`, taking a `batchData` struct: patients, allergies, conditions, meds, immunizations, consults, diagnostics, imaging, procedures, care plans, each keyed by patient ID. Both the CSV path (`ingestBatch`, parsing Synthea's export) and the new in-memory path (`generateChunk`) build that same struct and hand it to the same writer.
 
 That matters more than it sounds like. The transactional insert logic, the worker-pool fan-out, the idempotent `hin` hashing, all the correctness work from the last post's Go rewrite, none of that got duplicated for the generator. It's the same battle-tested code writing the rows; only where the rows come from changed.
 
@@ -57,9 +57,9 @@ That matters more than it sounds like. The transactional insert logic, the worke
 
 `generate.go`'s header comment says it plainly:
 
-> This is not a clinical simulator - there's no disease progression or comorbidity modeling like Synthea's - just structurally valid, referentially consistent, varied-enough records drawn from small curated code tables. Good enough for a demo/load-test population; not a Synthea replacement.
+> This is not a clinical simulator: there's no disease progression or comorbidity modeling like Synthea's, just structurally valid, referentially consistent, varied-enough records drawn from small curated code tables. Good enough for a demo/load-test population, not a Synthea replacement.
 
-Concretely: a patient gets 1-6 conditions pulled from a `conditionTemplates` table, medications derived from whatever conditions that patient has, 0-3 allergies, immunizations, consults, diagnostics, and imaging drawn from their own curated slices, procedures and care plans generated together as clinical events. Names, streets, locales, all come from small hardcoded lists. Patient IDs are minted by `randID`, a UUID-shaped random string with no relationship to Synthea's own IDs. It's internally consistent, plausible-looking data. It is not a simulation of anyone's actual disease trajectory, and it doesn't pretend to be.
+Concretely: a patient gets 1-6 conditions pulled from a `conditionTemplates` table, and medications are derived from whatever conditions that patient has. Allergies, immunizations, consults, diagnostics, and imaging come from their own curated slices, and procedures and care plans are generated together as clinical events. Names, streets, and locales all come from small hardcoded lists. Patient IDs are minted by `randID`, a UUID-shaped random string with no relationship to Synthea's own IDs. It's internally consistent, plausible-looking data. It is not a simulation of anyone's actual disease trajectory, and it doesn't pretend to be.
 
 If you need clinically realistic progression, comorbidity patterns, or anything research-grade, that's still Synthea's job, and `-generate` isn't trying to take it.
 
@@ -77,4 +77,4 @@ Real Synthea exports still earn their weight when the fidelity of the data matte
 
 ## The number that made it worth doing
 
-From the commit that shipped this: 10,000 patients generated and ingested in 1m14s, zero failures, zero orphan or duplicate rows. No Java, no CSV export, no 20GB sitting on disk waiting to be parsed down to the handful of fields OSCAR was ever going to use. Same destination as before, a much shorter way to get there.
+From the commit that shipped this: **10,000** patients generated and ingested in **1m14s**, zero failures, zero orphan or duplicate rows. No Java, no CSV export, no **20GB** sitting on disk waiting to be parsed down to the handful of fields OSCAR was ever going to use. Same destination as before, a much shorter way to get there.

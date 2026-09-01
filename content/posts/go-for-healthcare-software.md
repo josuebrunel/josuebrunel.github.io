@@ -5,7 +5,7 @@ description: "Generating fake patients, running recurring jobs, and keeping an A
 tags: ["golang", "healthcare", "emr", "concurrency", "architecture", "ai"]
 ---
 
-2 posts ago I loaded 1,163 fake patients into [an EMR that ships with nothing in it]({{< ref "oscar-emr-ships-empty.md" >}}). Last post, I found [a faster way to make more of them]({{< ref "generating-synthetic-oscar-patients-without-synthea.md" >}}). Both posts were about getting data in. This one is about what happens next: moving that data through recurring background work, and putting an AI layer on top of it that has to reach into the same data safely. 3 jobs that don't look alike on the surface, and Go's answer to each one still fits in a small file.
+2 posts ago I loaded **1,163** fake patients into [an EMR that ships with nothing in it]({{< ref "oscar-emr-ships-empty.md" >}}). Last post, I found [a faster way to make more of them]({{< ref "generating-synthetic-oscar-patients-without-synthea.md" >}}). Both posts were about getting data in. This one is about what happens next: moving that data through recurring background work, and putting an AI layer on top of it that has to reach into the same data safely. 3 jobs that don't look alike on the surface, and Go's answer to each one still fits in a small file.
 
 ## What we're building, and why the data has to be fake
 
@@ -21,7 +21,7 @@ It's a single Go binary with three modes: `-csv-dir` imports a Synthea export, t
 
 `-generate` isn't a clinical simulator. It's a few curated code tables producing the same record shapes a CSV export would, built `-patient-batch-size` at a time, each chunk generated, ingested, then discarded, so memory stays bounded no matter the total. The database-writing half is the same `ingestPatientBatch` the CSV path uses, unchanged. `-backfill-measure screening` works the other way: it reads active patients' real birth dates and sex back out of the `demographic` table and runs the same generators over them, which is how a mammography record only ever lands on a woman aged 40-74. It's also idempotent per patient per record type, so re-running converges instead of accumulating.
 
-Both modes fan out over the same worker pool, 16 goroutines by default, each patient in their own transaction. The race that only shows up once you go concurrent is the subtle one: in backfill mode the generators run inside the workers, and a `math/rand` source shared across them is a data race. The fix was one line per worker, its own generator seeded from the base seed plus its worker ID, so a debug run stays reproducible and a production run stays race-free. The payoff: 10,000 patients, their full health records along with them, generated and ingested in 1m14s, zero failures. That's the embarrassingly parallel half of this story: independent patients, fanned out over goroutines, gathered back through a channel. The dashboard reading that data back out doesn't have that problem. It has a different one.
+Both modes fan out over the same worker pool, 16 goroutines by default, each patient in their own transaction. The race that only shows up once you go concurrent is the subtle one: in backfill mode the generators run inside the workers, and a `math/rand` source shared across them is a data race. The fix was one line per worker, its own generator seeded from the base seed plus its worker ID, so a debug run stays reproducible and a production run stays race-free. The payoff: **10,000** patients, their full health records along with them, generated and ingested in **1m14s**, zero failures. That's the embarrassingly parallel half of this story: independent patients, fanned out over goroutines, gathered back through a channel. The dashboard reading that data back out doesn't have that problem. It has a different one.
 
 ## RiverQueue: one queue for every recurring job
 
@@ -44,7 +44,7 @@ Embed the defaults, implement one method. No Redis, no RabbitMQ, no separate bro
 
 ## Guardrails and de-identification
 
-Because this eventually points at real patient data, not just synthetic, the same plainness shows up in a few small, checkable guardrails around it. The service that computes measures connects to the EMR through a database user that can only read, enforced by the database itself. A published rate sits behind a trigger that refuses `UPDATE` or `DELETE` outright. A rate computed from too small a cohort doesn't get published at all. One of these caught something real this week: before publishing a new snapshot, the pipeline compares this run's data volume against the last comparable run, and it refused to publish when that swing hit 322%, logging why instead of guessing. Every one of those is a migration, a trigger, or a comparison between two integers, and none of them care whether the thing reading the result next is a chart or a model.
+Because this eventually points at real patient data, not just synthetic, the same plainness shows up in a few small, checkable guardrails around it. The service that computes measures connects to the EMR through a database user that can only read, enforced by the database itself. A published rate sits behind a trigger that refuses `UPDATE` or `DELETE` outright. A rate computed from too small a cohort doesn't get published at all. One of these caught something real this week: before publishing a new snapshot, the pipeline compares this run's data volume against the last comparable run, and it refused to publish when that swing hit **322%**, logging why instead of guessing. Every one of those is a migration, a trigger, or a comparison between two integers, and none of them care whether the thing reading the result next is a chart or a model.
 
 The same queue runs the de-identification pass that stands between raw EMR data and anything else in the system, and that includes the AI layer. Patient records keep a birth year, never a full date of birth. Postal codes get trimmed down to a forward sortation area, nothing more precise. That job runs on its own schedule, the same way it always has, whether or not a model is on the other end of the data. The AI layer doesn't get a special path around it. It's just one more consumer standing downstream of a queue that was already there.
 
@@ -64,7 +64,7 @@ Here's where the arithmetic gets almost unfair. On a small demo VM, 2 vCPUs, abo
 | EMR's own database | 0.0% | 141.9 MiB |
 | EMR's Java/Tomcat app | 0.2% | 814.7 MiB |
 
-The 2 Go services together use about 43 MiB of RAM and well under 1% CPU combined. The Java EMR alone, doing nothing but sitting there ready for a browser, uses roughly 19x that much memory by itself.
+The 2 Go services together use about **43 MiB** of RAM and well under 1% CPU combined. The Java EMR alone, doing nothing but sitting there ready for a browser, uses roughly **19x** that much memory by itself.
 
 The container images tell the same story before anything even runs:
 
@@ -74,7 +74,7 @@ The container images tell the same story before anything even runs:
 | Go worker | 34 MB |
 | EMR's Java/Tomcat app | 1.81 GB |
 
-That's a 21x difference, and none of it took tuning: `CGO_ENABLED=0 go build` and a small base image gets you there by default. On that VM, 5 containers ran together comfortably with almost 4GB still free, and nearly all of the machine's budget went to the one piece nobody on this project controls, the third-party EMR, not the Go services actually doing the work.
+That's a **21x** difference, and none of it took tuning: `CGO_ENABLED=0 go build` and a small base image gets you there by default. On that VM, 5 containers ran together comfortably with almost 4GB still free, and nearly all of the machine's budget went to the one piece nobody on this project controls, the third-party EMR, not the Go services actually doing the work.
 
 ## A pattern, not a coincidence
 

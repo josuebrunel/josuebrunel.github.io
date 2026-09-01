@@ -1,7 +1,7 @@
 ---
 title: "OSCAR EMR Ships Empty (So I Loaded 1,163 Fake Patients Into It)"
 date: 2026-08-13
-description: "OSCAR EMR has no sample data out of the box. Here's how Synthea and a Go CLI filled it with 1,163 synthetic patients, and what a 15-year-old EMR schema taught me about healthcare data along the way."
+description: "OSCAR EMR has no sample data out of the box. Here's how Synthea and a Go CLI filled it with 1,163 synthetic patients, and what a 15-year-old EMR schema taught me about healthcare data."
 tags: ["golang", "healthcare", "emr", "data-migration", "synthea", "oscar"]
 ---
 
@@ -19,11 +19,11 @@ to load a CSV export of a few thousand fake people into OSCAR.
 That sounded like a CSV-to-database problem. It wasn't. It turned into
 reading a 15-year-old Ontario EMR's schema like an archaeologist,
 decompiling a Java class to find a missing null check, and eventually
-writing a Go CLI that goes from an empty `oscar` database to 1,163
+writing a Go CLI that goes from an empty `oscar` database to **1,163**
 fully-populated patients in under ten minutes. Here's what I learned along
 the way.
 
-## The Schema Is Not a Data Model, It's a History
+## The schema is not a data model, it's a history
 
 The tool writes straight to MariaDB with `database/sql`, skipping OSCAR's
 own REST API and its Java/Hibernate layer entirely. For synthetic dev data
@@ -35,8 +35,8 @@ To do that honestly, I needed OSCAR's *real* schema, not a stand-in. The
 first version shipped with a toy 246-line schema, six tables, enough to
 get something moving. A real migration test needs the real thing: the
 actual ~580-table Open-O/OSCAR 19 schema, vendored as-is from upstream.
-`oscarinit.sql` alone is 13,209 lines. `oscardata_bc.sql` is another
-20,919. Loading that in the right order, and discovering that order
+`oscarinit.sql` alone is **13,209** lines. `oscardata_bc.sql` is another
+**20,919**. Loading that in the right order, and discovering that order
 *matters*, is where the archaeology starts.
 
 Two examples:
@@ -49,7 +49,7 @@ Two examples:
   file in isolation.
 - `dxresearch_code`, the column that stores a patient's problem-list code,
   is a `varchar(10)`. Fine for short legacy codes. Not fine for modern
-  SNOMED codes, 652 of which in my export ran longer than 10 characters.
+  SNOMED codes, **652** of which in my export ran longer than 10 characters.
   I widened the column in my dev bootstrap, but any real deployment
   ingesting SNOMED-coded data hits the exact same wall.
 
@@ -57,7 +57,7 @@ You don't learn either of these from documentation. You learn them by
 trying to pour real-shaped data through the pipe and watching where it
 backs up.
 
-## Some Data Doesn't Fit Anywhere
+## Some data doesn't fit anywhere
 
 The `dxresearch` table, OSCAR's problem list, has no description column at
 all. Only a code survives, tagged `coding_system = 'SNOMED'`. Whatever
@@ -73,7 +73,7 @@ your `INSERT` statement and invisible in the app. An EMR schema this old
 isn't one data model, it's several generations of one stacked on top of
 each other, and you have to know which layer is still alive.
 
-## Synthea Has Its Own Opinions
+## Synthea has its own opinions
 
 Not every quirk was OSCAR's fault. `imaging_studies.csv` writes one row
 per DICOM *instance*, not per study: a single CT scan that's one clinical
@@ -85,7 +85,7 @@ study became one measurement, the way a clinician would actually read it.
 The synthetic data generator has its own model of the world, and it isn't
 always OSCAR's.
 
-## The Data Was Right. The Screen Lied Anyway.
+## The data was right. The screen lied anyway.
 
 Two bugs looked identical from the outside: a patient's medication list
 and allergy list rendered blank in the GUI, even though the rows were
@@ -117,7 +117,7 @@ The fix in all three cases was the same: write the row Hibernate would
 have insisted on if I'd gone through it. Skipping an ORM doesn't remove
 its invariants. It just hands you the job of enforcing them yourself.
 
-## Where Go Actually Earned Its Keep
+## Where Go actually earned its keep
 
 The first version loaded whole CSVs into memory. Fine for a few thousand
 patients. It falls over on a real Synthea export, which can run well past
@@ -128,7 +128,7 @@ patients. It falls over on a real Synthea export, which can run well past
 - Patients get batched (500 at a time, by default). For each batch, every
   per-patient CSV gets re-streamed from disk and filtered down to just
   that batch's patient IDs. It trades extra I/O for a hard ceiling on
-  memory, which is the whole point: an export "well over 20GB" ingests
+  memory, which is the whole point: an export "well over **20GB**" ingests
   without OOMing, no matter the machine.
 - A small worker pool does the writing, the same manual goroutines-and-WaitGroup
   instinct as [Simple Concurrent Web Scraping in Go]({{< ref "simple-concurrent-web-scraping-in-go.md" >}}):
@@ -169,10 +169,9 @@ else. Goroutines and channels made the worker pool small enough to read in
 one sitting instead of a class hierarchy. A single static binary sits next
 to a Tomcat-and-MariaDB stack without dragging in a second runtime. And typed Go structs on the
 Synthea-to-OSCAR field mapping meant a wrong column showed up as a compile
-error, not a blank cell three screens deep in the GUI, discovered weeks
-later, like the ones above.
+error, not a blank cell three screens deep in the GUI.
 
-## What Works, What Doesn't (Yet)
+## What works, what doesn't (yet)
 
 **What works:**
 - 1,163 synthetic patients, fully populated, GUI renders correctly across
@@ -193,15 +192,15 @@ later, like the ones above.
   to manually seed `program_provider` grants, because the vendored CAISI
   data doesn't grant any provider access to any program by default
 
-## The Payoff
+## The payoff
 
-Final count: 1,163 patients, 369,205 measurements spanning 390 distinct
+Final count: 1,163 patients, **369,205** measurements spanning **390** distinct
 measurement types, matching the source data's distinct-code count exactly.
 
 Once it was loaded, the next problem was a nicer one to have: *which*
 fake patient tells the best story in a demo. So I queried the loaded data
 and built a small cheat sheet: patient #257, "Mertz280, Rozella39," tops
-the list with nearly 10,000 rows across every category; #514 has the
+the list with nearly **10,000** rows across every category; #514 has the
 heaviest medication and problem list; #831 is the one to pull up if
 someone wants to see CT imaging. OSCAR isn't empty anymore, and when I
 need to demo it, I already know exactly which name to search for.
