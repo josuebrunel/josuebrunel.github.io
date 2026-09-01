@@ -78,3 +78,22 @@ Real Synthea exports still earn their weight when the fidelity of the data matte
 ## The number that made it worth doing
 
 From the commit that shipped this: **10,000** patients generated and ingested in **1m14s**, zero failures, zero orphan or duplicate rows. No Java, no CSV export, no **20GB** sitting on disk waiting to be parsed down to the handful of fields OSCAR was ever going to use. Same destination as before, a much shorter way to get there.
+
+## Post-publish update: backfilling measures into existing patients
+
+`-backfill-measure` joined the CLI after this post went out. Where `-generate` fabricates brand-new patients, backfill does the opposite: it adds one data domain's synthetic records to patients that already exist in a running OSCAR instance, and leaves everything else alone.
+
+It queries `demographic WHERE patient_status = 'AC'` (capped by `-limit`, 0 = all active patients), reads each patient's real birth date and sex back out of the database, and runs them through the same generators `-generate` uses. So a screening like mammography only ever lands on a woman aged 40-74, computed from the patient's actual recorded age and sex instead of fabricated alongside a new chart:
+
+```bash
+./synthea-oscar -backfill-measure screening -limit 500 \
+  -dsn "oscar:oscar@tcp(127.0.0.1:3306)/oscar"
+```
+
+Six measures exist so far: `screening`, `immunizations`, `allergies`, `conditions`, `medications`, and `consultations`. The `medications` one even scales its count off the patient's existing condition count, so a patient with more problems gets more drugs, same rule as `-generate`. Diagnostics, imaging, procedures, and care plans aren't backfillable yet: they write into `measurements`, which needs its `measurementType` rows seeded first, and the backfill worker pool doesn't have that pre-seed step.
+
+The part I liked most is that backfill fixes the idempotency gap this post complained about. `-generate` re-running mints a second population; backfill converges instead. Every measure checks for an existing row of that type per patient before inserting, so re-running only fills in what's missing. Not always in one run: `screening` and `immunizations` converge within a few runs, while `allergies` and `conditions` draw from a bigger template pool and can take more. The guarantee is "no duplicates," not "one run reaches the final state."
+
+One concurrency detail is the mirror image of the chunking story above. In `-generate` the generators run single-threaded before any goroutine starts, so one seeded RNG is safe. In backfill the generators run *inside* the worker pool, one goroutine per patient, so a shared `*rand.Rand` would be a data race. The fix is the same shape as the rest of the codebase: each worker gets its own RNG, seeded from the base seed plus its worker ID.
+
+`-dry-run` behaves differently too. The CSV and `-generate` dry-runs never touch the database. Backfill's dry-run still connects and reads existing patients, because it has to know who to generate for; it just skips the insert and commit, logging what it would have written instead.
