@@ -7,6 +7,8 @@ tags: ["postgresql", "linux", "database"]
 categories: ["Linux"]
 ---
 
+> **Note (2026):** Cet article suppose un serveur [OpenERP]({{< ref "openerp-module-development-partie-i.md" >}}) (services `openerp`/`apache2` a arreter et relancer), un projet depuis renomme et evolue en [Odoo](https://www.odoo.com/documentation/). La sequence `pg_dump`/`scp`/`psql` elle-meme reste valide pour n'importe quelle base PostgreSQL aujourd'hui ; seuls les noms de services cites sont dates.
+
 Salut !!!!
 Cet article a ete ecrit a l'origine pour un projet [_OpenERP_]({{< ref "openerp-module-development-partie-i.md" >}}), mais la technique elle-meme n'a rien de specifique
 a OpenERP : c'est simplement la sequence `pg_dump` / `scp` / `psql` pour copier n'importe quelle base PostgreSQL

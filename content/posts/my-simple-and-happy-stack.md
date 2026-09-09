@@ -1,7 +1,7 @@
 ---
 title: "My SaaS Tech Stack: Chosen by an Engineer Who Likes Simplicity"
 date: 2026-02-03
-description: "Why my SaaS uses a boring, simple tech stack - and why that's exactly what makes it scalable."
+description: "Why my SaaS uses a boring, simple tech stack, and why that's exactly what makes it scalable."
 tags: ["saas", "golang", "htmx", "postgres", "architecture"]
 draft: false
 ---
@@ -173,7 +173,7 @@ func (h *Handler) VoidInvoice(c echo.Context) error {
 }
 ```
 
-The endpoint returns a fragment - just the row, not the full page. HTMX swaps it into the DOM. No SPA, no hydration bugs, no "why is this state different over here?" moments. Just HTML behaving responsibly.
+The endpoint returns a fragment: just the row, not the full page. HTMX swaps it into the DOM. No SPA, no hydration bugs, no "why is this state different over here?" moments. Just HTML behaving responsibly.
 
 ---
 
@@ -240,7 +240,7 @@ if err := riverClient.Start(ctx); err != nil {
 }
 ```
 
-`riverClient.Start` runs in the same binary as the HTTP server - one process, one deploy artifact, no separate worker fleet to keep in sync with the API.
+`riverClient.Start` runs in the same binary as the HTTP server: one process, one deploy artifact, no separate worker fleet to keep in sync with the API.
 
 ---
 
@@ -256,9 +256,9 @@ In this stack, Redis is:
 It is **not** a source of truth.  
 It is **not** the backbone of the system.
 
-Concretely, "session state" means the session token itself lives in Redis with a TTL, but the user record it points to is always PostgreSQL. If a session key expires or Redis is flushed, the user just logs in again - no data is lost, because Redis was never holding anything that mattered long-term.
+Concretely, "session state" means the session token itself lives in Redis with a TTL, but the user record it points to is always PostgreSQL. If a session key expires or Redis is flushed, the user just logs in again. No data is lost, because Redis was never holding anything that mattered long-term.
 
-Used intentionally, Redis speeds things up without turning the app into a distributed puzzle. If Redis goes down, the app still works - it's just slower.
+Used intentionally, Redis speeds things up without turning the app into a distributed puzzle. If Redis goes down, the app still works. It's just slower.
 
 ---
 
@@ -271,13 +271,13 @@ That's why I use:
 - **DaisyUI** when utility components like dropdowns and modals save time
 - **PicoDaisy** (https://josuebrunel.github.io/picodaisy/), my own hybrid library that bridges the two
 
-The goal isn't flashy UI - it's shipping changes without emotional damage. A button should look like a button without me writing 40 lines of CSS.
+The goal isn't flashy UI. It's shipping changes without emotional damage. A button should look like a button without me writing 40 lines of CSS.
 
 ---
 
 ## Testing: No Framework Needed Here Either
 
-The same "reach for the standard library first" instinct applies to testing. Handlers and queries get table-driven tests using plain `testing.T`, generics, and `t.Helper()` for readable failures - no assertion library, no mocking framework. I wrote up the actual pattern in [How to Test Go Code Without a Test Framework]({{< ref "how-to-test-go-code-without-a-test-framework.md" >}}); it's the same philosophy as everything above, just applied to tests instead of infrastructure.
+The same "reach for the standard library first" instinct applies to testing. Handlers and queries get table-driven tests using plain `testing.T`, generics, and `t.Helper()` for readable failures: no assertion library, no mocking framework. I wrote up the actual pattern in [How to Test Go Code Without a Test Framework]({{< ref "how-to-test-go-code-without-a-test-framework.md" >}}); it's the same philosophy as everything above, just applied to tests instead of infrastructure.
 
 ---
 
@@ -287,15 +287,13 @@ This stack has a feature I value more than benchmarks:
 
 **It's calm to operate.**
 
-Deployments are a single binary scp'd to a server. Rollbacks are the previous binary. If I want containers, it's a `Dockerfile` with `FROM alpine:latest` and `COPY myapp .` - no distroless multi-stage orchestration dance.
+Deployments are a single binary scp'd to a server. Rollbacks are the previous binary. If I want containers, it's a `Dockerfile` with `FROM alpine:latest` and `COPY myapp .`, no distroless multi-stage orchestration dance.
 
 Failures are understandable. When something breaks, the signal-to-noise ratio is high. A Go stack trace tells me exactly which line panicked. An Echo error log tells me which route and method. A Postgres query log tells me which query is slow.
 
 No frontend-backend negotiations about API contracts. No distributed-system cosplay. Just a small set of tools working together quietly.
 
-**What I'd reconsider**: RiverQueue's job dashboard is bare-bones compared to something like Sidekiq's - if you need rich visibility into queue depth and retry history, you're writing your own views on top of `river_job`, not getting them for free. That's a real cost of picking the boring, embedded option over a dedicated queue product with a mature UI.
-
-I apply the same "boring beats clever" instinct outside of SaaS work too - see [Building PulseDash]({{< ref "building-pulsedash.md" >}}) for the same Go-plus-embedded-SQLite approach on a much smaller, self-hosted project.
+I apply the same "boring beats clever" instinct outside of SaaS work too, see [Building PulseDash]({{< ref "building-pulsedash.md" >}}) for the same Go-plus-embedded-SQLite approach on a much smaller, self-hosted project.
 
 ---
 
@@ -338,15 +336,19 @@ Migrations are SQL files embedded in the binary. Deploying applies them automati
 
 ---
 
-## Final Thought
+## What Works, What Doesn't (Yet)
 
-This stack won't win "Most Exciting Architecture" awards.
+**What works:**
+- One static Go binary: deploy is `scp` and restart, rollback is the previous binary
+- Postgres CHECK constraints, generated columns, and partial unique indexes catch whole categories of bugs before they reach application code
+- RiverQueue runs background jobs in the same binary and datastore as the API, no broker cluster and no separate worker fleet to keep in sync
+- HTMX plus server-rendered Templ fragments keep the frontend boring: no SPA, no hydration bugs, no client-side state to debug
+- Embedded SQL migrations mean deploying and migrating are the same step, with no drift between migration tool versions
 
-But it will:
-- Scale with the product
-- Stay maintainable
-- Let me focus on users instead of frameworks
+**What doesn't (yet):**
+- RiverQueue's job dashboard is bare-bones compared to something like Sidekiq's: rich visibility into queue depth and retry history means writing your own views on top of `river_job`, not getting them for free
+- Redis is deliberately disposable, which means there's no persistent warm cache to fall back on if it gets flushed under load
+- There's no API contract or SDK for third-party integrations, fine for a single first-party frontend, but a real constraint the day this needs a public API
+- Everything runs on one VPS: scaling out, not just up, will need real work I haven't done yet
 
-And honestly?
-
-That's how you build something that lasts.
+This stack won't win "Most Exciting Architecture" awards. But boring is the point: it's what let me spend my attention on the product instead of the plumbing.

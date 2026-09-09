@@ -100,3 +100,5 @@ I'm 24
 Dans le code ci dessus, on voit bien que pour l'appliquer a toutes les _nouvelles instances_ il faut ajouter la **nouvelle methode** a la **classe**.
 
 Ben voila, pas sure que ce soit utile, mais plutot interressant a savoir.
+
+Dans la meme veine de petites astuces Python: [Comprendre *, **, *args, **kwargs]({{< ref "comprendre-args-kwargs.md" >}}) et [Importer un module depuis un dossier cachee en python]({{< ref "importer-un-module-depuis-un-dossier-cachee-en-python.md" >}}).

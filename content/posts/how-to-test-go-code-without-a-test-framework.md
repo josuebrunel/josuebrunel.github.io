@@ -1,12 +1,11 @@
 ---
 title: "How to Test Go Code Without a Test Framework"
 date: 2024-08-29
-author: "Josué"
-description: "Writing type-safe Go test helpers with generics, reflect.DeepEqual, and testing.Helper() - no external test framework required."
+description: "Writing type-safe Go test helpers with generics, reflect.DeepEqual, and testing.Helper(): no external test framework required."
 tags: ["golang", "testing"]
 ---
 
-In Go, testing your code doesn't necessarily require a complex test framework. With the language's built-in capabilities, you can write robust and maintainable tests that cover a wide range of scenarios. In this post, we'll explore how to test Go code effectively without relying on any external test frameworks, focusing on leveraging reflection, generics, and the `testing.Helper()` function.
+Go's standard library is enough to write robust, maintainable tests. You don't need a test framework to get there. In this post, I'll walk through testing Go code with nothing but reflection, generics, and the built-in `testing.Helper()` function.
 
 ## tl;dr
 
@@ -77,14 +76,14 @@ Concretely, here's the difference. Without `t.Helper()`, a failing assertion poi
     assert.go:41: [ASSERT-FAILED] - 6 != 5
 ```
 
-`assert.go:41` is the `t.Fatalf` line inside `AssertT` itself - useless, because every failing assertion in the whole test suite reports that exact same line. With `t.Helper()` added, the same failure reports the actual call site:
+`assert.go:41` is the `t.Fatalf` line inside `AssertT` itself, useless, because every failing assertion in the whole test suite reports that exact same line. With `t.Helper()` added, the same failure reports the actual call site:
 
 ```
 --- FAIL: TestAdd/intAddition (0.00s)
     main_test.go:65: [ASSERT-FAILED] - 6 != 5
 ```
 
-`main_test.go:65` is the `AssertT(t, result, 5)` line inside `TestAdd` - click it in your editor and you're looking at the exact case that failed, not the helper's internals.
+`main_test.go:65` is the `AssertT(t, result, 5)` line inside `TestAdd`: click it in your editor and you're looking at the exact case that failed, not the helper's internals.
 
 ## Writing Better Test Cases with Generics
 
@@ -150,7 +149,7 @@ The use of generics allows us to write one set of test logic that can be applied
 
 ## Benchmarks Need No Framework Either
 
-The same standard-library-only approach covers performance testing. `testing.B` doesn't need `AssertT` or any helper at all - just a loop and `b.N`:
+The same standard-library-only approach covers performance testing. `testing.B` doesn't need `AssertT` or any helper at all: just a loop and `b.N`.
 
 ```go
 func BenchmarkAssert(b *testing.B) {
@@ -170,13 +169,11 @@ Running `go test -bench=. -benchmem` on both is actually a good way to see the r
 
 If you'd rather see generics applied to a different everyday problem, [Simple Concurrent Web Scraping in Go]({{< ref "simple-concurrent-web-scraping-in-go.md" >}}) uses the same `[T any]` pattern for a generic data exporter instead of a generic assertion.
 
-## Conclusion
+## No Framework, No Excuse
 
-By leveraging Go's standard library, generics, and testing features like `testing.Helper()`, we can create a powerful, type-safe, and efficient testing solution without relying on external frameworks. This approach not only reduces dependencies but also deepens our understanding of Go's capabilities.
+Generics and `testing.Helper()` get you type-safe, readable test helpers with zero dependencies. That's the whole pitch: one less thing to vendor, one less API to learn before you can write a test.
 
-Remember, the goal of testing is to ensure code correctness and maintainability. Whether you choose to use these techniques or a full-fledged testing framework, the most important thing is to write clear, effective tests that give you confidence in your code.
-
-Happy testing, Gophers!
+None of this rules out reaching for a framework later, testify's assertions or a table-driven helper library are still fine choices. But it's worth knowing you don't need one to get started.
 
 ## Resources
 

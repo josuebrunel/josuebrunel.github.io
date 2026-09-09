@@ -1,20 +1,19 @@
 ---
 title: "Simple Concurrent Web Scraping in Go with Geziyor, GoQuery, and Headless Chrome"
 date: 2024-10-17
-author: "Josué"
-description: "Using Geziyor, GoQuery, and headless Chrome to build concurrent Go web scrapers - from static HTML to JavaScript-rendered pages."
+description: "Using Geziyor, GoQuery, and headless Chrome to build concurrent Go web scrapers: from static HTML to JavaScript-rendered pages."
 tags: ["golang", "scraping", "web"]
 ---
 
-Web scraping is a powerful technique for extracting data from websites, and Go provides excellent tools for this task. In this blog post, we'll explore how to use the Geziyor library along with GoQuery and headless Chrome to create efficient, concurrent web scrapers in Go.
+Go has excellent tools for web scraping. In this post, I'll walk through using the Geziyor library with GoQuery and headless Chrome to build efficient, concurrent scrapers, from a static page to one that needs a real browser to render.
 
-We'll use Geziyor for its powerful scraping capabilities and built-in concurrency, GoQuery for HTML parsing, and headless Chrome for JavaScript rendering.
+Geziyor handles the scraping and built-in concurrency, GoQuery parses HTML, and headless Chrome renders JavaScript.
 
-If you've read [How to Test Go Code Without a Test Framework]({{< ref "how-to-test-go-code-without-a-test-framework.md" >}}), the `DataExporter[T]` pattern below will feel familiar - same generics-over-reflection instinct, applied to scraping instead of assertions.
+If you've read [How to Test Go Code Without a Test Framework]({{< ref "how-to-test-go-code-without-a-test-framework.md" >}}), the `DataExporter[T]` pattern below will feel familiar: same generics-over-reflection instinct, applied to scraping instead of assertions.
 
-## Installation
+## Pulling In Geziyor
 
-To get started, install Geziyor using the following command:
+Install Geziyor with:
 
 ```bash
 go get github.com/geziyor/geziyor
@@ -231,7 +230,7 @@ func quotesParseWithRetry(g *geziyor.Geziyor, r *client.Response) {
 }
 ```
 
-Neither of these is exotic - it's the same "wrap the thing that can fail" instinct as anywhere else in Go - but it's the difference between a scraper you run once and one you can leave running.
+Neither of these is exotic, it's the same "wrap the thing that can fail" instinct as anywhere else in Go, but it's the difference between a scraper you run once and one you can leave running.
 
 ## Key Points
 
@@ -240,10 +239,8 @@ Neither of these is exotic - it's the same "wrap the thing that can fail" instin
 - **Manual Concurrency**: We implement manual concurrency using goroutines and a WaitGroup. This gives us fine-grained control over the scraping process.
 - **Rate limiting and retries**: `RequestDelay`, `ConcurrentRequests`, and a retry counter in request metadata keep the scraper polite and resilient, as shown above.
 
-## Conclusion
+## From Static Pages to a Real Browser
 
-Geziyor, combined with GoQuery and headless Chrome, provides a powerful toolkit for web scraping in Go. From simple static pages to complex, JavaScript-rendered content, these tools can handle a wide range of scraping tasks efficiently and concurrently.
+Geziyor, GoQuery, and headless Chrome cover the whole range: simple static pages, paginated listings, and JavaScript-rendered content that needs a real browser to exist at all.
 
-Remember to use web scraping responsibly and ethically, respecting the terms of service of the websites you're scraping and considering the load your scraper puts on their servers.
-
-Happy scraping!
+One last thing worth saying plainly: check a site's terms of service and robots.txt before you point a concurrent scraper at it, and keep `RequestDelay` set to something polite. A scraper that gets an IP banned on day one isn't a scraper you can leave running.

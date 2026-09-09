@@ -11,7 +11,7 @@ categories: ["Projects"]
 
 ## OEUTILS
 
-__oeutils__ is a small python wrapper of the xml-rpc API for OpenERP. It is useful when it comes to  manipulate your OpenERP objects.
+__oeutils__ is a small python wrapper of the xml-rpc API for OpenERP. It is useful when it comes to  manipulate your OpenERP objects, the same objects you'd define in a custom module like the one in [OpenERP Module Development, Partie I]({{< ref "openerp-module-development-partie-i.md" >}}).
 It is not as powerful as __erppeek__ yet but i hope that with your help one day it will ^_^.
 It's inspired from [__erpeek__](https://github.com/florentx/erppeek) and we can say thanks to Florent for that.
 It's kind of a personal project and i wanted to be able to do almost the same thing as __erppeek__ but the easiest way.

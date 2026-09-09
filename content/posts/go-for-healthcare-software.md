@@ -80,4 +80,18 @@ That's a **21x** difference, and none of it took tuning: `CGO_ENABLED=0 go build
 
 Add it up and it's a pattern, not a coincidence. A hand-rolled worker pool cut an 18-minute serial CSV load down to 10, and the generator does 10,000 patients in just over a minute. A job queue, also written in Go, needed one embedded struct and one method to take over recurring background work with no separate broker, and it was already the thing standing between raw EMR data and anything downstream by the time the AI layer showed up looking for a way in. That layer was easy to build for the same reason, plain typed functions and a small loop, and easy to keep honest, the same structured logging as everywhere else in the codebase, wrapped around every call it makes. None of it lowers the stakes of putting a model next to a health record, that's a cost the model adds all on its own, but none of it made those stakes any harder to see, either.
 
-Every one of those is a different problem, and Go's answer to each one was the same shape: plain types you can read start to finish, the standard library where it's enough, one well-chosen dependency where it isn't, nothing hidden in between. That's not a small thing when the two things you're building on are somebody's health record and a model you don't fully control. Health data doesn't forgive a wrong column the way a marketing dashboard does. An AI layer doesn't forgive a swallowed error the way a batch script does. Go's whole personality, plain and a little stubborn about hiding nothing, turns out to fit that combination better than I expected going in.
+## What Works, What Doesn't (Yet)
+
+**What works:**
+- A hand-rolled worker pool for the fan-out problem (independent patients, embarrassingly parallel) turned an 18-minute serial load into 10, and generates 10,000 patients in just over a minute
+- RiverQueue for the recurring-job problem: one embedded struct and one method, no separate broker, and a job commits in the same transaction as the work that triggered it
+- A read-only DB role, an `UPDATE`/`DELETE`-blocking trigger, and a cohort-size check caught a real 322% data-volume swing before anything downstream ever saw it
+- The AI layer inherits de-identification for free by sitting downstream of a queue that was already de-identifying data, no separate anonymization step to remember
+- Two Go services run on about 43 MiB combined RAM, next to an EMR's Java/Tomcat app that uses roughly 19x that much by itself
+
+**What doesn't (yet):**
+- None of this lowers the stakes of putting a model next to a health record, structured logging around every call makes a wrong answer traceable, it doesn't prevent one
+- The guardrails (read-only role, trigger, cohort check) are per-integration decisions right now, there's no shared library enforcing them across every new EMR-adjacent service
+- Backfill idempotency, from the last post, still only converges per record type, not for a whole patient in one pass
+
+Every one of those is a different problem, and Go's answer to each one was the same shape: plain types you can read start to finish, the standard library where it's enough, one well-chosen dependency where it isn't, nothing hidden in between. Health data doesn't forgive a wrong column the way a marketing dashboard does. An AI layer doesn't forgive a swallowed error the way a batch script does. Go's whole personality, plain and a little stubborn about hiding nothing, turns out to fit that combination better than I expected going in.

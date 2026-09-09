@@ -7,6 +7,8 @@ tags: ["python", "programming"]
 categories: ["Programming"]
 ---
 
+> **Note (2026):** This post's main example uses the `imp` module, deprecated since Python 3.4 and removed entirely in Python 3.12: it won't run as-is on a recent install. See the "Mise a jour" section near the bottom for the modern `importlib.util` equivalent.
+
 Il arrive des cas ou pour certaines raisons, on voudrait loader un module python se trouvant dans un repertoire caché ( _.myfolder/mymodule_).
 Dans mon cas, je devais charger un fichier _settings.py_ contenu dans le dossier de config de mon app ( _~/.monapp/settings.py_).
 Si vous etes dans la meme situation et vous vous demandez comment le faire, ce qui suit peut vous etre utile:
@@ -84,3 +86,5 @@ print(settings.LOG_FILENAME, settings.LOG_FILESIZE)
 
 Meme idee (charger un module Python depuis un chemin de fichier arbitraire), mais `spec_from_file_location` /
 `module_from_spec` / `exec_module` est la voie supportee aujourd'hui.
+
+Dans la meme veine de petites astuces Python: [Attacher une methode a une classe en python]({{< ref "attacher-une-methode-a-une-classe-en-python.md" >}}) et [Comprendre *, **, *args, **kwargs]({{< ref "comprendre-args-kwargs.md" >}}).

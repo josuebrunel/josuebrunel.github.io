@@ -97,3 +97,20 @@ The part I liked most is that backfill fixes the idempotency gap this post compl
 One concurrency detail is the mirror image of the chunking story above. In `-generate` the generators run single-threaded before any goroutine starts, so one seeded RNG is safe. In backfill the generators run *inside* the worker pool, one goroutine per patient, so a shared `*rand.Rand` would be a data race. The fix is the same shape as the rest of the codebase: each worker gets its own RNG, seeded from the base seed plus its worker ID.
 
 `-dry-run` behaves differently too. The CSV and `-generate` dry-runs never touch the database. Backfill's dry-run still connects and reads existing patients, because it has to know who to generate for; it just skips the insert and commit, logging what it would have written instead.
+
+## What Works, What Doesn't (Yet)
+
+**What works:**
+- `-generate` skips Synthea entirely: no Java, no 20GB export, structurally valid data straight into OSCAR's tables
+- Chunked generation keeps memory bounded no matter how many patients you ask for
+- One shared writer (`ingestPatientBatch`) means the generator and the CSV importer share all the transactional and idempotency logic from the last post, nothing duplicated
+- `-backfill-measure` closes the idempotency gap this post originally complained about, converging instead of accumulating on re-run
+- `-generate-seed` gives a reproducible population for repeatable local dev and tests
+
+**What doesn't (yet):**
+- `-generate` itself isn't idempotent: run it twice and you get two populations, not one refreshed one
+- Diagnostics, imaging, procedures, and care plans aren't backfillable yet, they need `measurementType` rows seeded first, and the worker pool doesn't do that
+- It's not a clinical simulator: no disease progression or comorbidity modeling, so it's the wrong tool the moment fidelity actually matters
+- Backfill convergence isn't guaranteed in one run, some measures need several passes before every patient is filled in
+
+Good enough for a demo population is a real bar to clear, and `-generate` clears it in a fraction of the time Synthea needs just to get out of bed.

@@ -400,3 +400,5 @@ deuxieme appel de **save()** soit **_super(Fislton, self).save(insert=True)_**
 
 Voila, c'est fini, j'espère que vous avez une meilleur comprehension des
 **unpackers** et des **varargs** en python.
+
+Dans la meme veine de petites astuces Python: [Attacher une methode a une classe en python]({{< ref "attacher-une-methode-a-une-classe-en-python.md" >}}) et [Importer un module depuis un dossier cachee en python]({{< ref "importer-un-module-depuis-un-dossier-cachee-en-python.md" >}}).
