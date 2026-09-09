@@ -39,6 +39,11 @@ copyright = '© Josue Brunel'
         name = 'Interview Prep'
         url = '/interview-prep/'
         weight = 20
+    [[menu.main]]
+        identifier = 'cv'
+        name = 'CV'
+        url = '/cv/'
+        weight = 30
 
 [[params.social]]
     name = 'GitHub'
