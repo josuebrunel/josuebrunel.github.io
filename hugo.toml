@@ -6,6 +6,11 @@ theme = 'hugo-vitae'
     pagerSize = 10
 copyright = '© Josue Brunel'
 
+[markup]
+    [markup.goldmark]
+        [markup.goldmark.renderer]
+            unsafe = true
+
 [taxonomies]
     tag = 'tags'
     category = 'categories'
@@ -27,6 +32,11 @@ copyright = '© Josue Brunel'
         name = 'Posts'
         url = '/posts/'
         weight = 10
+    [[menu.main]]
+        identifier = 'interview-prep'
+        name = 'Interview Prep'
+        url = '/go-architect-interview-prep/'
+        weight = 20
 
 [[params.social]]
     name = 'GitHub'
