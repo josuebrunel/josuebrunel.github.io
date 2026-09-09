@@ -6,7 +6,7 @@ hidemeta: true
 nofeed: true
 ---
 
-Part 4 of 4 · [Go Architect Interview Prep](/go-architect-interview-prep/) · ← Previous: [Part 3 — Kafka & Microservices](/go-interview-prep-kafka-microservices/)
+Part 4 of 5 · [Go Architect Interview Prep](/go-architect-interview-prep/) · ← Previous: [Part 3 — Kafka & Microservices](/go-interview-prep-kafka-microservices/) · Next: [Part 5 — Advanced SQL](/go-interview-prep-sql-advanced/) →
 
 ## XV. Security
 
@@ -190,7 +190,7 @@ graph TD
 
 ---
 
-Part 4 of 4 · [Go Architect Interview Prep](/go-architect-interview-prep/) · ← Previous: [Part 3 — Kafka & Microservices](/go-interview-prep-kafka-microservices/)
+Part 4 of 5 · [Go Architect Interview Prep](/go-architect-interview-prep/) · ← Previous: [Part 3 — Kafka & Microservices](/go-interview-prep-kafka-microservices/) · Next: [Part 5 — Advanced SQL](/go-interview-prep-sql-advanced/) →
 
 <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
 <script>
