@@ -1,6 +1,7 @@
 ---
 title: "Interview Prep — Part 1: Go Language"
 description: "Go language fundamentals, types & generics, concurrency, memory/GC, error handling, performance, testing, and web/networking: 75 interview Q&As."
+url: "/interview-prep-language/"
 aliases: ["/go-interview-prep-language/"]
 nodate: true
 hidemeta: true

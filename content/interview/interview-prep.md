@@ -1,6 +1,7 @@
 ---
 title: "Interview Prep"
 description: "Personal study notes: 230 software engineering interview Q&As covering Go, concurrency, distributed systems, Kafka, microservices, security, system design, advanced SQL, and coding patterns, split into 6 parts."
+url: "/interview-prep/"
 aliases: ["/go-architect-interview-prep/"]
 nodate: true
 hidemeta: true

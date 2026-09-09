@@ -1,6 +1,7 @@
 ---
 title: "Interview Prep — Part 2: Databases & System Design"
 description: "Database optimization, system design fundamentals, distributed systems concepts, and system design case studies: 38 interview Q&As with diagrams."
+url: "/interview-prep-databases-systems/"
 aliases: ["/go-interview-prep-databases-systems/"]
 nodate: true
 hidemeta: true

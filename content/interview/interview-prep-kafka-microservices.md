@@ -1,6 +1,7 @@
 ---
 title: "Interview Prep — Part 3: Kafka & Microservices"
 description: "Kafka in depth for Go, and microservices architecture including DDD and event-driven patterns: 39 interview Q&As with diagrams."
+url: "/interview-prep-kafka-microservices/"
 aliases: ["/go-interview-prep-kafka-microservices/"]
 nodate: true
 hidemeta: true

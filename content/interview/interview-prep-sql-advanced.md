@@ -1,6 +1,7 @@
 ---
 title: "Interview Prep — Part 5: Advanced SQL"
 description: "Window functions, CTEs, join algorithms, partitioning, JSON querying, and storage internals: 20 interview Q&As with diagrams."
+url: "/interview-prep-sql-advanced/"
 aliases: ["/go-interview-prep-sql-advanced/"]
 nodate: true
 hidemeta: true

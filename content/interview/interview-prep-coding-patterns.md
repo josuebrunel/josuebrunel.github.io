@@ -1,6 +1,7 @@
 ---
 title: "Interview Prep — Part 6: Coding Patterns"
 description: "The 23 recurring patterns behind most coding-interview questions: sliding window, two pointers, tree BFS/DFS, backtracking, topological sort, Dijkstra, grid BFS, knapsack, tries, and more, with worked examples and diagrams."
+url: "/interview-prep-coding-patterns/"
 nodate: true
 hidemeta: true
 nofeed: true

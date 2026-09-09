@@ -1,6 +1,7 @@
 ---
 title: "Interview Prep — Part 4: Security & Cloud"
 description: "Security fundamentals and cloud & infrastructure topics for Go architects: 25 interview Q&As with diagrams."
+url: "/interview-prep-security-cloud/"
 aliases: ["/go-interview-prep-security-cloud/"]
 nodate: true
 hidemeta: true
