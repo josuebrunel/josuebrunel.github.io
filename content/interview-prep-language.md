@@ -1,12 +1,13 @@
 ---
-title: "Go Interview Prep — Part 1: Go Language"
+title: "Interview Prep — Part 1: Go Language"
 description: "Go language fundamentals, types & generics, concurrency, memory/GC, error handling, performance, testing, and web/networking: 75 interview Q&As."
+aliases: ["/go-interview-prep-language/"]
 nodate: true
 hidemeta: true
 nofeed: true
 ---
 
-Part 1 of 4 · [Go Architect Interview Prep](/go-architect-interview-prep/)
+Part 1 of 6 · [Interview Prep](/interview-prep/)
 
 ## I. Go Fundamentals
 
@@ -400,4 +401,4 @@ if err := g.Wait(); err != nil {
 
 ---
 
-Part 1 of 4 · [Go Architect Interview Prep](/go-architect-interview-prep/) · Next: [Part 2 — Databases & System Design](/go-interview-prep-databases-systems/) →
+Part 1 of 6 · [Interview Prep](/interview-prep/) · Next: [Part 2 — Databases & System Design](/interview-prep-databases-systems/) →

@@ -1,12 +1,13 @@
 ---
-title: "Go Interview Prep — Part 5: Advanced SQL"
+title: "Interview Prep — Part 5: Advanced SQL"
 description: "Window functions, CTEs, join algorithms, partitioning, JSON querying, and storage internals: 20 interview Q&As with diagrams."
+aliases: ["/go-interview-prep-sql-advanced/"]
 nodate: true
 hidemeta: true
 nofeed: true
 ---
 
-Part 5 of 5 · [Go Architect Interview Prep](/go-architect-interview-prep/) · ← Previous: [Part 4 — Security & Cloud](/go-interview-prep-security-cloud/)
+Part 5 of 6 · [Interview Prep](/interview-prep/) · ← Previous: [Part 4 — Security & Cloud](/interview-prep-security-cloud/) · Next: [Part 6 — Coding Patterns](/interview-prep-coding-patterns/) →
 
 ## XVII. Advanced Query Techniques
 
@@ -131,7 +132,7 @@ A long-running transaction is the classic silent cause: it holds back the oldest
 
 ---
 
-Part 5 of 5 · [Go Architect Interview Prep](/go-architect-interview-prep/) · ← Previous: [Part 4 — Security & Cloud](/go-interview-prep-security-cloud/)
+Part 5 of 6 · [Interview Prep](/interview-prep/) · ← Previous: [Part 4 — Security & Cloud](/interview-prep-security-cloud/) · Next: [Part 6 — Coding Patterns](/interview-prep-coding-patterns/) →
 
 <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
 <script>

@@ -1,12 +1,13 @@
 ---
-title: "Go Interview Prep — Part 4: Security & Cloud"
+title: "Interview Prep — Part 4: Security & Cloud"
 description: "Security fundamentals and cloud & infrastructure topics for Go architects: 25 interview Q&As with diagrams."
+aliases: ["/go-interview-prep-security-cloud/"]
 nodate: true
 hidemeta: true
 nofeed: true
 ---
 
-Part 4 of 5 · [Go Architect Interview Prep](/go-architect-interview-prep/) · ← Previous: [Part 3 — Kafka & Microservices](/go-interview-prep-kafka-microservices/) · Next: [Part 5 — Advanced SQL](/go-interview-prep-sql-advanced/) →
+Part 4 of 6 · [Interview Prep](/interview-prep/) · ← Previous: [Part 3 — Kafka & Microservices](/interview-prep-kafka-microservices/) · Next: [Part 5 — Advanced SQL](/interview-prep-sql-advanced/) →
 
 ## XV. Security
 
@@ -190,7 +191,7 @@ graph TD
 
 ---
 
-Part 4 of 5 · [Go Architect Interview Prep](/go-architect-interview-prep/) · ← Previous: [Part 3 — Kafka & Microservices](/go-interview-prep-kafka-microservices/) · Next: [Part 5 — Advanced SQL](/go-interview-prep-sql-advanced/) →
+Part 4 of 6 · [Interview Prep](/interview-prep/) · ← Previous: [Part 3 — Kafka & Microservices](/interview-prep-kafka-microservices/) · Next: [Part 5 — Advanced SQL](/interview-prep-sql-advanced/) →
 
 <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
 <script>

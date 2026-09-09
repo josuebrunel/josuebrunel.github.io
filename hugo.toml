@@ -37,7 +37,7 @@ copyright = '© Josue Brunel'
     [[menu.main]]
         identifier = 'interview-prep'
         name = 'Interview Prep'
-        url = '/go-architect-interview-prep/'
+        url = '/interview-prep/'
         weight = 20
 
 [[params.social]]

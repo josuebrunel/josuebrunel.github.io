@@ -1,12 +1,13 @@
 ---
-title: "Go Interview Prep — Part 3: Kafka & Microservices"
+title: "Interview Prep — Part 3: Kafka & Microservices"
 description: "Kafka in depth for Go, and microservices architecture including DDD and event-driven patterns: 39 interview Q&As with diagrams."
+aliases: ["/go-interview-prep-kafka-microservices/"]
 nodate: true
 hidemeta: true
 nofeed: true
 ---
 
-Part 3 of 4 · [Go Architect Interview Prep](/go-architect-interview-prep/) · ← Previous: [Part 2 — Databases & System Design](/go-interview-prep-databases-systems/)
+Part 3 of 6 · [Interview Prep](/interview-prep/) · ← Previous: [Part 2 — Databases & System Design](/interview-prep-databases-systems/)
 
 ## XIII. Kafka in Depth (Go)
 
@@ -294,7 +295,7 @@ graph LR
 
 ---
 
-Part 3 of 4 · [Go Architect Interview Prep](/go-architect-interview-prep/) · ← Previous: [Part 2 — Databases & System Design](/go-interview-prep-databases-systems/) · Next: [Part 4 — Security & Cloud](/go-interview-prep-security-cloud/) →
+Part 3 of 6 · [Interview Prep](/interview-prep/) · ← Previous: [Part 2 — Databases & System Design](/interview-prep-databases-systems/) · Next: [Part 4 — Security & Cloud](/interview-prep-security-cloud/) →
 
 <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
 <script>

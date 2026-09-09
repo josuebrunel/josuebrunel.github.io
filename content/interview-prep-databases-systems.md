@@ -1,12 +1,13 @@
 ---
-title: "Go Interview Prep — Part 2: Databases & System Design"
+title: "Interview Prep — Part 2: Databases & System Design"
 description: "Database optimization, system design fundamentals, distributed systems concepts, and system design case studies: 38 interview Q&As with diagrams."
+aliases: ["/go-interview-prep-databases-systems/"]
 nodate: true
 hidemeta: true
 nofeed: true
 ---
 
-Part 2 of 4 · [Go Architect Interview Prep](/go-architect-interview-prep/) · ← Previous: [Part 1 — Go Language](/go-interview-prep-language/)
+Part 2 of 6 · [Interview Prep](/interview-prep/) · ← Previous: [Part 1 — Go Language](/interview-prep-language/)
 
 ## IX. Databases & Database Optimization
 
@@ -498,7 +499,7 @@ graph LR
 
 ---
 
-Part 2 of 4 · [Go Architect Interview Prep](/go-architect-interview-prep/) · ← Previous: [Part 1 — Go Language](/go-interview-prep-language/) · Next: [Part 3 — Kafka & Microservices](/go-interview-prep-kafka-microservices/) →
+Part 2 of 6 · [Interview Prep](/interview-prep/) · ← Previous: [Part 1 — Go Language](/interview-prep-language/) · Next: [Part 3 — Kafka & Microservices](/interview-prep-kafka-microservices/) →
 
 <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
 <script>
