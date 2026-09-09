@@ -10,6 +10,8 @@ copyright = '© Josue Brunel'
     [markup.goldmark]
         [markup.goldmark.renderer]
             unsafe = true
+    [markup.highlight]
+        noClasses = false
 
 [taxonomies]
     tag = 'tags'
