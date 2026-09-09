@@ -30,12 +30,19 @@ Two conventions exist in the archive:
 
 ## Voice
 
-The 2024–2026 posts are the current standard: technical, confident, dry wit used sparingly, no forced enthusiasm. Recent commits have specifically reworked older drafts to match this (see `c61eef3`, `60e5895`). Concretely:
+The 2024–2026 posts are the current standard, and they match the site's `writing` skill. Recent commits have specifically reworked older drafts to match this (see `c61eef3`, `60e5895`). Concretely:
 
-- Hyphens, not em dashes.
-- Short paragraphs. Code speaks for itself — don't narrate what a snippet obviously does, explain *why* it's shaped that way.
-- It's fine to say what didn't work or what you'd reconsider. The strongest posts on this site (PulseDash, the SaaS stack post) both include an honest "what doesn't work" or "what I'd reconsider" section — don't write one-sided pitches.
+- Simple English: short, common words over fancy ones, plain phrasing over jargon.
+- No em dashes, and no plain hyphen used as a dash substitute either. Use a comma for an aside, a colon when what follows explains or delivers the point, or split into two sentences.
+- First person, contractions always (don't, it's, won't). Warm and direct, with an occasional wry aside, not a joke forced into every section.
+- Open a post with a claim or a small scene, not a rhetorical question.
+- Content must be skimmable and easy to follow: short paragraphs, one idea each, plain sentence structure. A reader should get the gist from headers and bolded leads alone, without reading every word.
+- Punchy, specific H2 headers, not "Overview" or "Conclusion."
+- Code speaks for itself: don't narrate what a snippet obviously does, explain *why* it's shaped that way.
+- For project or decision writeups, close with an honest `**What works:**` / `**What doesn't (yet):**` pair instead of a one-sided pitch. PulseDash and the SaaS stack post both do this; it's the standard, not the exception.
+- End on a callback or payoff line, not a call-to-action.
 - English only for anything new. Older posts are a mix of French and English; that's a historical fact about the archive, not a target to keep hitting.
+- This applies to prose meant to sound like Josue (posts, READMEs, PR descriptions). Pure reference material (config tables, API docs) and code comments stay neutral and factual.
 
 ## Cross-linking
 
