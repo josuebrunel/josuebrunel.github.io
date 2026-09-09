@@ -7,7 +7,7 @@ hidemeta: true
 nofeed: true
 ---
 
-Part 6 of 6 · [Interview Prep](/interview-prep/) · ← Previous: [Part 5 — Advanced SQL](/interview-prep-sql-advanced/)
+Part 6 of 7 · [Interview Prep](/interview-prep/) · ← Previous: [Part 5 — Advanced SQL](/interview-prep-sql-advanced/) · Next: [Part 7 — AI Engineering](/interview-prep-ai-engineering/) →
 
 Most coding-interview questions aren't novel, they're a known pattern wearing a different story. Once you can name the pattern, the algorithm mostly writes itself. This part walks through the 23 patterns that cover the large majority of what shows up, each with how to recognize it, a clean, correct, test-verified reference implementation in Python, and a worked example so you can trace the code by hand instead of taking it on faith.
 
@@ -770,7 +770,7 @@ trie.starts_with("app")  # -> True   (a prefix of "apple")
 
 ---
 
-Part 6 of 6 · [Interview Prep](/interview-prep/) · ← Previous: [Part 5 — Advanced SQL](/interview-prep-sql-advanced/)
+Part 6 of 7 · [Interview Prep](/interview-prep/) · ← Previous: [Part 5 — Advanced SQL](/interview-prep-sql-advanced/) · Next: [Part 7 — AI Engineering](/interview-prep-ai-engineering/) →
 
 <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
 <script>

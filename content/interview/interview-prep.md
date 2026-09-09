@@ -1,6 +1,6 @@
 ---
 title: "Interview Prep"
-description: "Personal study notes: 230 software engineering interview Q&As covering Go, concurrency, distributed systems, Kafka, microservices, security, system design, advanced SQL, and coding patterns, split into 6 parts."
+description: "Personal study notes: 266 software engineering interview Q&As covering Go, concurrency, distributed systems, Kafka, microservices, security, system design, advanced SQL, coding patterns, and AI engineering, split into 7 parts."
 url: "/interview-prep/"
 aliases: ["/go-architect-interview-prep/"]
 nodate: true
@@ -8,7 +8,7 @@ hidemeta: true
 nofeed: true
 ---
 
-### 230 Questions & Answers, in 6 parts, increasing in difficulty
+### 266 Questions & Answers, in 7 parts, increasing in difficulty
 
 **How to use this:** Go through each part top to bottom, then move to the next, questions get harder as you go. Don't just read the answers; say them out loud or write them on a whiteboard. For the system design sections, practice drawing the diagram before checking the answer, several are rendered as Mermaid diagrams.
 
@@ -20,3 +20,4 @@ nofeed: true
 - **[Part 4 — Security & Cloud](/interview-prep-security-cloud/)** — Q163–187. Security fundamentals, cloud & infrastructure.
 - **[Part 5 — Advanced SQL](/interview-prep-sql-advanced/)** — Q188–207. Window functions, CTEs, join algorithms, partitioning, JSON querying, and storage/concurrency internals.
 - **[Part 6 — Coding Patterns](/interview-prep-coding-patterns/)** — Q208–230. The 23 recurring patterns behind most coding-interview questions: sliding window, two pointers, tree BFS/DFS, backtracking, topological sort, grid BFS, knapsack, tries, and more.
+- **[Part 7 — AI Engineering](/interview-prep-ai-engineering/)** — Q231–266. LLM fundamentals, prompting and context engineering, RAG and retrieval systems, and agentic production AI: tool use, MCP, evaluation, and guardrails.
