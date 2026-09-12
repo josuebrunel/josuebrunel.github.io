@@ -91,6 +91,72 @@ graph TD
 
 ---
 
+## Key Concepts: What to Reach For
+
+Before the Q&A: here's the same material as a map. Each row is a concept and the situation that should make you reach for it, so you can orient before drilling into the "why" in the questions below (numbers point to where each one is covered in depth).
+
+**Scaling & data distribution**
+
+| Concept | When to reach for it |
+|---|---|
+| Horizontal scaling | You've hit a ceiling on one box and the workload is stateless enough to split across many (Q86). |
+| Sharding / horizontal partitioning | A single database's write throughput or storage has become the bottleneck (Q90). |
+| Consistent hashing | Nodes get added/removed and you need only a fraction of keys to remap, not almost all of them (Q104). |
+| Caching: cache-aside / write-through / write-behind | Reads vastly outnumber writes and some staleness is tolerable — pick the variant by how fresh reads need to be vs. how fast writes need to be (Q91). |
+| L4 vs. L7 load balancing | L4 when you just need fast, protocol-agnostic distribution; L7 when routing needs to look at path, host, or cookies (Q89). |
+
+**Consistency & coordination**
+
+| Concept | When to reach for it |
+|---|---|
+| CAP theorem | Framing any "what happens during a network partition" design decision (Q87). |
+| PACELC | Same question, but you also need to reason about the latency/consistency trade-off when there's *no* partition (Q113). |
+| Consistency spectrum (strong / causal / read-your-writes / eventual) | Picking the cheapest guarantee that's still correct for the feature — a like count needs less than a balance check (Q88, Q109). |
+| Quorum reads/writes (N/R/W) | You're replicating across N nodes and want a tunable guarantee that reads see the latest write (Q98). |
+| Distributed locks | Coordinating mutual exclusion across processes, not just goroutines in one process (Q96). |
+| Leader election / Raft | A cluster of nodes needs to agree on exactly one coordinator, and that agreement must survive crashes (Q97, Q106). |
+| Clock skew / logical clocks | You need to order events across machines and wall-clock timestamps aren't reliable enough (Q103). |
+
+**Messaging & delivery**
+
+| Concept | When to reach for it |
+|---|---|
+| Sync vs. async communication | Sync when you need an immediate answer and can accept coupling to the callee's availability; async when you can decouple in time (Q94). |
+| Backpressure | A fast producer would otherwise overwhelm a slow consumer's buffer (Q95). |
+| Idempotency & idempotency keys | A client might retry a request and you need retries to be safe (Q93, Q100). |
+| Delivery semantics (at-most / at-least / exactly-once) | Deciding what a message queue actually guarantees you, and what your own code still has to guarantee on top (Q99). |
+| Outbox pattern | You need a DB write and a message publish to succeed or fail together (Q101). |
+| Saga vs. two-phase commit | A transaction spans multiple services and holding locks across all of them (2PC) is too heavyweight (Q102). |
+| Kafka vs. RabbitMQ vs. NATS | Kafka for a durable, replayable event log; RabbitMQ for flexible routing and per-message ack/retry; NATS for low-latency, lightweight pub/sub (Q92). |
+| Gossip protocols | Detecting node failure across a large cluster without a central bottleneck (Q111). |
+
+**Resilience & failure handling**
+
+| Concept | When to reach for it |
+|---|---|
+| Thundering herd mitigation (jitter, coalescing) | Many clients would otherwise retry or wake up at the same instant against a recovering resource (Q105). |
+| Bulkhead vs. circuit breaker | Bulkhead to stop one dependency's failure from starving resources shared with everything else; circuit breaker to stop calling a dependency that's clearly already failing (Q112). |
+| Byzantine vs. crash fault tolerance | Byzantine only matters in adversarial/untrusted settings; infrastructure you control just needs crash-fault tolerance (Raft/Paxos) (Q107). |
+| Two Generals' Problem | Reasoning about why perfect agreement over an unreliable channel is impossible, and why we settle for retries + idempotency instead (Q108). |
+| CRDTs | Replicas need to accept writes independently (offline-first, multi-region) and eventual convergence is good enough (Q110). |
+
+**Applied patterns (case studies)**
+
+| Pattern | Use case it solves |
+|---|---|
+| Read-heavy key lookup + cache in front of DB | URL shortener (Q114). |
+| Shared atomic counter (Redis + Lua) | Rate limiting across multiple gateway instances (Q115). |
+| Bounded parallel fan-out with a deadline | Aggregating many signals under a tight latency SLA (Q116). |
+| Queue-based fan-out per channel | Notifying millions of users across push/email/SMS (Q117). |
+| Idempotency key + unique constraint | Payment processing that survives retries without double-charging (Q118). |
+| Atomic claim + lease/heartbeat | A job scheduler where each job runs exactly once, even across crashes (Q119). |
+| Consistent hashing + pub/sub | A sharded, horizontally-scalable chat backend (Q120). |
+| Partition by natural key + idempotent upsert | High-throughput event ingestion without double-counting on reprocess (Q121). |
+| Strangler fig | Migrating a monolith to microservices incrementally, without a big-bang rewrite (Q122). |
+| Hash-chained append-only log | Tamper-evident, queryable audit logging (Q123). |
+
+---
+
 ## X. System Design Fundamentals
 
 | # | Question | Answer |
