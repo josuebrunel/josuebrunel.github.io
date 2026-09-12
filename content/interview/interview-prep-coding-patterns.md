@@ -13,7 +13,7 @@ Most coding-interview questions aren't novel, they're a known pattern wearing a 
 
 ## Array, String & Pointer Patterns
 
-#### 1 — Sliding Window: how do you recognize it, and what does the template look like?
+#### 1 — Sliding Window: how do you recognize it, and what does the template look like? {#1}
 
 **LeetCode:** [Longest Substring Without Repeating Characters](https://leetcode.com/problems/longest-substring-without-repeating-characters/)
 
@@ -42,7 +42,7 @@ graph LR
 
 The key cost you're avoiding: a naive approach re-scans the window from scratch every time it moves, O(n²) or worse. The sliding window touches each element a bounded number of times, O(n) total.
 
-#### 2 — Two Pointers: how do you recognize it, and what does the template look like?
+#### 2 — Two Pointers: how do you recognize it, and what does the template look like? {#2}
 
 **LeetCode:** [Two Sum II - Input Array Is Sorted](https://leetcode.com/problems/two-sum-ii-input-array-is-sorted/), [3Sum](https://leetcode.com/problems/3sum/)
 
@@ -66,7 +66,7 @@ two_sum_sorted([1, 2, 3, 4, 6], 6)  # -> (1, 3)   (2 + 4 == 6)
 
 This turns an O(n²) pairwise check into O(n), the sortedness is what lets each pointer move monotonically in one direction without missing a valid pair.
 
-#### 3 — Fast & Slow Pointers: how do you recognize it, and what does the template look like?
+#### 3 — Fast & Slow Pointers: how do you recognize it, and what does the template look like? {#3}
 
 **LeetCode:** [Linked List Cycle](https://leetcode.com/problems/linked-list-cycle/), [Middle of the Linked List](https://leetcode.com/problems/middle-of-the-linked-list/)
 
@@ -95,7 +95,7 @@ On this 3-node loop, `slow` visits 1, 2, 3, 1, 2... one step at a time while `fa
 
 The same fast/slow split (find the middle, then walk from there) is also how you solve "find the middle of a linked list" and "check if a linked list is a palindrome" in O(1) space instead of copying the list into an array first.
 
-#### 4 — Merge Intervals: how do you recognize it, and what does the template look like?
+#### 4 — Merge Intervals: how do you recognize it, and what does the template look like? {#4}
 
 **LeetCode:** [Merge Intervals](https://leetcode.com/problems/merge-intervals/), [Insert Interval](https://leetcode.com/problems/insert-interval/)
 
@@ -117,7 +117,7 @@ merge_intervals([[1, 3], [2, 6], [8, 10], [15, 18]])  # -> [[1, 6], [8, 10], [15
 
 Sorting costs O(n log n) and dominates the total; the merge pass itself is a single O(n) sweep.
 
-#### 5 — Cyclic Sort: how do you recognize it, and what does the template look like?
+#### 5 — Cyclic Sort: how do you recognize it, and what does the template look like? {#5}
 
 **LeetCode:** [Missing Number](https://leetcode.com/problems/missing-number/), [Find the Duplicate Number](https://leetcode.com/problems/find-the-duplicate-number/)
 
@@ -142,7 +142,7 @@ find_missing_number([3, 0, 1])  # -> 2
 
 Once the cyclic sort pass finishes, any index whose value doesn't match the index itself points straight at the missing or duplicated number, no hash set required.
 
-#### 6 — Modified Binary Search: how do you recognize it, and what does the template look like?
+#### 6 — Modified Binary Search: how do you recognize it, and what does the template look like? {#6}
 
 **LeetCode:** [Find Minimum in Rotated Sorted Array](https://leetcode.com/problems/find-minimum-in-rotated-sorted-array/), [Search in Rotated Sorted Array](https://leetcode.com/problems/search-in-rotated-sorted-array/)
 
@@ -164,7 +164,7 @@ find_min_in_rotated([4, 5, 6, 7, 0, 1, 2])  # -> 0
 
 Computing `mid` as `left + (right - left) // 2` instead of `(left + right) // 2` avoids integer overflow in languages with fixed-width integers; it doesn't matter in Python, but it's the version worth having memorized since it's correct everywhere.
 
-#### 7 — Top K Elements: how do you recognize it, and what does the template look like?
+#### 7 — Top K Elements: how do you recognize it, and what does the template look like? {#7}
 
 **LeetCode:** [Kth Largest Element in an Array](https://leetcode.com/problems/kth-largest-element-in-an-array/), [Top K Frequent Elements](https://leetcode.com/problems/top-k-frequent-elements/)
 
@@ -186,7 +186,7 @@ kth_largest([3, 2, 1, 5, 6, 4], 2)  # -> 5   (the 2nd largest value)
 
 This runs in O(n log k) instead of the O(n log n) a full sort would cost, the win grows as `k` gets small relative to `n`.
 
-#### 8 — K-way Merge: how do you recognize it, and what does the template look like?
+#### 8 — K-way Merge: how do you recognize it, and what does the template look like? {#8}
 
 **LeetCode:** [Merge k Sorted Lists](https://leetcode.com/problems/merge-k-sorted-lists/)
 
@@ -211,7 +211,7 @@ merge_k_sorted_lists([[1, 4, 5], [1, 3, 4], [2, 6]])  # -> [1, 1, 2, 3, 4, 4, 5,
 
 Total work is O(n log k) where `n` is the total element count across all lists, the heap never holds more than `k` elements at once, one per list.
 
-#### 9 — Monotonic Stack: how do you recognize it, and what does the template look like?
+#### 9 — Monotonic Stack: how do you recognize it, and what does the template look like? {#9}
 
 **LeetCode:** [Next Greater Element I](https://leetcode.com/problems/next-greater-element-i/), [Daily Temperatures](https://leetcode.com/problems/daily-temperatures/)
 
@@ -234,7 +234,7 @@ Trace it on `[2, 1, 2, 4, 3]`: push index 0 (value 2). Index 1 (value 1) doesn't
 
 Each element is pushed once and popped at most once, so the whole pass is O(n) even though there's a `while` loop nested inside the `for`.
 
-#### 10 — Prefix Sum: how do you recognize it, and what does the template look like?
+#### 10 — Prefix Sum: how do you recognize it, and what does the template look like? {#10}
 
 **LeetCode:** [Subarray Sum Equals K](https://leetcode.com/problems/subarray-sum-equals-k/), [Range Sum Query - Immutable](https://leetcode.com/problems/range-sum-query-immutable/)
 
@@ -258,7 +258,7 @@ The hash-map variant above turns "how many subarrays sum to k" into O(n): for ev
 
 ## Tree, Graph, Backtracking & DP Patterns
 
-#### 11 — In-place Reversal of a Linked List: how do you recognize it, and what does the template look like?
+#### 11 — In-place Reversal of a Linked List: how do you recognize it, and what does the template look like? {#11}
 
 **LeetCode:** [Reverse Linked List](https://leetcode.com/problems/reverse-linked-list/), [Reverse Linked List II](https://leetcode.com/problems/reverse-linked-list-ii/)
 
@@ -281,7 +281,7 @@ reverse_list(head)
 
 Reversing a sub-range `[left, right]` is the same loop, just started after walking to position `left` first, then splicing the reversed segment back into the untouched parts on either side.
 
-#### 12 — Tree BFS: how do you recognize it, and what does the template look like?
+#### 12 — Tree BFS: how do you recognize it, and what does the template look like? {#12}
 
 **LeetCode:** [Binary Tree Level Order Traversal](https://leetcode.com/problems/binary-tree-level-order-traversal/), [Binary Tree Zigzag Level Order Traversal](https://leetcode.com/problems/binary-tree-zigzag-level-order-traversal/)
 
@@ -326,7 +326,7 @@ graph TD
 
 That `for _ in range(len(queue))` is the whole trick: it freezes "how many nodes are in this level" before the loop starts appending next-level nodes into the same queue.
 
-#### 13 — Tree DFS: how do you recognize it, and what does the template look like?
+#### 13 — Tree DFS: how do you recognize it, and what does the template look like? {#13}
 
 **LeetCode:** [Path Sum](https://leetcode.com/problems/path-sum/), [Binary Tree Maximum Path Sum](https://leetcode.com/problems/binary-tree-maximum-path-sum/)
 
@@ -348,7 +348,7 @@ has_path_sum(root, 22)  # -> True
 
 Every DFS variant, this one included, is O(n) time since it visits each node once, and O(h) space for the call stack, where `h` is the tree's height: O(log n) for a balanced tree, O(n) in the worst case of a completely skewed one.
 
-#### 14 — Two Heaps: how do you recognize it, and what does the template look like?
+#### 14 — Two Heaps: how do you recognize it, and what does the template look like? {#14}
 
 **LeetCode:** [Find Median from Data Stream](https://leetcode.com/problems/find-median-from-data-stream/)
 
@@ -391,7 +391,7 @@ Trace adding 1, 2, 3 one at a time: after 1, `small=[-1]`. Adding 2 pushes it in
 
 Pushing into one heap and immediately moving its top into the other is what keeps both heaps balanced without a separate comparison step, each insert is O(log n), and the median is always an O(1) read.
 
-#### 15 — Subsets (Backtracking): how do you recognize it, and what does the template look like?
+#### 15 — Subsets (Backtracking): how do you recognize it, and what does the template look like? {#15}
 
 **LeetCode:** [Subsets](https://leetcode.com/problems/subsets/), [Permutations](https://leetcode.com/problems/permutations/), [Combination Sum](https://leetcode.com/problems/combination-sum/)
 
@@ -430,7 +430,7 @@ Trace it on `[1, 2, 3]`: the very first call records `[]` before the loop even s
 
 The runtime is inherently exponential, O(2^n) for subsets, since that's how many subsets exist; backtracking's job is to generate exactly that many, not fewer, but without wasted work re-deriving each one from scratch.
 
-#### 16 — Topological Sort: how do you recognize it, and what does the template look like?
+#### 16 — Topological Sort: how do you recognize it, and what does the template look like? {#16}
 
 **LeetCode:** [Course Schedule](https://leetcode.com/problems/course-schedule/), [Course Schedule II](https://leetcode.com/problems/course-schedule-ii/)
 
@@ -473,7 +473,7 @@ Trace it on that graph: in-degrees start at `[0, 1, 1, 2]`, so only course 0 beg
 
 If `visited` never reaches every node, some subset of nodes has a circular dependency on each other and can never reach in-degree zero, that's how this same code doubles as cycle detection.
 
-#### 17 — Union-Find (Disjoint Set Union): how do you recognize it, and what does the template look like?
+#### 17 — Union-Find (Disjoint Set Union): how do you recognize it, and what does the template look like? {#17}
 
 **LeetCode:** [Redundant Connection](https://leetcode.com/problems/redundant-connection/), [Number of Provinces](https://leetcode.com/problems/number-of-provinces/)
 
@@ -523,7 +523,7 @@ Path compression only fires when `find` actually runs, so a chain can still be s
 
 Path compression plus union-by-rank together give near-O(1) amortized operations, formally O(α(n)), the inverse Ackermann function, which is under 5 for any `n` you'd ever encounter in practice.
 
-#### 18 — Dijkstra's Algorithm: how do you recognize it, and what does the template look like?
+#### 18 — Dijkstra's Algorithm: how do you recognize it, and what does the template look like? {#18}
 
 **LeetCode:** [Network Delay Time](https://leetcode.com/problems/network-delay-time/), [Path with Maximum Probability](https://leetcode.com/problems/path-with-maximum-probability/)
 
@@ -560,7 +560,7 @@ Trace it from source 0: the heap starts with `(0, 0)`. Popping node 0 relaxes it
 
 Runs in O(E log V) with a binary heap. It breaks the moment an edge weight goes negative, a shorter path could then appear through a node you'd already "settled," which is exactly the case Bellman-Ford handles instead.
 
-#### 19 — Subsequence DP: how do you recognize it, and what does the template look like?
+#### 19 — Subsequence DP: how do you recognize it, and what does the template look like? {#19}
 
 **LeetCode:** [Longest Increasing Subsequence](https://leetcode.com/problems/longest-increasing-subsequence/), [Longest Common Subsequence](https://leetcode.com/problems/longest-common-subsequence/)
 
@@ -600,7 +600,7 @@ Both run in O(n²) (or O(n·m) for the two-string case): every cell in the DP ta
 
 ## Grid, Greedy, Knapsack & Trie Patterns
 
-#### 20 — Matrix/Grid Traversal (Multi-source BFS / Flood Fill): how do you recognize it, and what does the template look like?
+#### 20 — Matrix/Grid Traversal (Multi-source BFS / Flood Fill): how do you recognize it, and what does the template look like? {#20}
 
 **LeetCode:** [Number of Islands](https://leetcode.com/problems/number-of-islands/), [Rotting Oranges](https://leetcode.com/problems/rotting-oranges/)
 
@@ -660,7 +660,7 @@ rotting_oranges([[2, 1, 1], [1, 1, 0], [0, 1, 1]])  # -> 4
 
 The reason multi-source BFS gives the *minimum* time is the same reason plain BFS gives shortest paths: it explores in strictly increasing distance order, so the first time a fresh cell is reached is guaranteed to be the earliest any rotten orange could reach it. Both patterns are O(rows × cols): every cell is visited a constant number of times regardless of grid size.
 
-#### 21 — Greedy / Interval Scheduling: how do you recognize it, and what does the template look like?
+#### 21 — Greedy / Interval Scheduling: how do you recognize it, and what does the template look like? {#21}
 
 **LeetCode:** [Non-overlapping Intervals](https://leetcode.com/problems/non-overlapping-intervals/), [Meeting Rooms II](https://leetcode.com/problems/meeting-rooms-ii/)
 
@@ -682,7 +682,7 @@ max_non_overlapping([[1, 2], [2, 3], [3, 4], [1, 3]])  # -> 3
 
 Sorted by end time, that input becomes `[1,2], [2,3], [1,3], [3,4]`. Keep `[1,2]` (nothing kept yet), keep `[2,3]` (`2 >= 2`), skip `[1,3]` (`1 < 3`, it would overlap the interval just kept), keep `[3,4]` (`3 >= 3`), for 3 kept out of 4, so 1 removal is the minimum needed to eliminate all overlaps. The sort dominates the cost at O(n log n); the scan itself is a single O(n) pass.
 
-#### 22 — 0/1 Knapsack (Subset-Sum DP): how do you recognize it, and what does the template look like?
+#### 22 — 0/1 Knapsack (Subset-Sum DP): how do you recognize it, and what does the template look like? {#22}
 
 **LeetCode:** [Partition Equal Subset Sum](https://leetcode.com/problems/partition-equal-subset-sum/), [Coin Change](https://leetcode.com/problems/coin-change/)
 
@@ -714,7 +714,7 @@ can_partition([1, 2, 3, 5])   # -> False  (total is 11, odd, can't split evenly)
 
 Each cell `dp[i][capacity]` answers "can the first `i` items reach exactly this capacity," built from two options already computed one row up: skip item `i` (carry down `dp[i-1][capacity]`) or take it (check `dp[i-1][capacity - num]`, whether the *remaining* items could already reach what's left over). Runs in O(n × target) time and space; a rolling 1D array cuts the space to O(target) once you notice each row only ever reads the row directly above it.
 
-#### 23 — Trie (Prefix Tree): how do you recognize it, and what does the template look like?
+#### 23 — Trie (Prefix Tree): how do you recognize it, and what does the template look like? {#23}
 
 **LeetCode:** [Implement Trie (Prefix Tree)](https://leetcode.com/problems/implement-trie-prefix-tree/), [Word Search II](https://leetcode.com/problems/word-search-ii/)
 
@@ -762,11 +762,11 @@ trie.starts_with("app")  # -> True   (a prefix of "apple")
 
 ## Notes
 
-**[Array, String & Pointer Patterns](#array-string--pointer-patterns):** these are the patterns most likely to show up in a phone screen. Sliding window (1) and two pointers (2) alone cover a huge fraction of "easy" and "medium" problems, get the template reflexive enough that recognizing the pattern and writing the code happen in the same breath.
+**[Array, String & Pointer Patterns](#array-string--pointer-patterns):** these are the patterns most likely to show up in a phone screen. Sliding window ([1](#1)) and two pointers ([2](#2)) alone cover a huge fraction of "easy" and "medium" problems, get the template reflexive enough that recognizing the pattern and writing the code happen in the same breath.
 
-**[Tree, Graph, Backtracking & DP Patterns](#tree-graph-backtracking--dp-patterns):** this is where onsite rounds live. Tree BFS/DFS (12, 13) and backtracking (15) are foundational, everything else in this section is closer to a variation on one of those three. Dijkstra (18) and topological sort (16) are the two most likely to get a "now what if the graph has a cycle" or "what if a weight is negative" follow-up, know the failure mode, not just the happy path.
+**[Tree, Graph, Backtracking & DP Patterns](#tree-graph-backtracking--dp-patterns):** this is where onsite rounds live. Tree BFS/DFS ([12](#12), [13](#13)) and backtracking ([15](#15)) are foundational, everything else in this section is closer to a variation on one of those three. Dijkstra ([18](#18)) and topological sort ([16](#16)) are the two most likely to get a "now what if the graph has a cycle" or "what if a weight is negative" follow-up, know the failure mode, not just the happy path.
 
-**[Grid, Greedy, Knapsack & Trie Patterns](#grid-greedy-knapsack--trie-patterns):** newer categories on this list, but no less common in practice. Grid BFS/DFS (20) shows up constantly in easy/medium rounds, it's really just Tree BFS (12) with up to 4 neighbors instead of 2 children. Knapsack (22) is the one people confuse with Subsequence DP (19): if your DP's second dimension is a running sum or capacity rather than a position in the sequence, you're in knapsack territory, not subsequence territory.
+**[Grid, Greedy, Knapsack & Trie Patterns](#grid-greedy-knapsack--trie-patterns):** newer categories on this list, but no less common in practice. Grid BFS/DFS ([20](#20)) shows up constantly in easy/medium rounds, it's really just Tree BFS ([12](#12)) with up to 4 neighbors instead of 2 children. Knapsack ([22](#22)) is the one people confuse with Subsequence DP ([19](#19)): if your DP's second dimension is a running sum or capacity rather than a position in the sequence, you're in knapsack territory, not subsequence territory.
 
 ---
 
