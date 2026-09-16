@@ -1,0 +1,36 @@
+{{- if .Params.mermaid }}
+<script defer src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<script>
+(function () {
+  function mermaidTheme() {
+    return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'neutral';
+  }
+
+  function render() {
+    mermaid.initialize({ startOnLoad: false, theme: mermaidTheme() });
+    document.querySelectorAll('div.mermaid').forEach(function (el) {
+      el.removeAttribute('data-processed');
+      el.textContent = el.dataset.src;
+    });
+    mermaid.run({ querySelector: 'div.mermaid' });
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('pre code.language-mermaid').forEach(function (el) {
+      var div = document.createElement('div');
+      div.className = 'mermaid';
+      div.dataset.src = el.textContent;
+      div.textContent = el.textContent;
+      el.parentElement.replaceWith(div);
+    });
+    render();
+
+    new MutationObserver(function (records) {
+      records.forEach(function (r) {
+        if (r.attributeName === 'data-theme') { render(); }
+      });
+    }).observe(document.documentElement, { attributes: true });
+  });
+})();
+</script>
+{{- end }}
