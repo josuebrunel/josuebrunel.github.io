@@ -1,5 +1,10 @@
 {{- if .Params.mermaid }}
 <script defer src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<style>
+/* Wide diagrams scroll inside their own box rather than shrinking to
+   illegibility. The page itself must never scroll sideways. */
+div.mermaid { overflow-x: auto; max-width: 100%; }
+</style>
 <script>
 (function () {
   function mermaidTheme() {
@@ -7,7 +12,13 @@
   }
 
   function render() {
-    mermaid.initialize({ startOnLoad: false, theme: mermaidTheme() });
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: mermaidTheme(),
+      flowchart: { useMaxWidth: false },
+      sequence: { useMaxWidth: false },
+      state: { useMaxWidth: false }
+    });
     document.querySelectorAll('div.mermaid').forEach(function (el) {
       el.removeAttribute('data-processed');
       el.textContent = el.dataset.src;
