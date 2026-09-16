@@ -6,6 +6,7 @@ aliases: ["/go-interview-prep-kafka-microservices/"]
 nodate: true
 hidemeta: true
 nofeed: true
+quizmode: true
 mermaid: true
 ---
 
@@ -21,12 +22,15 @@ Every answer opens with **The gist**, one or two plain sentences. If the gist is
 
 {{< toc >}}
 
+{{< quizbar >}}
+
 ## Kafka in Depth (Go)
 
 *Questions 1 to 5 are the vocabulary, and you want those solid before you walk in. 6 to 18 are the operational reality, which is where most people actually get caught. 19 and 20 are code you might be asked to write on the spot.*
 
 ### 1. What is a Kafka topic, partition, and offset, and how do they relate to ordering guarantees? {#1}
 
+{{% qa %}}
 **The gist:** a topic is a stream of events cut into partitions. Kafka keeps things in order inside one partition, and makes no promise at all across the whole topic.
 
 A topic is a named stream of events, split into one or more partitions for parallelism. Each partition is an append-only, strictly ordered log with monotonically increasing offsets.
@@ -34,17 +38,21 @@ A topic is a named stream of events, split into one or more partitions for paral
 Kafka only guarantees ordering *within a single partition*, not across the whole topic.
 
 **What they're testing:** whether you'll claim Kafka gives you global ordering. It doesn't. The follow-up is always "so how do I keep one customer's events in order?" and the answer is the partition key, [question 19](#19).
+{{% /qa %}}
 
 ### 2. What is a consumer group, and how does partition assignment work across group members? {#2}
 
+{{% qa %}}
 **The gist:** a consumer group is several instances sharing one subscription. Kafka hands each partition to exactly one member, which is how you scale reading without processing everything twice.
 
 A consumer group is a set of consumer instances sharing a single logical subscription. Kafka guarantees each partition is consumed by exactly one member at a time.
 
 The group coordinator assigns partitions (round-robin, range, or sticky strategies) and reassigns them whenever group membership changes.
+{{% /qa %}}
 
 ### 3. Which Go Kafka client libraries are commonly used, and what are the key differences? {#3}
 
+{{% qa %}}
 **The gist:** three clients, one tradeoff. `confluent-kafka-go` is the fastest but drags in cgo. The other two are pure Go and much easier to build and cross-compile.
 
 `IBM/sarama` is pure Go, widely used, with fine-grained control over almost everything.
@@ -52,17 +60,21 @@ The group coordinator assigns partitions (round-robin, range, or sticky strategi
 `confluent-kafka-go` wraps librdkafka via cgo, which makes it the most performant and feature-complete option, at the cost of a cgo dependency in your build.
 
 `segmentio/kafka-go` is pure Go with a simpler API, and has historically lagged on some advanced features.
+{{% /qa %}}
 
 ### 4. Difference between synchronous and asynchronous producers, and when to use each? {#4}
 
+{{% qa %}}
 **The gist:** synchronous waits for the broker to say yes, so errors are easy to handle and throughput is capped. Asynchronous fires and moves on, batching behind your back.
 
 A synchronous producer blocks until the broker acknowledges each message. That makes error handling simple, but it limits throughput to one round trip per message.
 
 An asynchronous producer returns immediately and delivers results on separate channels, batching under the hood for much higher throughput. The cost is that you now have to actually read those result channels, or failures disappear silently.
+{{% /qa %}}
 
 ### 5. Explain Kafka's `acks` setting and the tradeoffs for a Go producer. {#5}
 
+{{% qa %}}
 **The gist:** `acks` is how many brokers have to confirm a write before you call it done. It's a dial between speed and not losing data.
 
 `acks=0` doesn't wait at all. Fastest, and messages can vanish without you knowing.
@@ -78,9 +90,11 @@ config.Producer.Retry.Max = 5
 ```
 
 **What they're testing:** whether you pick a setting and justify it for the data in question. "`acks=all` for payments, `acks=1` for click events" is the answer they want, not "always use all."
+{{% /qa %}}
 
 ### 6. What happens during a consumer group rebalance, and how can it disrupt a Go service mid-processing? {#6}
 
+{{% qa %}}
 **The gist:** a rebalance is Kafka reshuffling partitions between consumers. While it runs, everyone stops, and if you haven't committed your offsets you'll redo work.
 
 The coordinator revokes and reassigns partitions. By default all consumers in the group pause during that window, even the ones whose partitions didn't change at all.
@@ -88,9 +102,11 @@ The coordinator revokes and reassigns partitions. By default all consumers in th
 If your processing loop doesn't handle the revoke callback properly, you can double-process after reassignment, because the offsets for work you'd already finished were never committed.
 
 **What they're testing:** whether you know a rebalance stops the whole group, not just the consumers whose partitions moved. That's the detail that surprises people the first time they see it in production.
+{{% /qa %}}
 
 ### 7. How do you achieve at-least-once processing in a Go Kafka consumer? {#7}
 
+{{% qa %}}
 **The gist:** do the work first, commit the offset second. If you crash in between, the message comes back, which is fine as long as doing it twice is harmless.
 
 Process the message fully *before* committing its offset, and only commit after processing succeeded. If the consumer crashes before committing, the message is redelivered on restart.
@@ -105,9 +121,11 @@ for msg := range claim.Messages() {
 ```
 
 **What they're testing:** whether "at-least-once" makes you say "so the handler has to be idempotent" without being prompted. That's the whole point of the question.
+{{% /qa %}}
 
 ### 8. How would you implement exactly-once-ish semantics in Go without relying purely on Kafka transactions? {#8}
 
+{{% qa %}}
 **The gist:** you don't really get exactly-once. You get at-least-once plus a consumer that ignores repeats, usually by letting the database reject the second one.
 
 Combine at-least-once delivery with idempotent consumer-side writes. Use the message's unique key, or the `(topic, partition, offset)` tuple, as an idempotency key backed by an upsert or a unique constraint.
@@ -119,9 +137,11 @@ ON CONFLICT (event_key) DO NOTHING;
 ```
 
 **What they're testing:** whether you treat "exactly-once" as a property of your consumer rather than something the broker hands you. Pushing the guarantee down to a unique constraint is the answer.
+{{% /qa %}}
 
 ### 9. Explain Kafka's idempotent producer feature, and when you'd enable it. {#9}
 
+{{% qa %}}
 **The gist:** turn it on and the broker throws away duplicate sends caused by your own retries. It costs almost nothing.
 
 With `enable.idempotence=true`, the producer assigns each message a sequence number per partition, and brokers deduplicate retried sends caused by producer-side retries after a transient failure.
@@ -133,17 +153,21 @@ config.Producer.Idempotent = true
 config.Producer.RequiredAcks = sarama.WaitForAll // required
 config.Net.MaxOpenRequests = 1                   // required
 ```
+{{% /qa %}}
 
 ### 10. What is Kafka transactional messaging, and when would you use it in Go? {#10}
 
+{{% qa %}}
 **The gist:** transactions let one producer write to several topics and commit its read position as a single atomic unit. It's for read-process-write stream steps.
 
 Transactions let a producer atomically write to multiple partitions and topics, and commit its consumed offset together with those writes, in one "read process write" cycle.
 
 Use it for a stream-processing step that genuinely can't tolerate a partial failure between reading and writing. For most services, [question 8](#8)'s idempotency-key approach is simpler and good enough.
+{{% /qa %}}
 
 ### 11. How do you handle a poison pill message in a Go consumer without blocking the partition forever? {#11}
 
+{{% qa %}}
 **The gist:** one bad message can block a partition forever if you retry it in a loop. Give up after a few tries, park it somewhere else, and keep moving.
 
 After a bounded number of retries, route the message to a dead-letter topic instead of retrying indefinitely. Then commit past it so the partition keeps moving.
@@ -155,17 +179,21 @@ if attempts > maxRetries {
     continue
 }
 ```
+{{% /qa %}}
 
 ### 12. Explain consumer lag and how you'd monitor it in a Go service. {#12}
 
+{{% qa %}}
 **The gist:** lag is how far behind your consumer is, counted in messages. Growing lag means you're losing the race.
 
 Lag is the difference between the latest produced offset and the consumer group's last committed offset.
 
 Monitor it through Kafka's own exposed metrics, using Burrow or the Kafka exporter for Prometheus. A lag number that's high but flat is fine. A lag number that climbs steadily means consumers can't keep up and something has to change.
+{{% /qa %}}
 
 ### 13. How do you handle backpressure when a Go consumer processes slower than messages arrive? {#13}
 
+{{% qa %}}
 **The gist:** Kafka won't flood you, because it only sends what you ask for. The real danger is your own code spawning a goroutine per message until memory runs out.
 
 Kafka provides backpressure naturally: a consumer that doesn't poll simply doesn't receive more messages. So the problem is almost never Kafka pushing too hard, it's your consumer fanning out without a limit.
@@ -185,17 +213,21 @@ for msg := range claim.Messages() {
 ```
 
 Worth saying out loud: this gives up per-partition ordering and makes offset commits trickier, so only reach for it when messages within a partition are genuinely independent.
+{{% /qa %}}
 
 ### 14. What's the significance of partition count for parallelism, and what happens with more consumers than partitions? {#14}
 
+{{% qa %}}
 **The gist:** partitions are your parallelism budget. Ten partitions means at most ten useful consumers, and the eleventh sits there doing nothing.
 
 Partition count is the hard ceiling on parallelism within a consumer group. Extra consumer instances beyond the partition count stay completely idle.
 
 **What they're testing:** whether you know you can't scale a consumer group past the partition count. The follow-up is "so add partitions," and the good answer notes that changing partition count changes key-to-partition mapping, which breaks the ordering guarantee from [question 1](#1).
+{{% /qa %}}
 
 ### 15. Manual vs automatic offset commits, and the pitfalls of auto-commit {#15}
 
+{{% qa %}}
 **The gist:** auto-commit commits on a timer based on what you fetched, not what you finished. Crash at the wrong moment and the message is silently gone.
 
 Auto-commit periodically commits the latest *fetched* offset on a timer, regardless of whether processing actually finished. If the consumer crashes between fetching and finishing, that message is never redelivered, and nothing anywhere logs a problem.
@@ -207,25 +239,31 @@ config.Consumer.Offsets.AutoCommit.Enable = false // commit manually
 ```
 
 **What they're testing:** whether you can name the exact window where a message gets lost. "Between fetch and finish" is the phrase.
+{{% /qa %}}
 
 ### 16. How do you handle schema evolution for Kafka messages in Go (Avro/Protobuf and a schema registry)? {#16}
 
+{{% qa %}}
 **The gist:** register schemas centrally and let the registry reject incompatible changes before they ship. Add fields with defaults, never remove or retype one.
 
 Register schemas in a schema registry and enforce compatibility rules (backward or full) so old consumers can still read new-schema messages.
 
 In practice that means one rule: only add new fields, and give them defaults. Removing, renaming, or retyping an existing field breaks every consumer that hasn't been redeployed yet, and in a rolling deploy that's most of them.
+{{% /qa %}}
 
 ### 17. What's a dead-letter queue (DLQ) pattern for Kafka consumers, and how would you implement it in Go? {#17}
 
+{{% qa %}}
 **The gist:** a DLQ is a parking lot for messages you can't process. It keeps one bad message from stopping the whole partition.
 
 After a message fails more than N times, produce it to a separate DLQ topic along with the failure metadata, then commit past it on the original topic.
 
 The DLQ message can then be inspected, fixed, or replayed manually later, while the main consumer keeps up with live traffic. See [question 11](#11) for the commit-past-it mechanics.
+{{% /qa %}}
 
 ### 18. How would you test Kafka producer/consumer code in Go without a real Kafka cluster? {#18}
 
+{{% qa %}}
 **The gist:** mock the broker for unit tests. Run a real one in a container when you need to actually trust the result.
 
 For unit tests, sarama's mock broker and mock producer simulate broker responses without a network.
@@ -236,9 +274,11 @@ defer broker.Close()
 ```
 
 For integration-level confidence, run a real Kafka broker in a container via `testcontainers-go`, or use Redpanda as a lighter-weight, Kafka-compatible alternative.
+{{% /qa %}}
 
 ### 19. How do you produce a message with a specific key in Go, and why does the key matter? {#19}
 
+{{% qa %}}
 **The gist:** the key picks the partition, and the partition decides the order. Same key means same partition, which is how you keep one user's events in sequence.
 
 You set the `Key` field on the producer message. Kafka's default partitioner hashes the key to consistently route all messages with the same key to the same partition, which matters whenever you need ordering guarantees for a given entity.
@@ -252,9 +292,11 @@ msg := &sarama.ProducerMessage{
 partition, offset, err := producer.SendMessage(msg)
 // same key -> same partition -> preserves per-user ordering
 ```
+{{% /qa %}}
 
 ### 20. How would you design a Go consumer to gracefully shut down without losing in-flight messages or committing wrong offsets? {#20}
 
+{{% qa %}}
 **The gist:** stop taking new work, finish what's in your hands, commit, then leave. Leaving cleanly also makes the rebalance faster for everyone else in the group.
 
 On a shutdown signal (SIGTERM), stop polling for new messages, let in-flight processing finish, commit offsets for everything successfully processed, then close the consumer and session cleanly so the group coordinator triggers a clean rebalance.
@@ -276,6 +318,7 @@ func (h *Handler) ConsumeClaim(sess sarama.ConsumerGroupSession,
     }
 }
 ```
+{{% /qa %}}
 
 ---
 
@@ -285,6 +328,7 @@ func (h *Handler) ConsumeClaim(sess sarama.ConsumerGroupSession,
 
 ### 21. What is service discovery in a microservices architecture, and what approaches are common? {#21}
 
+{{% qa %}}
 **The gist:** instances come and go constantly, so a hardcoded address is a bug waiting to happen. Service discovery is how a caller finds a live one right now.
 
 Service discovery lets one service find the current network location of another, since instances scale up and down and get rescheduled constantly.
@@ -298,9 +342,11 @@ graph LR
     R -->|instance list| C
     C -->|call| A
 ```
+{{% /qa %}}
 
 ### 22. What's the difference between client-side and server-side service discovery? {#22}
 
+{{% qa %}}
 **The gist:** client-side, the caller asks the registry and picks an instance itself. Server-side, the caller talks to one fixed address that picks for it.
 
 Client-side discovery means the calling service queries the registry directly and chooses an instance. No extra network hop, but every client needs the discovery logic baked in.
@@ -319,9 +365,11 @@ graph TD
     LB -->|"3: route"| S2[Chosen Instance]
     end
 ```
+{{% /qa %}}
 
 ### 23. What is an API gateway, and what responsibilities does it typically centralize? {#23}
 
+{{% qa %}}
 **The gist:** one front door that handles auth, rate limiting, and routing, so that every service behind it doesn't have to.
 
 A single entry point that centralizes cross-cutting concerns so individual services don't each reimplement them: authentication, rate limiting, routing, TLS termination, logging, and sometimes response aggregation.
@@ -335,9 +383,11 @@ graph LR
 ```
 
 The tradeoff is that it becomes a critical-path component. Everything goes through it, so it needs to be highly available or it takes the whole system down with it.
+{{% /qa %}}
 
 ### 24. Explain bounded contexts in Domain-Driven Design, and why they matter for deciding microservice boundaries. {#24}
 
+{{% qa %}}
 **The gist:** a bounded context is a fence around one meaning of a word. "Customer" in billing isn't "Customer" in support, and pretending otherwise is how a model rots.
 
 A bounded context is an explicit boundary within which a particular domain model and its terminology stay consistent. The same word can mean something different in another context, and that's fine, as long as each context owns its own model.
@@ -356,9 +406,11 @@ graph TD
 ```
 
 **What they're testing:** whether you can name a boundary from a real system instead of reciting the definition. Have an example ready where one word quietly meant two things.
+{{% /qa %}}
 
 ### 25. What's the difference between an Entity and a Value Object in Domain-Driven Design? {#25}
 
+{{% qa %}}
 **The gist:** an Entity is "which one." A Value Object is "what." Two amounts of £100 are interchangeable, two orders with identical fields are not.
 
 An Entity has a persistent identity that outlives any single attribute value. Two `Order` objects with identical fields are still different orders if their IDs differ, and an entity's attributes can change over time while it stays "the same" order.
@@ -366,9 +418,11 @@ An Entity has a persistent identity that outlives any single attribute value. Tw
 A Value Object has no identity of its own. It's defined entirely by its attributes, is typically immutable, and two value objects with the same attributes are interchangeable. A `Money{Amount: 100, Currency: "USD"}` doesn't need an ID, because another `Money{100, "USD"}` is simply equal to it.
 
 Modeling something as a value object instead of an entity removes a whole class of identity-tracking and mutation bugs. Reach for it whenever "what is this" matters more than "which one is this."
+{{% /qa %}}
 
 ### 26. What is an Aggregate in DDD, and what role does the Aggregate Root play? {#26}
 
+{{% qa %}}
 **The gist:** an Aggregate is a group of objects saved and validated together. The Root is the only door in, which is exactly what lets it enforce its own rules.
 
 An Aggregate is a cluster of entities and value objects treated as a single consistency boundary. Everything inside it is loaded, modified, and saved together, and invariants spanning several objects (an Order's total must equal the sum of its line items) are enforced inside that boundary.
@@ -389,9 +443,11 @@ graph TD
 ```
 
 **What they're testing:** whether you keep aggregates small. "One giant aggregate for the whole object graph" is the mistake they're listening for you to avoid.
+{{% /qa %}}
 
 ### 27. What is a domain event, and how does it differ from an integration event? {#27}
 
+{{% qa %}}
 **The gist:** a domain event is internal news your own context reacts to. An integration event is the published version other teams depend on, which makes it a contract.
 
 A domain event captures something that happened inside the domain model that other parts of the same bounded context care about, like `OrderPlaced` or `InventoryReserved`. It's raised by an aggregate as a side effect of a state change, usually handled in-process, often within the same transaction.
@@ -399,9 +455,11 @@ A domain event captures something that happened inside the domain model that oth
 An integration event is the cross-service version: a domain event, or a more stable version derived from it, published externally over a broker so other bounded contexts can react. That's exactly what the [outbox pattern]({{< ref "interview-prep-databases-systems.md" >}}#33) (Part 3) exists to publish reliably.
 
 Keeping the two separate matters because a domain event's shape is free to change with the internal model, while an integration event is a public contract other teams depend on and needs the same versioning discipline as an API.
+{{% /qa %}}
 
 ### 28. What does the Repository pattern give you in a DDD-structured service? {#28}
 
+{{% qa %}}
 **The gist:** a Repository makes storage look like a collection. Domain code asks for aggregates and never learns whether they came from Postgres or a map in a test.
 
 A Repository provides a collection-like interface (`Get`, `Save`, `FindByX`) for retrieving and persisting aggregates, hiding the actual storage mechanism behind that interface: SQL, a document store, or an in-memory fake in tests.
@@ -409,9 +467,11 @@ A Repository provides a collection-like interface (`Get`, `Save`, `FindByX`) for
 The domain layer depends only on the repository interface, never on a concrete database driver. So business logic can be unit-tested against an in-memory fake with no database at all, and the storage technology can change without touching domain code.
 
 It's the same dependency-inversion idea as Go's usual "define the interface where it's consumed, not where it's implemented" convention, applied specifically to persistence.
+{{% /qa %}}
 
 ### 29. What is an Anti-Corruption Layer, and when do you need one? {#29}
 
+{{% qa %}}
 **The gist:** an Anti-Corruption Layer translates someone else's model into yours at the border, so their weirdness never leaks into your domain.
 
 An Anti-Corruption Layer (ACL) is a translation boundary placed between your bounded context and an external system: a legacy service, a third-party API, another team's model. It stops the external system's model, quirks, and vocabulary from leaking into your domain model, translating their shapes into yours at the boundary instead.
@@ -423,17 +483,21 @@ graph LR
     Legacy["Legacy / third-party system<br/>(their model, their vocabulary)"] --> ACL["Anti-Corruption Layer<br/>(translates)"]
     ACL --> Domain["Your domain model<br/>(your ubiquitous language)"]
 ```
+{{% /qa %}}
 
 ### 30. What is "ubiquitous language" in DDD, and why does it matter for an architect? {#30}
 
+{{% qa %}}
 **The gist:** one vocabulary, used by engineers and domain experts alike, in conversation and in code. No silent translation between the business word and the class name.
 
 Ubiquitous language is a shared vocabulary, defined by the domain and used consistently by both engineers and domain experts: in conversation, in code (class and method names), and in documentation. There's no separate "business term" that gets quietly translated into a different "technical term" in the codebase.
 
 It matters at the architecture level because bounded context boundaries are usually exactly where the language changes. The moment two teams use the same word to mean different things ([question 24](#24)'s "Customer" example) is a signal you've crossed into a different bounded context, which is itself a strong hint for where a service boundary belongs.
+{{% /qa %}}
 
 ### 31. What is hexagonal (ports and adapters) architecture, and how does it relate to DDD? {#31}
 
+{{% qa %}}
 **The gist:** domain in the middle, infrastructure at the edges, dependencies pointing inward. Ports are interfaces the domain needs, adapters are the things that implement them.
 
 Hexagonal architecture puts the domain model at the center, fully isolated from infrastructure, and defines "ports" (interfaces the domain needs, like a repository or a notifier) that "adapters" implement for a specific technology: a Postgres repository, an SMTP email adapter, an HTTP handler driving the domain from outside.
@@ -451,9 +515,11 @@ graph TD
     Domain --> Port3["Port: Notifier interface"]
     Port3 --> SMTP["SMTP Adapter<br/>(adapter)"]
 ```
+{{% /qa %}}
 
 ### 32. What is the "database per service" pattern, and why is a shared database across services usually an anti-pattern? {#32}
 
+{{% qa %}}
 **The gist:** each service owns its own database and nobody else touches it. Share one and another team's migration can break you at 3am.
 
 Each microservice owns its own database, and no other service reads or writes it directly.
@@ -474,9 +540,11 @@ graph TD
 ```
 
 **What they're testing:** whether you can say what specifically goes wrong. "Coupling" is vague. "Their migration drops a column my service still selects" is the answer.
+{{% /qa %}}
 
 ### 33. How do you handle a query that needs data owned by multiple services, for example an order summary needing user, inventory, and payment data? {#33}
 
+{{% qa %}}
 **The gist:** either call every owner and stitch the answers together, or keep a pre-built read model fed by events. You're trading latency against staleness.
 
 API composition: a gateway calls each owning service's API in parallel and stitches the results together. Simple, but it adds latency and couples your availability to every downstream service at once.
@@ -498,9 +566,11 @@ graph TD
     Q[Order Summary Query] --> RM
     end
 ```
+{{% /qa %}}
 
 ### 34. What is distributed tracing, and how does it help debug a slow request spanning multiple services? {#34}
 
+{{% qa %}}
 **The gist:** one request, many services, one shared trace ID. The result is a timeline that shows you exactly which hop was slow.
 
 Distributed tracing follows a single logical request as it fans out across many services, recording each service's processing time as a "span" linked into one trace by a shared trace ID.
@@ -521,9 +591,11 @@ sequenceDiagram
     Gateway-->>Client: response
     Note over Client,PaymentSvc: All spans linked by trace-id abc123 in one timeline
 ```
+{{% /qa %}}
 
 ### 35. Explain correlation IDs and trace context propagation across service calls. {#35}
 
+{{% qa %}}
 **The gist:** generate an ID at the edge, pass it everywhere, log it everywhere. Now one grep reconstructs the whole request across every service.
 
 A correlation ID is generated once at the edge and passed along in every downstream call, usually as an HTTP header. Every service logs that ID alongside its own log lines, so you can reconstruct the full picture across services after the fact.
@@ -541,9 +613,11 @@ sequenceDiagram
     A-->>Edge: response
     Note over Edge,B: Same ID in every log, so the request is reconstructable
 ```
+{{% /qa %}}
 
 ### 36. What is a circuit breaker, and how does it differ from a retry/backoff strategy? {#36}
 
+{{% qa %}}
 **The gist:** retry assumes the problem is this one request. A circuit breaker assumes the service is down, and stops calling it entirely for a while.
 
 Retry with backoff assumes the downstream is basically fine and this particular request hit a transient hiccup.
@@ -563,9 +637,11 @@ stateDiagram-v2
 ```
 
 **What they're testing:** whether you can explain why retrying harder makes an outage worse. The phrase they're waiting for is retry storm.
+{{% /qa %}}
 
 ### 37. How do you secure service-to-service communication in a microservices architecture? {#37}
 
+{{% qa %}}
 **The gist:** mTLS proves which service is calling. A forwarded JWT proves which user it's calling for. You usually want both, because they answer different questions.
 
 mTLS means both sides present certificates, so each service cryptographically verifies the other's identity rather than trusting the network.
@@ -581,9 +657,11 @@ graph LR
 ```
 
 **What they're testing:** whether you separate "which service" from "which user." People often answer with only one and miss that both need answering.
+{{% /qa %}}
 
 ### 38. What is a service mesh, and what problems does it solve that you'd otherwise build into each service? {#38}
 
+{{% qa %}}
 **The gist:** a sidecar proxy next to every service that does mTLS, retries, and metrics, so your application code doesn't have to.
 
 A service mesh (Istio, Linkerd) is a sidecar proxy deployed alongside every service instance. It handles mTLS, retries, timeouts, circuit breaking, load balancing, and observability transparently, without application code implementing any of it.
@@ -600,9 +678,11 @@ graph TD
     end
     SidecarA <-->|mTLS, retries, timeouts, metrics| SidecarB
 ```
+{{% /qa %}}
 
 ### 39. How do you version and evolve APIs between microservices without breaking consumers during a rolling deployment? {#39}
 
+{{% qa %}}
 **The gist:** during a rolling deploy both versions run at the same time, so the new one has to stay readable by the old one. Genuinely breaking changes need a separate version path.
 
 During a rolling deploy, old and new versions run simultaneously, so the API has to be backward compatible for the whole rollout window at minimum.
@@ -618,6 +698,7 @@ graph LR
 ```
 
 **What they're testing:** whether "rolling deploy" makes you realize both versions are live at once. That's the constraint the whole answer hangs on.
+{{% /qa %}}
 
 ---
 

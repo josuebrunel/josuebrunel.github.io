@@ -5,6 +5,7 @@ url: "/interview-prep-coding-patterns/"
 nodate: true
 hidemeta: true
 nofeed: true
+quizmode: true
 mermaid: true
 ---
 
@@ -20,12 +21,15 @@ Every pattern opens with **The gist**, one or two plain sentences naming the tel
 
 {{< toc >}}
 
+{{< quizbar >}}
+
 ## Array, String & Pointer Patterns
 
 *All ten of these are fair game at any level, and 1, 2 and 10 show up more than anything else on this page. If you only drill one section before a phone screen, drill this one.*
 
 ### 1. Sliding Window: when the answer is a contiguous run inside one array {#1}
 
+{{% qa %}}
 **The gist:** the problem wants the best contiguous stretch of an array or string. Instead of rescanning every window from scratch, you move two edges and update the answer as you go.
 
 **LeetCode:** [Longest Substring Without Repeating Characters](https://leetcode.com/problems/longest-substring-without-repeating-characters/)
@@ -58,9 +62,11 @@ graph LR
 The key cost you're avoiding: a naive approach re-scans the window from scratch every time it moves, O(n²) or worse. The sliding window touches each element a bounded number of times, O(n) total.
 
 **What they're testing:** whether you notice the repeated work. Plenty of people write the O(n²) version and stop. The interviewer is waiting for you to say "I'm recomputing the same sum over and over."
+{{% /qa %}}
 
 ### 2. Two Pointers: when the input is sorted and you need a pair that hits a target {#2}
 
+{{% qa %}}
 **The gist:** the input is sorted and you want a pair or triplet matching some sum. Start at both ends and walk inward, letting the sortedness tell you which side to move.
 
 **LeetCode:** [Two Sum II - Input Array Is Sorted](https://leetcode.com/problems/two-sum-ii-input-array-is-sorted/), [3Sum](https://leetcode.com/problems/3sum/)
@@ -84,9 +90,11 @@ two_sum_sorted([1, 2, 3, 4, 6], 6)  # -> (1, 3)   (2 + 4 == 6)
 ```
 
 This turns an O(n²) pairwise check into O(n). The sortedness is what lets each pointer move monotonically in one direction without missing a valid pair.
+{{% /qa %}}
 
 ### 3. Fast & Slow Pointers: when you need a cycle or a midpoint with no extra memory {#3}
 
+{{% qa %}}
 **The gist:** two pointers walk the same list at different speeds. If there's a loop, the fast one laps the slow one and they collide. That collision is your cycle detector.
 
 **LeetCode:** [Linked List Cycle](https://leetcode.com/problems/linked-list-cycle/), [Middle of the Linked List](https://leetcode.com/problems/middle-of-the-linked-list/)
@@ -119,9 +127,11 @@ On this 3-node loop, `slow` visits 1, 2, 3, 1, 2... one step at a time while `fa
 The same fast/slow split (find the middle, then walk from there) is also how you solve "find the middle of a linked list" and "check if a linked list is a palindrome" in O(1) space instead of copying the list into an array first.
 
 **What they're testing:** whether you can say *why* they meet, not just that they do. "The gap closes by one node per tick, so it hits zero" is the answer they want.
+{{% /qa %}}
 
 ### 4. Merge Intervals: when the problem says overlapping ranges {#4}
 
+{{% qa %}}
 **The gist:** the problem talks about ranges that overlap. Sort by start time, then compare each interval only against the last one you kept, never against all the rest.
 
 **LeetCode:** [Merge Intervals](https://leetcode.com/problems/merge-intervals/), [Insert Interval](https://leetcode.com/problems/insert-interval/)
@@ -146,9 +156,11 @@ merge_intervals([[1, 3], [2, 6], [8, 10], [15, 18]])
 ```
 
 Sorting costs O(n log n) and dominates the total. The merge pass itself is a single O(n) sweep.
+{{% /qa %}}
 
 ### 5. Cyclic Sort: when the numbers come from a known range and one is missing {#5}
 
+{{% qa %}}
 **The gist:** the array holds numbers drawn from a bounded range like 1..n. Swap each number to the index it belongs at, and whatever's left out of place is your answer.
 
 **LeetCode:** [Missing Number](https://leetcode.com/problems/missing-number/), [Find the Duplicate Number](https://leetcode.com/problems/find-the-duplicate-number/)
@@ -175,9 +187,11 @@ find_missing_number([3, 0, 1])  # -> 2
 ```
 
 Once the cyclic sort pass finishes, any index whose value doesn't match the index itself points straight at the missing or duplicated number, no hash set required.
+{{% /qa %}}
 
 ### 6. Modified Binary Search: when the array is sorted, even if someone rotated it {#6}
 
+{{% qa %}}
 **The gist:** anything sorted, or sorted then rotated. Each step you work out which half is still properly sorted, then ask whether the target could live in that half.
 
 **LeetCode:** [Find Minimum in Rotated Sorted Array](https://leetcode.com/problems/find-minimum-in-rotated-sorted-array/), [Search in Rotated Sorted Array](https://leetcode.com/problems/search-in-rotated-sorted-array/)
@@ -201,9 +215,11 @@ find_min_in_rotated([4, 5, 6, 7, 0, 1, 2])  # -> 0
 Computing `mid` as `left + (right - left) // 2` instead of `(left + right) // 2` avoids integer overflow in languages with fixed-width integers. It doesn't matter in Python, but it's the version worth having memorized since it's correct everywhere.
 
 **What they're testing:** the boundaries. `while left < right` versus `<=`, and `right = mid` versus `mid - 1`, are where almost every binary search bug lives. Expect to be asked why you picked the one you did.
+{{% /qa %}}
 
 ### 7. Top K Elements: when you need the best k, not all n sorted {#7}
 
+{{% qa %}}
 **The gist:** you need the top, smallest, or most frequent k. A heap of size k holds exactly the candidates still in the running and drops the weakest as better ones arrive.
 
 **LeetCode:** [Kth Largest Element in an Array](https://leetcode.com/problems/kth-largest-element-in-an-array/), [Top K Frequent Elements](https://leetcode.com/problems/top-k-frequent-elements/)
@@ -225,9 +241,11 @@ kth_largest([3, 2, 1, 5, 6, 4], 2)  # -> 5   (the 2nd largest value)
 ```
 
 This runs in O(n log k) instead of the O(n log n) a full sort would cost. The win grows as `k` gets small relative to `n`.
+{{% /qa %}}
 
 ### 8. K-way Merge: when you have k sorted lists and need one sorted walk {#8}
 
+{{% qa %}}
 **The gist:** k sorted lists, one sorted result. A min-heap holds one element per list, so popping the smallest always hands you the next item in order.
 
 **LeetCode:** [Merge k Sorted Lists](https://leetcode.com/problems/merge-k-sorted-lists/)
@@ -254,9 +272,11 @@ merge_k_sorted_lists([[1, 4, 5], [1, 3, 4], [2, 6]])
 ```
 
 Total work is O(n log k) where `n` is the total element count across all lists. The heap never holds more than `k` elements at once, one per list.
+{{% /qa %}}
 
 ### 9. Monotonic Stack: when every element asks what comes next that's bigger {#9}
 
+{{% qa %}}
 **The gist:** every element wants to know the next bigger (or smaller) thing after it. Keep a stack in order, and whatever pops an element is that element's answer.
 
 **LeetCode:** [Next Greater Element I](https://leetcode.com/problems/next-greater-element-i/), [Daily Temperatures](https://leetcode.com/problems/daily-temperatures/)
@@ -283,9 +303,11 @@ Trace it on `[2, 1, 2, 4, 3]`: push index 0 (value 2). Index 1 (value 1) doesn't
 Each element is pushed once and popped at most once, so the whole pass is O(n) even though there's a `while` loop nested inside the `for`.
 
 **What they're testing:** whether you can defend the O(n). A nested loop *looks* quadratic, and the interviewer wants to hear the amortized argument: each index enters and leaves the stack exactly once.
+{{% /qa %}}
 
 ### 10. Prefix Sum: when the same ranges get summed over and over {#10}
 
+{{% qa %}}
 **The gist:** the problem sums many different ranges of the same array. Precompute running totals once, and any range sum becomes a single subtraction instead of a fresh loop.
 
 **LeetCode:** [Subarray Sum Equals K](https://leetcode.com/problems/subarray-sum-equals-k/), [Range Sum Query - Immutable](https://leetcode.com/problems/range-sum-query-immutable/)
@@ -308,6 +330,7 @@ subarray_sum_equals_k([1, 1, 1], 2)
 ```
 
 The hash-map variant above turns "how many subarrays sum to k" into O(n). For every prefix sum you've seen, you're really asking "has `running_sum - k` shown up before," which is an O(1) lookup instead of an O(n) inner loop.
+{{% /qa %}}
 
 ## Tree, Graph, Backtracking & DP Patterns
 
@@ -315,6 +338,7 @@ The hash-map variant above turns "how many subarrays sum to k" into O(n). For ev
 
 ### 11. In-place Reversal of a Linked List: when you can't allocate a second list {#11}
 
+{{% qa %}}
 **The gist:** reverse a list without building a new one. Walk it once, flipping each node's `next` pointer to aim back at the node you just left.
 
 **LeetCode:** [Reverse Linked List](https://leetcode.com/problems/reverse-linked-list/), [Reverse Linked List II](https://leetcode.com/problems/reverse-linked-list-ii/)
@@ -337,9 +361,11 @@ reverse_list(head)
 ```
 
 Reversing a sub-range `[left, right]` is the same loop, just started after walking to position `left` first, then splicing the reversed segment back into the untouched parts on either side.
+{{% /qa %}}
 
 ### 12. Tree BFS: when the answer is organized by level {#12}
 
+{{% qa %}}
 **The gist:** the problem wants a level-by-level view: level order, zigzag, minimum depth. A queue holds one level at a time, and you drain it by its current length.
 
 **LeetCode:** [Binary Tree Level Order Traversal](https://leetcode.com/problems/binary-tree-level-order-traversal/), [Binary Tree Zigzag Level Order Traversal](https://leetcode.com/problems/binary-tree-zigzag-level-order-traversal/)
@@ -384,9 +410,11 @@ graph TD
 ```
 
 That `for _ in range(len(queue))` is the whole trick: it freezes "how many nodes are in this level" before the loop starts appending next-level nodes into the same queue.
+{{% /qa %}}
 
 ### 13. Tree DFS: when the answer is a root-to-leaf path {#13}
 
+{{% qa %}}
 **The gist:** you need a path from root to leaf, a path sum, or an ordered traversal. Recursion tracks the path for you on the call stack, so you go deep before you go wide.
 
 **LeetCode:** [Path Sum](https://leetcode.com/problems/path-sum/), [Binary Tree Maximum Path Sum](https://leetcode.com/problems/binary-tree-maximum-path-sum/)
@@ -410,9 +438,11 @@ has_path_sum(root, 22)  # -> True
 ```
 
 Every DFS variant, this one included, is O(n) time since it visits each node once, and O(h) space for the call stack, where `h` is the tree's height: O(log n) for a balanced tree, O(n) in the worst case of a completely skewed one.
+{{% /qa %}}
 
 ### 14. Two Heaps: when you need the median of a stream that keeps growing {#14}
 
+{{% qa %}}
 **The gist:** you need the median of numbers as they arrive, not once at the end. Keep the smaller half in one heap and the larger half in another, and the median sits right at the top.
 
 **LeetCode:** [Find Median from Data Stream](https://leetcode.com/problems/find-median-from-data-stream/)
@@ -457,9 +487,11 @@ graph LR
 Trace adding 1, 2, 3 one at a time: after 1, `small=[-1]`. Adding 2 pushes it into `small` then immediately moves `small`'s top into `large`, leaving `small=[-1]`, `large=[2]`, an even split, so the median is the average, `1.5`. Adding 3 pushes it into `small` (`small=[-3, -1]`), moves its top (3) into `large` (`large=[2, 3]`), and now `large` has one more element than `small`, so the rebalance step moves `large`'s top (2) back into `small`: final state `small=[-2, -1]`, `large=[3]`, `small` is heavier by one, so the median is `small`'s top, `2`.
 
 Pushing into one heap and immediately moving its top into the other is what keeps both heaps balanced without a separate comparison step. Each insert is O(log n), and the median is always an O(1) read.
+{{% /qa %}}
 
 ### 15. Subsets (Backtracking): when the problem says find all {#15}
 
+{{% qa %}}
 **The gist:** the phrase "find all" is the giveaway. Build a partial answer one choice at a time, recurse, then undo that choice before trying the next one.
 
 **LeetCode:** [Subsets](https://leetcode.com/problems/subsets/), [Permutations](https://leetcode.com/problems/permutations/), [Combination Sum](https://leetcode.com/problems/combination-sum/)
@@ -500,9 +532,11 @@ Trace it on `[1, 2, 3]`: the very first call records `[]` before the loop even s
 The runtime is inherently exponential, O(2^n) for subsets, since that's how many subsets exist. Backtracking's job is to generate exactly that many, not fewer, but without wasted work re-deriving each one from scratch.
 
 **What they're testing:** `path.copy()`. Appending `path` itself stores a reference that later `pop()` calls will mutate out from under you, and every result comes back empty. It's the single most common bug in this pattern.
+{{% /qa %}}
 
 ### 16. Topological Sort: when items have prerequisites and you need a valid order {#16}
 
+{{% qa %}}
 **The gist:** things depend on other things, and you need a workable order. Count how many items block each one, then repeatedly take whatever's blocked by nothing.
 
 **LeetCode:** [Course Schedule](https://leetcode.com/problems/course-schedule/), [Course Schedule II](https://leetcode.com/problems/course-schedule-ii/)
@@ -550,9 +584,11 @@ Trace it on that graph: in-degrees start at `[0, 1, 1, 2]`, so only course 0 beg
 If `visited` never reaches every node, some subset of nodes has a circular dependency on each other and can never reach in-degree zero. That's how this same code doubles as cycle detection.
 
 **What they're testing:** the cycle case. "What if the courses depend on each other?" is the follow-up, and the good answer is that you don't need separate code for it, the count already tells you.
+{{% /qa %}}
 
 ### 17. Union-Find: when the question is whether two things are connected {#17}
 
+{{% qa %}}
 **The gist:** you need to know if two elements are linked through some chain, or how many separate groups exist. Each element points at a group leader, and merging two groups is one pointer change.
 
 **LeetCode:** [Redundant Connection](https://leetcode.com/problems/redundant-connection/), [Number of Provinces](https://leetcode.com/problems/number-of-provinces/)
@@ -604,9 +640,11 @@ graph TD
 Path compression only fires when `find` actually runs, so a chain can still be several hops deep between unions. Suppose enough prior unions left 4's parent pointer chain as `4 → 1 → 2` (2 hops to the root) before anything called `find(4)` directly. The first `find(4)` walks that whole chain, then, on the way back out of the recursion, rewrites 4's (and 1's) parent to point straight at the root, 2. Every `find(4)` after that is a single hop instead of two. Path compression pays for itself on the very next lookup, which is what keeps `find` effectively constant-time even after thousands of unions.
 
 Path compression plus union-by-rank together give near-O(1) amortized operations, formally O(α(n)), the inverse Ackermann function, which is under 5 for any `n` you'd ever encounter in practice.
+{{% /qa %}}
 
 ### 18. Dijkstra's Algorithm: when edges have weights and you need the cheapest route {#18}
 
+{{% qa %}}
 **The gist:** shortest path where edges cost different amounts and none are negative. It's BFS that always expands the cheapest known node next, so once a node settles, it's final.
 
 **LeetCode:** [Network Delay Time](https://leetcode.com/problems/network-delay-time/), [Path with Maximum Probability](https://leetcode.com/problems/path-with-maximum-probability/)
@@ -649,9 +687,11 @@ Trace it from source 0: the heap starts with `(0, 0)`. Popping node 0 relaxes it
 Runs in O(E log V) with a binary heap. It breaks the moment an edge weight goes negative, since a shorter path could then appear through a node you'd already "settled," which is exactly the case Bellman-Ford handles instead.
 
 **What they're testing:** "what if a weight is negative?" is the standard follow-up. Knowing the name Bellman-Ford is worth less than being able to say *why* Dijkstra breaks: it assumes settled means final.
+{{% /qa %}}
 
 ### 19. Subsequence DP: when the pieces don't have to be next to each other {#19}
 
+{{% qa %}}
 **The gist:** you need a longest or shortest subsequence, where the chosen items don't have to be adjacent. There are exponentially many, so you build the answer from smaller answers.
 
 **LeetCode:** [Longest Increasing Subsequence](https://leetcode.com/problems/longest-increasing-subsequence/), [Longest Common Subsequence](https://leetcode.com/problems/longest-common-subsequence/)
@@ -692,6 +732,7 @@ longest_common_subsequence("abcde", "ace")  # -> 3   ("ace")
 ```
 
 Both run in O(n²) (or O(n·m) for the two-string case): every cell in the DP table is filled once, in O(1), from cells already computed.
+{{% /qa %}}
 
 ## Grid, Greedy, Knapsack & Trie Patterns
 
@@ -699,6 +740,7 @@ Both run in O(n²) (or O(n·m) for the two-string case): every cell in the DP ta
 
 ### 20. Matrix/Grid Traversal: when a 2D grid has regions or something spreading {#20}
 
+{{% qa %}}
 **The gist:** a 2D grid with islands, connected regions, or something spreading through it. Treat each cell as a node with up to four neighbors, and it's BFS or DFS all over again.
 
 **LeetCode:** [Number of Islands](https://leetcode.com/problems/number-of-islands/), [Rotting Oranges](https://leetcode.com/problems/rotting-oranges/)
@@ -762,9 +804,11 @@ rotting_oranges([[2, 1, 1], [1, 1, 0], [0, 1, 1]])  # -> 4
 The reason multi-source BFS gives the *minimum* time is the same reason plain BFS gives shortest paths: it explores in strictly increasing distance order, so the first time a fresh cell is reached is guaranteed to be the earliest any rotten orange could reach it. Both patterns are O(rows × cols): every cell is visited a constant number of times regardless of grid size.
 
 **What they're testing:** whether you seed the queue with all the sources at once. Running a separate BFS per rotten orange and taking the minimum is the slow answer, and it's the one most people reach for first.
+{{% /qa %}}
 
 ### 21. Greedy / Interval Scheduling: when you want to keep the most non-overlapping intervals {#21}
 
+{{% qa %}}
 **The gist:** you want to keep as many non-overlapping intervals as possible. Sort by end time, not start time, then greedily take whatever still fits.
 
 **LeetCode:** [Non-overlapping Intervals](https://leetcode.com/problems/non-overlapping-intervals/), [Meeting Rooms II](https://leetcode.com/problems/meeting-rooms-ii/)
@@ -790,9 +834,11 @@ max_non_overlapping([[1, 2], [2, 3], [3, 4], [1, 3]])  # -> 3
 Sorted by end time, that input becomes `[1,2], [2,3], [1,3], [3,4]`. Keep `[1,2]` (nothing kept yet), keep `[2,3]` (`2 >= 2`), skip `[1,3]` (`1 < 3`, it would overlap the interval just kept), keep `[3,4]` (`3 >= 3`), for 3 kept out of 4, so 1 removal is the minimum needed to eliminate all overlaps. The sort dominates the cost at O(n log n), and the scan itself is a single O(n) pass.
 
 **What they're testing:** whether you sort by end time and can say why. Sorting by start time is the intuitive wrong answer, and "it leaves the most room for what comes next" is the whole justification.
+{{% /qa %}}
 
 ### 22. 0/1 Knapsack: when you're hunting for an exact target sum {#22}
 
+{{% qa %}}
 **The gist:** can some subset of these items hit an exact total? The DP table tracks reachable sums, not positions in the list, and that's exactly what separates it from subsequence DP.
 
 **LeetCode:** [Partition Equal Subset Sum](https://leetcode.com/problems/partition-equal-subset-sum/), [Coin Change](https://leetcode.com/problems/coin-change/)
@@ -831,9 +877,11 @@ can_partition([1, 2, 3, 5])
 Each cell `dp[i][capacity]` answers "can the first `i` items reach exactly this capacity," built from two options already computed one row up: skip item `i` (carry down `dp[i-1][capacity]`) or take it (check `dp[i-1][capacity - num]`, whether the *remaining* items could already reach what's left over).
 
 Runs in O(n × target) time and space. A rolling 1D array cuts the space to O(target) once you notice each row only ever reads the row directly above it.
+{{% /qa %}}
 
 ### 23. Trie (Prefix Tree): when everything hinges on prefixes {#23}
 
+{{% qa %}}
 **The gist:** the problem is about prefixes: autocomplete, "does any word start with this," word search. Each edge is one character, so a lookup costs the length of the word, not the size of the dictionary.
 
 **LeetCode:** [Implement Trie (Prefix Tree)](https://leetcode.com/problems/implement-trie-prefix-tree/), [Word Search II](https://leetcode.com/problems/word-search-ii/)
@@ -883,6 +931,7 @@ trie.starts_with("app")  # -> True   (a prefix of "apple")
 `insert`, `search`, and `starts_with` are all O(L) where `L` is the word or prefix length, regardless of how many other words share the trie.
 
 The cost you're paying for that speed is space: in the worst case, with no shared prefixes at all, a trie holding `n` words of length `L` stores O(n × L) nodes, one full chain per word.
+{{% /qa %}}
 
 ## What to drill first
 

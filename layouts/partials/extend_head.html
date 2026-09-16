@@ -45,3 +45,71 @@ div.mermaid { overflow-x: auto; max-width: 100%; }
 })();
 </script>
 {{- end }}
+{{- if .Params.quizmode }}
+<style>
+.quizbar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin: 1rem 0;
+}
+.quizbar button {
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  background-color: var(--bg-color);
+  color: var(--txt-color);
+  border: 1px solid var(--tb1-color);
+  border-radius: 4px;
+  padding: 0.4rem 0.9rem;
+}
+.quizbar button:hover { background-color: var(--hover-color); color: var(--bg-color); }
+.quizbar-hint { color: var(--ft-txt-color); font-size: 0.9em; }
+body.quiz-mode .qa-body { display: none; }
+body.quiz-mode .qa-body.revealed { display: block; }
+body.quiz-mode .markdown h3[id] { cursor: pointer; }
+body.quiz-mode .markdown h3[id]:hover { color: var(--lk-color); }
+body.quiz-mode .markdown h3[id]::after {
+  content: " (click to reveal)";
+  font-size: 0.55em;
+  font-weight: 400;
+  opacity: 0.6;
+  vertical-align: middle;
+}
+body.quiz-mode .markdown h3[id].revealed::after { content: ""; }
+</style>
+<script>
+(function () {
+  document.addEventListener('DOMContentLoaded', function () {
+    var btn = document.getElementById('quiz-toggle');
+    if (!btn) return;
+
+    document.querySelectorAll('.markdown h3[id]').forEach(function (h) {
+      h.addEventListener('click', function () {
+        if (!document.body.classList.contains('quiz-mode')) return;
+        var body = h.nextElementSibling;
+        if (body && body.classList.contains('qa-body')) {
+          body.classList.toggle('revealed');
+          h.classList.toggle('revealed');
+        }
+      });
+    });
+
+    btn.addEventListener('click', function () {
+      var entering = !document.body.classList.contains('quiz-mode');
+      document.body.classList.toggle('quiz-mode', entering);
+      btn.textContent = entering ? 'Exit quiz mode' : 'Quiz mode: hide answers';
+      if (!entering) {
+        document.querySelectorAll('.qa-body.revealed').forEach(function (el) {
+          el.classList.remove('revealed');
+        });
+        document.querySelectorAll('.markdown h3[id].revealed').forEach(function (el) {
+          el.classList.remove('revealed');
+        });
+      }
+    });
+  });
+})();
+</script>
+{{- end }}
