@@ -677,9 +677,45 @@ graph TD
 
 *Ten designs you should be able to sketch in five minutes. Try drawing each one before you read the answer, because the drawing is what the interview actually asks for.*
 
+**How to run the 45 minutes.** Every answer below follows the same five steps, and the steps matter more than any single design. Someone asking you to design a URL shortener isn't checking whether you've memorized one. They're watching whether you scope before you build, put numbers on it, and can find the part that's actually hard.
+
+1. **Scope it.** Say what you're building and, just as much, what you're not. Five minutes of "so we don't need analytics or custom domains, right?" saves you from designing the wrong system for the other forty.
+2. **Put numbers on it.** Writes per second, reads per second, storage per year. You don't need to be right, you need the right order of magnitude, because that's what decides whether this is one Postgres box or a sharded fleet.
+3. **Draw the boxes.** Client, load balancer, service, cache, database, queue. Small enough to fit on the board.
+4. **Go deep on the hard part.** There's always one. Find it and spend your time there, because that's what they're grading.
+5. **Say what you gave up.** Every design trades something away. Naming the tradeoff yourself is most of the difference between a senior answer and a confident junior one.
+
+**The numbers worth memorizing.** Back-of-envelope maths is a skill you can practice, and it rests on about eight facts:
+
+| Fact | Value |
+|---|---|
+| Seconds in a day | 86,400, round to 100k |
+| 1M per day | about 12/sec |
+| 100M per day | about 1,200/sec |
+| 1B per day | about 12,000/sec |
+| 1KB × 1M rows | 1GB |
+| 1KB × 1B rows | 1TB |
+| Peak vs average traffic | 2x to 3x |
+| Read:write ratio, typical web app | 10:1 to 1000:1 |
+
+And roughly what things cost in time, which is what tells you where a latency budget goes:
+
+| Operation | Time |
+|---|---|
+| Memory read | 100ns |
+| SSD random read | 100µs |
+| Network round trip, same datacenter | 0.5ms |
+| Network round trip, cross-continent | 150ms |
+
+The point of the second table is that one cross-region hop costs more than a thousand SSD reads. Latency problems are almost always about how many network hops you made, not how fast your code is.
+
 ### 39. Design a URL shortener. {#39}
 
 **The gist:** a key-value lookup with a redirect on top. Reads outnumber writes by orders of magnitude, so the cache *is* the design.
+
+**Scope it:** shorten a long URL, redirect a short code, expire a link. Not in scope unless they ask for it: vanity domains, click analytics, user accounts. Say those out loud so they can pull one back in if they want it.
+
+**The numbers:** call it 10M new links a day, which is about 116 writes a second. At a 100:1 read ratio that's 1B redirects a day, near 11,600 reads a second. At roughly 500 bytes a row you write about 4.7GB a day, so 1.7TB a year. Seven base62 characters gives 3.5 trillion codes, which at this rate lasts 965 years. Six gives 56 billion and runs out in 16. So seven, and you can say why.
 
 Key components: a write path that generates a short code (base62-encode an auto-incrementing ID, or a hash with a collision check) and stores `short_code → long_url`, plus a read path that's a simple key lookup and a 301/302 redirect. Reads vastly outnumber writes, so put a cache in front of the database for the read path.
 
@@ -698,9 +734,17 @@ graph TD
     end
 ```
 
+**The part they'll push on:** generating codes without checking for a collision on every write. An auto-incrementing ID that you base62-encode is unique for free, but it leaks how many links exist and makes the next code guessable. A random code needs a uniqueness check, which is a read before every write. The usual answer is to hand each app server a pre-allocated block of IDs from a counter service, so it mints codes locally with no coordination and no collisions.
+
+**What you gave up:** the cache is the entire read path. A cold cache after a restart sends 11,600 requests a second straight at the database, so you warm it from the top-N links before taking traffic.
+
 ### 40. Design a distributed rate limiter shared across multiple API gateway instances. {#40}
 
 **The gist:** per-instance counters undercount, because each instance only sees its own share of traffic. The counter has to be shared, and Redis plus one atomic Lua script is the whole answer.
+
+**Scope it:** limit each API client to N requests per window across the whole fleet, and return a 429 with a retry hint. Not in scope: per-endpoint quotas, billing, or fairness between one client's own users.
+
+**The numbers:** 50k requests a second across the fleet means 50k counter operations a second, because every request checks. 10M active clients at about 100 bytes of state each is under 1GB, so the working set fits in memory on a single Redis node. That node is now both your bottleneck and your single point of failure, which is the interesting half of this question.
 
 Each gateway instance can't keep its own local counter, since that under-counts total traffic. Use a shared, fast store (Redis) holding per-client counters with a sliding-window or token-bucket algorithm, implemented via an atomic Lua script.
 
@@ -722,9 +766,17 @@ graph LR
     Redis -->|"atomic Lua: check + decrement"| Allowed{Allowed?}
 ```
 
+**The part they'll push on:** what happens when Redis is unreachable. Fail open and you've removed the limiter during exactly the incident where you need it most. Fail closed and a Redis blip takes down your entire API. The usual answer is fail open with a local per-instance fallback limit, so you degrade to approximate limiting rather than none at all.
+
+**What you gave up:** every request now pays a network round trip, about 0.5ms in the same AZ. At the p99 that's real money. Teams that can't afford it keep a local token bucket synced periodically, trading exactness for latency.
+
 ### 41. Design a real-time fraud scoring system with a tight latency SLA, adding more signals over time. {#41}
 
 **The gist:** run every signal at once with a hard deadline, so you pay for the slowest signal rather than the sum of all of them. Anything too slow gets dropped, not waited for.
+
+**Scope it:** score a transaction as approve, review, or decline inside a fixed latency budget, and let new signals be added later without a rewrite. Not in scope: training the model, or the human review queue behind it.
+
+**The numbers:** say 5k transactions a second and a p99 budget of 100ms end to end. With 8 signals where the slowest takes 80ms, running them in series is 640ms and you've already blown it. In parallel it's 80ms and you fit. That one comparison is the entire design, which is why the fan-out is the first thing you draw.
 
 Run signals in parallel goroutines with a bounded per-request timeout, so total latency is close to the slowest single signal, not the sum. Precompute and cache expensive signals asynchronously ahead of the request, and set a hard deadline so a single slow signal degrades gracefully instead of blowing the SLA.
 
@@ -740,9 +792,17 @@ graph TD
     Agg --> Verdict["Risk Verdict, less than 100ms"]
 ```
 
+**The part they'll push on:** what a dropped signal does to the score. Silently skipping it means the model sees a different feature set than it was trained on, and the score quietly changes meaning. The honest answer is to pass an explicit "missing" value the model was trained to handle, and to alert on the drop rate, because a signal timing out 30% of the time is a broken signal wearing a working one's name.
+
+**What you gave up:** caching signals ahead of the request means scoring on slightly stale data. For device reputation that's fine. For a velocity check, "how many times has this card been used in the last minute," staleness is the whole signal, so that one has to stay live and inside the budget.
+
 ### 42. Design a notification system fanning one event out to millions of users via push, email, and SMS. {#42}
 
 **The gist:** accept the event into a queue immediately, then fan out per user per channel onto separate queues, so a slow SMS provider can't back up your push notifications.
+
+**Scope it:** one event reaches millions of users across push, email and SMS, respecting each channel's rate limits, without duplicate sends. Not in scope: preference management, template rendering, unsubscribe handling.
+
+**The numbers:** one event reaching 10M users across 3 channels is 30M individual messages. Push at 10k/sec clears in about 17 minutes. The same 10M over SMS through a provider capped at 100/sec takes 27.8 hours. That number is the design: the channels cannot share a queue, because the slowest one would hold the others hostage for over a day.
 
 Ingest the triggering event into a message queue rather than processing synchronously. A fan-out worker resolves the target user list (paginated) and publishes one message per user per channel onto per-channel queues, each with dedicated worker pools respecting that channel's own rate limits.
 
@@ -759,9 +819,17 @@ graph LR
     SMSQ --> SMSW[SMS Workers] --> SMSGW["SMS Gateway"]
 ```
 
+**The part they'll push on:** "fan out to 10M users" is not one job. If a single worker walks the user list, it's a single point of failure that starts over from the beginning when it crashes 8M users in. You split the user list into ranges, hand each range to a worker, and checkpoint progress per range, so a crash resumes instead of restarting.
+
+**What you gave up:** at-least-once delivery means some users get a duplicate. Deduping on (user, event, channel) at the worker catches most of it, but a crash after the provider call and before the dedupe write will still double-send. The real fix is an idempotency key on the provider API, and not every provider offers one.
+
 ### 43. Design an idempotent payment processing pipeline that survives retries without double-charging. {#43}
 
 **The gist:** the same idempotency key from [Q32](#32), but now wired through the whole pipeline: claim the key, call the processor, store the outcome, and make sure every retry branch has somewhere sensible to land.
+
+**Scope it:** charge a card exactly once even when the client retries, the network drops, or a worker dies mid-call. Not in scope: refunds, multi-currency, or storing card details.
+
+**The numbers:** 1000 charges a second at peak, against a processor that takes 500ms to 2s. At 2s that's 2000 charges in flight simultaneously, which rules out holding a database transaction open around the processor call. Your connection pool gets sized for the claim and the write, each a few milliseconds, not for the seconds you spend waiting on someone else's API.
 
 [Q32](#32) covers the key itself and the `ON CONFLICT DO NOTHING` claim. This question is about what happens around it once a real payment processor is in the loop.
 
@@ -794,11 +862,17 @@ sequenceDiagram
     end
 ```
 
-**What they're testing:** the crash-mid-charge branch. Everyone gets the happy path and the duplicate path, and the stuck `processing` row is where the interesting conversation starts.
+**The part they'll push on:** the crash-mid-charge branch. Everyone gets the happy path and the duplicate path. The stuck `processing` row is where the real conversation starts, because you genuinely cannot tell from your own database whether the card was charged. Only the processor knows, so you need a reconciliation job that queries them by idempotency key and settles the row, plus a timeout after which a `processing` row is considered suspect.
+
+**What you gave up:** a charge is never synchronously certain. The client gets a definite answer on the happy path, and on the crash path it gets "ask again shortly," which the client's own UI has to handle. Systems that promise a synchronous yes or no are lying about the crash case.
 
 ### 44. Design a distributed job scheduler where each job runs exactly once even if a node crashes. {#44}
 
 **The gist:** a conditional `UPDATE` is your lock. The one worker whose update actually affects a row owns the job, and a lease makes sure a crashed worker's job comes back.
+
+**Scope it:** run each scheduled job on time, once, surviving worker crashes. Not in scope: job dependencies and DAGs, backfills, or per-job resource isolation.
+
+**The numbers:** 1M jobs a day averages about 12 a second, which sounds trivial and isn't, because scheduled work clusters. Everything set for midnight fires at midnight, so you size for the spike rather than the mean. With 100 workers polling once a second you're also running 100 mostly-empty queries a second against the jobs table, which is why `FOR UPDATE SKIP LOCKED` or a notify channel beats naive polling well before you think it matters.
 
 Store jobs and their next-run-time in a shared database. Workers poll for due jobs and atomically claim one via a conditional update, which acts as a lightweight distributed lock. Include a lease and heartbeat so that if the worker crashes mid-execution, the lock expires and another worker can reclaim it.
 
@@ -820,9 +894,17 @@ graph TD
     Exec -. crash, lease expires .-> W2
 ```
 
+**The part they'll push on:** "exactly once" isn't actually achievable, and they want to see whether you know that. A worker can finish a job, then die before marking it done, and the next worker will run it again. There's no way to make the side effect and the bookkeeping atomic when the side effect is outside your database. The real answer is at-least-once execution plus idempotent jobs, and saying so plainly is the point of the question.
+
+**What you gave up:** you've made your database a queue. That's a genuinely good choice early, because it's one less system and you get transactions for free, but the polling load and lock contention grow with worker count. Past a few hundred workers you're rebuilding a message broker badly, and should switch to one.
+
 ### 45. Design a sharded, horizontally-scalable chat backend. {#45}
 
 **The gist:** consistent-hash conversations onto nodes, and put a gateway in front that knows which node owns which conversation. Pub/sub covers anyone who isn't connected to that node.
+
+**Scope it:** 1:1 and group messages, ordered within a conversation, with offline users catching up on reconnect. Not in scope: voice and video, end-to-end encryption, read receipts, or typing indicators.
+
+**The numbers:** 10M daily users and 50M messages a day is 580 a second on average, about 1,700 at a 3x peak. Message throughput is not your problem. Connections are: 1M concurrent WebSockets at roughly 10KB of kernel and application state each is about 500MB per 50k connections, so you need around 20 nodes purely to hold sockets open. Storage at 1KB a message is 47GB a day and 17TB a year.
 
 Shard users and conversations across backend nodes using consistent hashing on a conversation or user ID. A connection-routing gateway looks up which shard owns a conversation and forwards accordingly. For offline delivery, persist messages and use a pub/sub layer so any node can catch up.
 
@@ -838,9 +920,17 @@ graph TD
     PubSub --> Store[(Message Store)]
 ```
 
+**The part they'll push on:** what happens when a node holding 50k connections dies. All 50k clients reconnect at once, the gateway rehashes them onto the surviving nodes, and those nodes are now carrying extra load while handling a reconnect storm. Without jittered backoff on the client you turn one node failure into a rolling cascade, and this is the failure mode that actually takes chat systems down.
+
+**What you gave up:** hashing on conversation ID keeps ordering trivial, since one node owns the conversation. It also means a single very large group chat is a hotspot that can't be split, so at some size you need a different strategy for those specific conversations.
+
 ### 46. Design a system for ingesting and aggregating high-throughput event streams with the right delivery semantics. {#46}
 
 **The gist:** partition by a natural key so ordering holds per entity, accept at-least-once delivery, and make the aggregation an upsert so a replay can't double-count.
+
+**Scope it:** ingest a high-volume event stream and maintain running aggregates that survive consumer restarts. Not in scope: ad-hoc historical queries over raw events, or exactly-once delivery into external systems.
+
+**The numbers:** 500k events a second at 200 bytes each is about 95MB a second, so 7.9TB a day. A Kafka partition handles roughly 10MB/s comfortably, so that's 10 partitions minimum and you'd provision 50 for headroom and consumer parallelism. Seven days of retention is around 55TB, which is a hardware conversation rather than a config line.
 
 Producers publish events partitioned by a natural key (a game ID, say) so ordering is preserved per entity. Consumers process with at-least-once semantics and make aggregation idempotent, using upserts keyed on event ID, so reprocessing after a crash doesn't double-count.
 
@@ -852,11 +942,17 @@ graph LR
     Consumers -. checkpoint offsets .-> Kafka
 ```
 
-**What they're testing:** whether you pick the partition key deliberately. Ordering is only guaranteed within a partition, so the key you choose decides what "in order" even means here.
+**The part they'll push on:** the partition key, twice over. First, whether you picked it deliberately, since ordering only holds within a partition and the key decides what "in order" even means here. Then the hot key: partitioning by game ID is fine until one game has 100x the traffic of the rest, and that partition's consumer falls behind while the others sit idle. You either split the hot key with a composite key and give up strict per-game ordering, or you accept the lag on that one partition.
+
+**What you gave up:** ordering holds inside a partition and nowhere else, so any aggregate spanning multiple keys has no ordering guarantee at all. If the business asks for a globally ordered view later, that's a redesign, not a config change.
 
 ### 47. How would you evolve a monolith into microservices without a risky big-bang rewrite? {#47}
 
 **The gist:** put a proxy in front of the monolith and move one feature at a time behind it. The monolith shrinks instead of getting replaced.
+
+**Scope it:** go from one deployable to several without a rewrite and without a feature freeze. Explicitly not in scope: changing database technology at the same time, which is how these migrations turn into the rewrite you were avoiding.
+
+**The numbers:** the number that matters here isn't QPS, it's how long the first extraction takes. Pick a first service you can ship to production within a quarter. If your best candidate needs six months before anything runs for real, it's the wrong candidate, because you'll spend half a year maintaining two systems with nothing to show for it and the appetite will be gone.
 
 Use the strangler fig pattern: put a routing layer in front of the monolith, then incrementally extract one bounded-context feature at a time into a new service, routing that specific traffic there while everything else still goes to the monolith.
 
@@ -868,9 +964,17 @@ graph LR
     NewService -. via API, not direct DB .-> Monolith
 ```
 
+**The part they'll push on:** the database. A service that's been "extracted" but still reads the monolith's tables gives you all the coupling of a distributed monolith and none of the benefits, because you still can't deploy or scale the two independently. The extraction isn't finished until the new service owns its data, and that data migration is usually the expensive part people quietly skip.
+
+**What you gave up:** for the length of the migration you run both systems, with a routing layer and, in places, dual writes. That's more operational surface than you started with, not less, and it stays that way until the last feature moves. Teams that don't finish end up permanently worse off than when they began.
+
 ### 48. Design a tamper-evident, queryable audit logging system for a fintech platform. {#48}
 
 **The gist:** append-only, and each entry's hash includes the previous entry's hash. Change anything in the past and every link after it breaks, which is what makes tampering visible.
+
+**Scope it:** append-only, tamper-evident, queryable by actor, resource and time range, retained for the regulatory period. Not in scope: making it tamper-proof, which needs an anchor outside your own infrastructure.
+
+**The numbers:** 50M events a day at 1KB each is 47GB a day and 17TB a year. Fintech retention is commonly seven years, so roughly 119TB. That number is why "put it all in Elasticsearch" is the wrong answer: the append-only log belongs in cheap object storage, and only a recent window needs to sit in the query index.
 
 Write audit events to an append-only store, and make tampering detectable by hash-chaining entries, so each entry's hash includes the previous entry's hash. For queryability, stream and index the same events into a separate query-optimized store asynchronously, keeping the append-only log as the source of truth.
 
@@ -903,6 +1007,9 @@ graph LR
     Indexer --> Query[(Query store: Elasticsearch)]
 ```
 
+**The part they'll push on:** a hash chain needs a strict sequence, and a strict sequence means a single writer. At 580 events a second one writer keeps up fine, but it's a single point of failure and it doesn't scale past a point. You partition the chain per tenant, so each tenant gets its own sequence and its own writer, and tampering stays detectable within the boundary that actually matters to an auditor.
+
+**What you gave up:** hash chaining proves the log is internally consistent. It does not stop someone with write access rebuilding the entire chain from a chosen point forward. To close that, you periodically publish the head hash somewhere you don't control, and that gap is exactly the difference between tamper-evident and tamper-proof. Say it before they ask.
 ---
 
 ## What to drill first
