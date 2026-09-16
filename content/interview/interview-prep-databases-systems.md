@@ -71,6 +71,8 @@ SELECT * FROM events WHERE created_at > now() - '1d';
 ```
 
 A covering index additionally includes every column a query needs, via `INCLUDE` or as a composite over all selected and filtered columns, so the database answers the query entirely from the index without touching the table. That's an index-only scan.
+
+**Try it:** create the two-column index above on a scratch table, then run `EXPLAIN` on a query that filters only on the second column. Watch the planner ignore the index and fall back to a sequential scan.
 {{% /qa %}}
 
 ### 4. What is the N+1 query problem, and how do you fix it? {#4}
@@ -95,6 +97,8 @@ items := db.Query(`SELECT * FROM items WHERE order_id = ANY($1)`, ids)
 The fix is either to eager-load the association up front with a `JOIN`, or to batch the follow-up lookups into a single `WHERE parent_id IN (...)` query and group the results in memory.
 
 **What they're testing:** whether you'd spot it in a code review. The query itself is fast, which is exactly why it hides: nothing shows up in a slow-query log.
+
+**Try it:** turn on query logging (`log_statement = 'all'` in Postgres, or your ORM's debug logger) for one API request that renders a list with related records, and count how many queries actually ran.
 {{% /qa %}}
 
 ### 5. You're handed a slow production query: what do you check, in order? {#5}
@@ -110,6 +114,8 @@ The fix is either to eager-load the association up front with a `JOIN`, or to ba
 6. For a genuinely hot read path, reach for caching ([Q20](#20)) or a read replica ([Q10](#10)) before reaching for a bigger box.
 
 **What they're testing:** whether you have a method or you guess. Saying "I'd add an index" first is the answer they're hoping you don't give.
+
+**Try it:** take a real query from your own app, run `EXPLAIN (ANALYZE, BUFFERS)` on it, and work through the checklist above line by line before you touch an index.
 {{% /qa %}}
 
 ### 6. How does a B-tree index make lookups fast, and when does an index *not* help? {#6}
@@ -137,6 +143,8 @@ graph TD
     R --> RR["75, 85, 99"]
     LL -.leaf link.-> LM -.leaf link.-> LR -.leaf link.-> RL -.leaf link.-> RR
 ```
+
+**Try it:** run `EXPLAIN` on `WHERE email = 'x'` versus `WHERE LOWER(email) = 'x'` on a table with a plain index on `email`. The second one won't use the index unless you build one on the expression itself.
 {{% /qa %}}
 
 ### 7. How do you read a query execution plan to diagnose a slow query? {#7}
@@ -168,6 +176,8 @@ Index Scan using idx_orders_customer on orders
 ```
 
 **What they're testing:** whether you read plans or just run them. "Rows Removed by Filter: 999992" is the line that tells the whole story, and they want to see you find it.
+
+**Try it:** run `EXPLAIN ANALYZE` on a query with no index, note the estimated versus actual row counts, add the index, and run it again to see both numbers converge.
 {{% /qa %}}
 
 ### 8. Explain the transaction isolation levels and the anomalies each one prevents. {#8}
@@ -187,6 +197,8 @@ Each stricter level prevents more of the read anomalies that come from concurren
 A **dirty read** sees another transaction's uncommitted write. A **non-repeatable read** re-reads the same row within one transaction and gets a different value, because another transaction committed a change in between. A **phantom read** re-runs the same filtered query and sees a different *set* of rows, because another transaction inserted or deleted matching rows in between.
 
 Most applications default to Read Committed. Serializable is reserved for invariants that absolutely cannot tolerate any anomaly, since it costs the most concurrency, often via retries on serialization failure.
+
+**Try it:** open two `psql` sessions, set one to `REPEATABLE READ` and read a row, have the other session update and commit that row, then re-read it in the first session and watch it not change.
 {{% /qa %}}
 
 ### 9. Optimistic vs. pessimistic locking, and how does a deadlock happen? {#9}
@@ -217,6 +229,8 @@ UPDATE accounts                UPDATE accounts
 The database's deadlock detector picks a victim, rolls it back with an error, and the application must retry it.
 
 **What they're testing:** the fix, which is always to acquire locks on rows in a consistent global order. Sort the IDs before you lock them and the cycle can't form.
+
+**Try it:** open two `psql` sessions and run the T1/T2 statements above in the interleaved order shown. Postgres will pick a victim and return `deadlock detected` in one of them.
 {{% /qa %}}
 
 ### 10. Explain leader-follower replication and replication lag. {#10}
@@ -383,6 +397,8 @@ jobs := make(chan Job, 100)
 // Unbounded would be make(chan Job) fed by an ever-growing slice:
 // the producer never blocks, and memory grows until the process dies.
 ```
+
+**Try it:** run the bounded-channel snippet with a producer faster than the consumer, and watch `len(jobs)` climb to the buffer size and stay there instead of growing without bound.
 {{% /qa %}}
 
 ### 18. Explain CAP theorem with a concrete example. {#18}
@@ -452,6 +468,8 @@ graph TD
     Cache3 -. async flush .-> DB3[(DB)]
     end
 ```
+
+**Try it:** implement cache-aside against `redis-cli`: `GET` a key, on a miss read from your database and `SETEX` it with a short TTL, then `GET` it again and confirm the second read never touches the database.
 {{% /qa %}}
 
 ---
@@ -466,6 +484,8 @@ graph TD
 **The gist:** a mutex only coordinates goroutines inside one process. Once two servers need to agree, the lock has to live somewhere they can both see, with a TTL so a crash doesn't wedge it forever.
 
 A `sync.Mutex` only coordinates goroutines within a single process's memory space. A distributed lock uses a shared external system (Redis Redlock, or etcd and Zookeeper with consensus-backed leases) so multiple independent processes can agree on mutual exclusion, typically with a lease or TTL.
+
+**Try it:** acquire a lock with `SET lock:job1 owner NX EX 10` in `redis-cli` from two terminals. Only one returns `OK`; the other gets `nil` and knows to back off.
 {{% /qa %}}
 
 ### 22. What's leader election, and how does it typically work? {#22}
@@ -504,6 +524,8 @@ Thundering herd is when a large number of clients wake up or retry simultaneousl
 Jittered backoff randomizes retry timing. Request coalescing (single-flight) makes sure only one actual request goes to the backend when many callers want the same resource.
 
 **What they're testing:** whether you'd catch it in your own retry code. Plain exponential backoff without jitter still synchronizes every client on the same schedule, which is the trap.
+
+**Try it:** wrap a cache-refill call in Go's `singleflight.Group`, fire 50 concurrent goroutines requesting the same key on a miss, and confirm only one of them actually reaches the database.
 {{% /qa %}}
 
 ### 26. What's the difference between Byzantine and crash-fault tolerance, and why do Raft and Paxos only handle the latter? {#26}
@@ -534,6 +556,8 @@ In practice, systems don't solve this. They work around it with retries, timeout
 A Conflict-free Replicated Data Type is a data structure (counter, set, map) designed so that concurrent updates from different replicas can always be merged deterministically into the same final state, without coordination or locking. A grow-only counter that merges by taking the max per-replica count is the standard example.
 
 Reach for one when replicas need to accept writes independently (offline-first apps, multi-region writes) and eventual convergence is good enough. Skip it when you need a strict invariant a CRDT can't express, like "balance never goes negative."
+
+**Try it:** implement a grow-only counter as a map of replica ID to count, merge two replicas' maps by taking the max per key, and confirm the result is the same no matter which order you merge them in.
 {{% /qa %}}
 
 ### 29. How does a gossip protocol detect node failure, and how does that differ from a centralized health check? {#29}
@@ -602,6 +626,8 @@ ON CONFLICT (idempotency_key) DO NOTHING;
 The unique constraint is doing the real work here. Two concurrent retries both run this statement, and exactly one of them gets a row back.
 
 **What they're testing:** that the claim happens *before* the charge. Claiming afterwards leaves a window where a retry lands mid-charge, which is the bug this whole design exists to prevent. [Q43](#43) walks the same idea through a full pipeline.
+
+**Try it:** run the `INSERT ... ON CONFLICT DO NOTHING` statement above twice with the same key from two separate terminals at roughly the same time, and confirm only one reports a row inserted.
 {{% /qa %}}
 
 ### 33. Explain the outbox pattern for reliably publishing events after a DB write. {#33}
@@ -633,6 +659,8 @@ graph LR
 ```
 
 **What they're testing:** whether you can name the dual-write problem. Two writes to two systems can't both be guaranteed, so the trick is to make it one write and move the second one downstream.
+
+**Try it:** insert a business row and an outbox row in one transaction, then run the relay's `SELECT * FROM outbox WHERE published = false` by hand and confirm your new event is sitting there waiting to be published.
 {{% /qa %}}
 
 ### 34. What is a saga pattern, and when would you use it instead of 2PC? {#34}
@@ -674,6 +702,8 @@ graph LR
     KeyA["key A (hash)"] -. owned by .-> N2
     KeyB["key B (hash)"] -. owned by .-> N4
 ```
+
+**Try it:** hash 10 keys against `hash(key) % 4` and again against `% 5`, and count how many land on a different node. Then put the same 4 nodes on a ring and add a fifth: far fewer keys move.
 {{% /qa %}}
 
 ### 36. Walk through Raft leader election and log replication in more depth. {#36}
@@ -748,6 +778,8 @@ graph TD
 ```
 
 **What they're testing:** whether you see them as complementary rather than alternatives. Answering "a bulkhead instead of a circuit breaker" is the wrong shape, you want both.
+
+**Try it:** create two separate bounded worker pools in Go, saturate one with slow fake calls, and confirm requests to the other pool still complete on time.
 {{% /qa %}}
 
 ---

@@ -47,6 +47,8 @@ var c Config // {Port: 0, Host: "", Debug: false, Timeout: nil}
 ```
 
 This is why `sync.Mutex` and `bytes.Buffer` are usable straight out of a `var` declaration: their zero values were designed to be the ready-to-use state.
+
+**Try it:** print `c` with `fmt.Printf("%+v\n", c)` right after `var c Config` and confirm every field shows its zero value, including the `nil` pointer.
 {{% /qa %}}
 
 ### 2. What's the difference between an array and a slice in Go? {#2}
@@ -84,6 +86,8 @@ fmt.Println(len(s), cap(s)) // 3 4
 ```
 
 **What they're testing:** whether you know the return value matters. `append(s, x)` without reassigning to `s` is a bug precisely because the result can point at a different array than the input did.
+
+**Try it:** print `&s[0]` right before and right after the `append` that forces a reallocation. The address changes, which is proof you're now looking at a different backing array.
 {{% /qa %}}
 
 ### 4. What is the difference between a value receiver and a pointer receiver on a method? {#4}
@@ -137,6 +141,8 @@ defer func() { fmt.Println("closure:", i) }() // prints 1
 ```
 
 **What they're testing:** that argument evaluation trap, usually followed by "so how do you log the final error from a defer?" The answer is a closure over a named return value.
+
+**Try it:** run `surprise()` yourself and check the print order. `deferred: 0` prints after `direct: 1`, even though the `defer` line runs first in the source.
 {{% /qa %}}
 
 ### 7. What's the difference between `make` and `new`? {#7}
@@ -155,6 +161,8 @@ m := make(map[string]int)  // ready to write to
 bad := new(map[string]int) // *map[string]int, still nil inside
 (*bad)["k"] = 1            // panic: assignment to entry in nil map
 ```
+
+**Try it:** run the `bad` example and read the panic message. Then swap it for `make(map[string]int)` and confirm the same assignment works.
 {{% /qa %}}
 
 ### 8. What's the difference between `var x []int` and `x := []int{}`? {#8}
@@ -176,6 +184,8 @@ json.Marshal(y) // -> []
 ```
 
 **What they're testing:** the JSON difference, because it's a real API bug. A client expecting an array and receiving `null` will break, which is why handlers that return lists usually initialize with `[]T{}` rather than a `var` declaration.
+
+**Try it:** run `json.Marshal` on both `x` and `y` yourself and check the raw output bytes: `null` vs `[]`.
 {{% /qa %}}
 
 ### 9. Explain how a slice's length and capacity work, and a footgun with slicing a slice. {#9}
@@ -197,6 +207,8 @@ s2 = append(s2, 100)   // overwrites s1[3] if cap allows it
 Use a full slice expression, `s1[:3:3]`, to cap the capacity and force the next `append` to allocate a fresh array instead.
 
 **What they're testing:** whether you'd spot this in review. It's the most common way Go code corrupts data without anything looking wrong.
+
+**Try it:** run the `s1`/`s2` example and print `s1` right after the `append(s2, 100)` line. Then rewrite `s2 := s1[:3]` as `s2 := s1[:3:3]` and confirm `s1` no longer changes.
 {{% /qa %}}
 
 ### 10. What happens when a `nil` map is read from vs written to? {#10}
@@ -216,6 +228,8 @@ m["key"] = 1        // ok now
 ```
 
 This is why a struct with a map field needs an explicit constructor. The zero value of a map, unlike a mutex or a buffer, is not ready to use.
+
+**Try it:** run the snippet as written, then comment out the `make` line and confirm the panic message reads exactly "assignment to entry in nil map."
 {{% /qa %}}
 
 ---
@@ -338,6 +352,8 @@ if run() != nil {
 The fix is to never declare a concrete error type as the return variable. Return `error` and assign `nil` to it directly.
 
 **What they're testing:** this one separates people who've read about Go from people who've debugged Go. It's a genuinely confusing bug the first time you hit it.
+
+**Try it:** run `run()` and print `run() == nil`. It prints `false`, which is the whole gotcha in one line.
 {{% /qa %}}
 
 ### 18. What is a type assertion vs a type switch, and how do you do an assertion safely? {#18}
@@ -366,6 +382,8 @@ default:
     fmt.Println("unknown type")
 }
 ```
+
+**Try it:** change the two-value assertion to a bare `v := x.(string)` where `x` actually holds an `int`, and watch it panic instead of just setting `ok` to false.
 {{% /qa %}}
 
 ### 19. What are Go generics (type parameters), and when would you use them over interfaces? {#19}
@@ -388,6 +406,8 @@ func Map[T, U any](s []T, f func(T) U) []U {
 
 squares := Map([]int{1, 2, 3}, func(n int) int { return n * n })
 ```
+
+**Try it:** call `Map` with `T` and `U` as different types, like turning `[]int` into `[]string`, and confirm it compiles with no extra code needed for the new type pair.
 {{% /qa %}}
 
 ### 20. Explain type constraints and the `comparable` constraint. {#20}
@@ -419,6 +439,8 @@ func Keys[K comparable, V any](m map[K]V) []K {
 ```
 
 The `~` means "any type whose underlying type is this," so a `type Celsius float64` still satisfies the constraint.
+
+**Try it:** try instantiating `Keys` with a slice type as the type parameter, like `Keys[[]int, bool]`, and read the compiler's constraint error. Slices aren't comparable in Go, so `comparable` rejects them at compile time.
 {{% /qa %}}
 
 ---
@@ -435,6 +457,8 @@ The `~` means "any type whose underlying type is this," so a `type Celsius float
 A goroutine is a lightweight, user-space unit of concurrent execution managed by the Go runtime. It starts with a tiny growable stack (~2KB), versus an OS thread's fixed and much larger stack, often measured in megabytes, plus kernel-level scheduling overhead.
 
 Go can run hundreds of thousands of goroutines cheaply because the runtime multiplexes them onto a much smaller number of OS threads.
+
+**Try it:** print `runtime.NumGoroutine()` before and after starting 100,000 goroutines that each block on an empty channel. Watch the count climb with no crash.
 {{% /qa %}}
 
 ### 22. What is the GMP scheduler model? {#22}
@@ -482,6 +506,8 @@ go test -race ./...
 ```
 
 **What they're testing:** whether you know the race detector only catches races on code paths that actually execute. A clean `-race` run is evidence, not proof, which is why it belongs in CI rather than in a one-off check.
+
+**Try it:** run this loop without `-race` a few times first. It'll often "work" every time by luck, which is exactly why you can't trust an untested program just because it hasn't crashed yet.
 {{% /qa %}}
 
 ### 24. What happens if you close a channel twice, or send on a closed channel? {#24}
@@ -503,6 +529,8 @@ ch <- 1       // panic: send on closed channel
 That asymmetry is exactly why the standard rules are "only the sender closes" and "close, don't send." A receiver can never know whether more sends are coming, so it's never the receiver's job to close.
 
 **What they're testing:** what happens with multiple senders. The answer is that no single sender can safely close, so you need a separate coordinator, a `sync.Once`, or a done channel instead.
+
+**Try it:** run each of the three operations in the snippet one at a time and confirm which two panic and which one just returns quietly.
 {{% /qa %}}
 
 ### 25. Why is `context.WithValue` discouraged for anything beyond request-scoped metadata? {#25}
@@ -544,6 +572,8 @@ ch := make(chan int, 1)
 The general rule: every blocking send or receive needs an escape hatch, either a buffer big enough that the send can't block, or a `select` with `ctx.Done()`.
 
 **What they're testing:** whether you can spot it in the code they hand you. This is the most common "find the bug" snippet in a Go interview.
+
+**Try it:** call `leaky` with a context that's already timed out, then print `runtime.NumGoroutine()` a second later. The leaked goroutine is still there, and it stays there forever.
 {{% /qa %}}
 
 ### 27. What's the difference between `atomic.AddInt64` and wrapping an int with a mutex? {#27}
@@ -554,6 +584,8 @@ The general rule: every blocking send or receive needs an escape hatch, either a
 Atomic operations use CPU-level instructions (compare-and-swap) to update memory without a full lock. That's much cheaper for simple operations like counters, but it's limited to specific primitive operations.
 
 A mutex protects an arbitrary critical section, meaning multiple statements and complex invariants, at the cost of higher overhead and potential contention.
+
+**Try it:** write two benchmarks, one incrementing an `int64` with `atomic.AddInt64` and one incrementing a plain `int` behind a `sync.Mutex`, and compare `ns/op` with `go test -bench=. -benchmem`.
 {{% /qa %}}
 
 ### 28. Explain the Go memory model's "happens-before" relationship. {#28}
@@ -597,6 +629,8 @@ buffered <- 2 // ok
 buffered <- 3 // ok, buffer now full
 buffered <- 4 // blocks until something is received
 ```
+
+**Try it:** change `make(chan int, 3)` to `make(chan int, 0)` and predict which line now blocks before you run it.
 {{% /qa %}}
 
 ### 30. How do you safely check whether a channel is closed while reading? {#30}
@@ -642,6 +676,8 @@ case res := <-ch:
 ```
 
 Add a `default` case and `select` stops blocking entirely, which is how you write a non-blocking send or receive.
+
+**Try it:** add a `default:` case to one of the two selects above and watch it stop blocking entirely, turning a blocking receive into a non-blocking one.
 {{% /qa %}}
 
 ### 32. What's the purpose of `context.Context`, and how do `WithCancel`, `WithTimeout`, `WithDeadline` and `WithValue` differ? {#32}
@@ -690,6 +726,8 @@ for i := 0; i < n; i++ {
 wg.Wait()
 // BUG: calling Add() concurrently with/after Wait() is a race
 ```
+
+**Try it:** move `wg.Add(1)` inside the goroutine instead of before it starts, and run it a few times. It'll either finish before every goroutine is actually done or panic with a WaitGroup misuse message, depending on how the scheduler happens to interleave that run.
 {{% /qa %}}
 
 ### 34. Explain `sync.Once` and a real use case. {#34}
@@ -714,6 +752,8 @@ func GetDB() *sql.DB {
     return db
 }
 ```
+
+**Try it:** call `GetDB()` from 50 goroutines at once, with a counter inside the `Do` function that increments each time it runs. Run it with `-race` for good measure, and confirm the counter never goes above 1.
 {{% /qa %}}
 
 ### 35. Design a worker pool in Go. What are the components? {#35}
@@ -752,6 +792,8 @@ func workerPool(ctx context.Context, jobs <-chan Job, n int) <-chan Result {
 ```
 
 **What they're testing:** this one usually arrives as "write it." The details they're watching for are who closes `results` (the coordinating goroutine, after `Wait`), and whether cancellation actually reaches the workers.
+
+**Try it:** run `workerPool` with `n=1` and then `n=10` against the same job list and time the difference.
 {{% /qa %}}
 
 ---
@@ -800,6 +842,8 @@ graph LR
 ```
 
 The write barrier is the part that makes it safe to run concurrently. If your program creates a new pointer from a black object to a white one mid-cycle, the barrier catches it so the white object doesn't get collected while it's still in use.
+
+**Try it:** run a small allocation-heavy program with `GODEBUG=gctrace=1` and read one line of the trace output. It shows heap size before and after each cycle, and how long that cycle paused the world.
 {{% /qa %}}
 
 ### 38. What is GC pressure, and what causes it in a typical Go service? {#38}
@@ -831,6 +875,8 @@ for _, x := range items {
 // After: one allocation, exactly the right size.
 out := make([]Result, 0, len(items))
 ```
+
+**Try it:** benchmark both versions with `go test -bench=. -benchmem` and compare `allocs/op`.
 {{% /qa %}}
 
 ### 40. What is `sync.Pool`, and when is it a bad idea? {#40}
@@ -868,6 +914,8 @@ s := b.String()
 ```
 
 **What they're testing:** whether you recognize this shape in review. It's invisible at ten items and catastrophic at ten thousand, so it usually ships fine and falls over later.
+
+**Try it:** benchmark both loops from 100 words up to 100,000 words with `-benchmem`, and watch the `+=` version's time grow much faster than linear while `strings.Builder`'s stays roughly flat per word.
 {{% /qa %}}
 
 ### 42. How can Go leak memory despite having a GC? {#42}
@@ -896,6 +944,8 @@ Expose `net/http/pprof` and pull a heap profile to see allocation sources by cal
 go tool pprof -base old.heap new.heap
 GODEBUG=gctrace=1 ./myservice
 ```
+
+**Try it:** run these two `pprof` commands against a small local server you control, and see what `-base` actually highlights between the two snapshots.
 {{% /qa %}}
 
 ### 44. What is `GOGC`, and how does tuning it trade off memory against CPU? {#44}
@@ -906,6 +956,8 @@ GODEBUG=gctrace=1 ./myservice
 `GOGC` sets the target heap growth percentage before a GC cycle triggers, defaulting to 100.
 
 Lowering it triggers GC more often: less peak memory, more CPU spent collecting. Raising it, or using `GOMEMLIMIT` as a hard cap, reduces GC frequency and CPU cost at the expense of higher peak memory.
+
+**Try it:** run the same allocation-heavy program once with `GOGC=400` and once with `GOGC=50`, both under `GODEBUG=gctrace=1`, and compare how often GC fires.
 {{% /qa %}}
 
 ### 45. Explain false sharing and struct field ordering for concurrent performance. {#45}
@@ -977,6 +1029,8 @@ func (r *Repo) GetUser(id int) (*User, error) {
 ```
 
 String-matching an error message is the anti-pattern here. It breaks the moment someone improves the wording.
+
+**Try it:** wrap the returned error one more layer deeper with another `fmt.Errorf("...: %w", err)`, and confirm `errors.Is(err, ErrNotFound)` still matches.
 {{% /qa %}}
 
 ### 49. Explain panic and recover. When is it appropriate to use them? {#49}
@@ -1043,6 +1097,8 @@ if errors.As(err, &ve) {
 ```
 
 Use `%w` when the caller might need to inspect the cause, and plain `%v` when you deliberately want to hide it and keep the error opaque.
+
+**Try it:** wrap an error three levels deep with `%w` each time, then confirm `errors.Is` still finds the original sentinel at the bottom of the chain.
 {{% /qa %}}
 
 ### 53. What is the errgroup pattern for handling multiple goroutine errors? {#53}
@@ -1067,6 +1123,8 @@ if err := g.Wait(); err != nil {
     return err
 }
 ```
+
+**Try it:** make one of the `fetch` calls return an error right away and confirm the other in-flight calls get their shared context cancelled.
 {{% /qa %}}
 
 ---
@@ -1094,6 +1152,8 @@ go tool pprof -http=:8080 profile.out
 ```
 
 The flame graph is usually the fastest way in. Wide bars are where the time goes.
+
+**Try it:** add `net/http/pprof` to a small local server and pull both a CPU and a heap profile from it while it's under some load.
 {{% /qa %}}
 
 ### 55. How do you find a goroutine leak in production? {#55}
@@ -1114,6 +1174,8 @@ Then pull a goroutine dump and look for many goroutines blocked in the same call
 A slice index is O(1) via a direct memory offset calculation, which is about as cheap as an operation gets.
 
 A map lookup is also amortized O(1), but it hashes the key and walks a bucket, which is meaningfully more expensive per operation and has worse cache locality.
+
+**Try it:** benchmark a slice index lookup against a map lookup of the same size with `go test -bench=. -benchmem`, and look at the gap in `ns/op`.
 {{% /qa %}}
 
 ### 57. Explain benchmark methodology in Go, and how to avoid misleading results. {#57}
@@ -1136,6 +1198,8 @@ var result Output // stops the compiler eliminating the call
 ```
 
 The package-level variable matters. Without it the compiler can see the result is unused and optimize the whole call away, leaving you with a benchmark that measures an empty loop.
+
+**Try it:** delete the package-level `result` variable and assign to a local instead, then rerun the benchmark. Watch the reported time drop, because the compiler now knows the result is unused and eliminates the call.
 {{% /qa %}}
 
 ### 58. What is inlining in Go, and why might a function not get inlined? {#58}
@@ -1215,6 +1279,8 @@ func TestParse(t *testing.T) {
 ```
 
 Naming each case matters: `t.Run` puts that name in the failure output, so you see which case broke without reading the table.
+
+**Try it:** add one failing case to the table and read exactly which subtest `t.Run` reports as failed, without touching any other test.
 {{% /qa %}}
 
 ### 63. What's the difference between unit and integration tests, and how do you structure them in a Go project? {#63}
@@ -1255,6 +1321,8 @@ if rec.Code != http.StatusOK {
     t.Errorf("got %d, want 200", rec.Code)
 }
 ```
+
+**Try it:** run this test, then swap `NewRecorder` for `NewServer` and rewrite it to make a real HTTP call against the returned test server's URL.
 {{% /qa %}}
 
 ### 65. How would you test code that depends on time? {#65}
@@ -1305,6 +1373,8 @@ fmt.Printf("%d\n", "hello") // vet: wrong verb for a string
 var mu sync.Mutex
 mu2 := mu                   // vet: copies a lock value
 ```
+
+**Try it:** run `go vet ./...` against a file containing that wrong-verb `Printf` call and read the exact warning it produces.
 {{% /qa %}}
 
 ### 68. Explain fuzz testing, and when it's worth using. {#68}
@@ -1324,6 +1394,8 @@ func FuzzParse(f *testing.F) {
 ```
 
 It's especially valuable for parsers, serializers, and anything handling untrusted input, which is exactly where the inputs you'd never think to write by hand live.
+
+**Try it:** run `go test -fuzz=FuzzParse -fuzztime=30s` locally and see whether it finds an input that panics.
 {{% /qa %}}
 
 ---
@@ -1349,6 +1421,8 @@ func handler(w http.ResponseWriter, r *http.Request) {
 ```
 
 **What they're testing:** whether you know concurrent map access crashes the process outright rather than producing a subtle wrong answer. Go detects it and calls `throw`, which no `recover` can catch.
+
+**Try it:** run the handler under real concurrent load with a tool like `hey` or `ab`, and watch the process crash with "fatal error: concurrent map writes" instead of recovering.
 {{% /qa %}}
 
 ### 70. What is middleware in a Go HTTP server, and how do you chain it? {#70}
@@ -1391,6 +1465,8 @@ if !limiter.Allow() {
 ```
 
 For a single instance an in-memory limiter is fine. Across multiple instances you need a shared store like Redis, or each replica enforces the limit independently and your real limit is N times what you configured.
+
+**Try it:** send more than 30 requests in under a second against a handler using that limiter, and confirm you start getting 429s once the burst allowance is used up.
 {{% /qa %}}
 
 ### 72. How do you drain in-flight gRPC streams vs HTTP requests during shutdown? {#72}
@@ -1448,6 +1524,8 @@ db.SetConnMaxLifetime(5 * time.Minute)
 Without a pool, every request pays real latency to open a fresh connection, and under load you'll exhaust Postgres's `max_connections` limit. At that point new connections are refused and the whole service fails, not just the slow parts.
 
 **What they're testing:** whether you know the default `MaxOpenConns` is unlimited. That's the trap: it works fine in testing and takes the database down the first time you get real traffic.
+
+**Try it:** set `SetMaxOpenConns(1)` locally and fire two queries at once. The second one visibly waits for the first connection to free up before it runs.
 {{% /qa %}}
 
 ---

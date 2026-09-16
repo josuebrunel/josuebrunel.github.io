@@ -41,6 +41,8 @@ SELECT id, 'active' AS bucket FROM orders WHERE status = 'active'
 UNION ALL
 SELECT id, 'closed' AS bucket FROM orders WHERE status = 'closed';
 ```
+
+**Try it:** run the same query with `UNION` instead of `UNION ALL` and diff the row counts. Since the two branches can't overlap here, the counts should match, that's the dedup pass doing nothing but costing you a sort.
 {{% /qa %}}
 
 ### 2. `EXISTS`, `IN`, or a `JOIN` for an existence check: does it matter which one you pick? {#2}
@@ -69,6 +71,8 @@ WHERE NOT EXISTS (
 `NOT IN` has to prove your value differs from *every* row in the list. Against `NULL` it can't prove that, so the whole comparison goes unknown, and unknown isn't true.
 
 **What they're testing:** whether you've been bitten by this. "They're basically the same" is a fine opening, but they want you to get to `NULL` on your own.
+
+**Try it:** create a tiny `customers` table with one row where `referrer_id` is `NULL`, then run both queries above against it. The `NOT IN` version returns 0 rows no matter what's in `orders`, the `NOT EXISTS` version doesn't.
 {{% /qa %}}
 
 ### 3. What does `INSERT ... ON CONFLICT DO UPDATE` (upsert) buy you over a separate `SELECT` then `INSERT`/`UPDATE`? {#3}
@@ -87,6 +91,8 @@ RETURNING *;
 ```
 
 `EXCLUDED` is the row you tried to insert, so it's how you reach the new values inside the update branch.
+
+**Try it:** open two `psql` sessions and run the same `INSERT ... ON CONFLICT DO UPDATE` for the same `user_id` at the same time. One blocks briefly on the row lock, then both succeed, no duplicate and no error, which is the difference from a plain `INSERT` you'd otherwise have to catch a unique-violation from.
 {{% /qa %}}
 
 ### 4. What's a `LATERAL` join, and when do you actually need one? {#4}
@@ -129,6 +135,8 @@ WHERE to_tsvector('english', body)
 ```
 
 **What they're testing:** whether "the index can't be used here" is a thought you reach on your own. Naming `tsvector` functions from memory isn't the point, and they'll push a step past it.
+
+**Try it:** `EXPLAIN` a `WHERE body LIKE '%database%'` query on a table with 100k or more rows, then `EXPLAIN` the `to_tsvector` version with the GIN index in place. The first shows `Seq Scan`, the second shows `Bitmap Index Scan`.
 {{% /qa %}}
 
 ### 6. What does `pg_trgm` add on top of full-text search? {#6}
@@ -139,6 +147,8 @@ WHERE to_tsvector('english', body)
 `tsvector` search is token-based, so it won't match a typo or a substring that crosses a token boundary. `pg_trgm` indexes overlapping three-character sequences of a string, which makes fuzzy and similarity matching work, and makes substring `LIKE '%term%'` queries index-able through a GIN or GiST trigram index.
 
 Use full-text search for "find documents about this topic" and trigram for "find rows whose name is close to what the user typo'd."
+
+**Try it:** `CREATE EXTENSION pg_trgm;`, add `CREATE INDEX idx_customers_name_trgm ON customers USING GIN (name gin_trgm_ops);`, then run `SELECT name FROM customers WHERE name % 'Jonh Smith';` and watch it match "John Smith" even though the spelling's wrong.
 {{% /qa %}}
 
 ### 7. Postgres changed how CTEs behave around version 12: what changed, and why does it matter? {#7}
@@ -149,6 +159,8 @@ Use full-text search for "find documents about this topic" and trigram for "find
 Before Postgres 12, every CTE was an optimization fence: the planner materialized it as a temporary result set and couldn't push filters from the outer query down into it, even when that would've been cheaper. From Postgres 12 on, a non-recursive CTE is inlined by default like a subquery, unless it's referenced more than once or explicitly marked `MATERIALIZED`.
 
 That version difference is worth knowing because it's a real production surprise: the same CTE-heavy query, same data, different server, wildly different plan.
+
+**Try it:** on Postgres 12 or later, run the same CTE-heavy query twice: once as-is, once with the CTE marked `MATERIALIZED`. `EXPLAIN` both and watch the second one refuse to push the outer `WHERE` down into the CTE, which is the pre-12 behavior forced back on.
 {{% /qa %}}
 
 ### 8. How do window functions differ from `GROUP BY`, and what does `ROW_NUMBER`/`RANK`/`LAG` give you that aggregation can't? {#8}
@@ -196,6 +208,8 @@ SELECT * FROM org_chart ORDER BY depth;
 ```
 
 Get the recursive term wrong, most commonly a join condition that can revisit a row it already processed, and you get infinite recursion. Postgres will eventually blow past `work_mem` or hit a recursion limit and error out rather than hang forever, but it's still the first thing to check when a recursive CTE that used to be fast suddenly isn't: a cycle got introduced in the data.
+
+**Try it:** intentionally break the recursive term's join condition so the same row can be revisited, then run the query with a `LIMIT 20` as a safety net and watch it happily keep producing rows past where a real org chart would have stopped.
 {{% /qa %}}
 
 ### 10. When should a column be `JSONB` instead of a normalized set of tables, and how do you index it? {#10}
@@ -211,6 +225,8 @@ It's the wrong choice once you're regularly filtering or joining on a handful of
 CREATE INDEX idx_metadata_gin ON accounts USING GIN (metadata);
 SELECT * FROM accounts WHERE metadata @> '{"plan": "enterprise"}';
 ```
+
+**Try it:** `EXPLAIN` that containment query against the GIN index, then `EXPLAIN` the same filter written as `metadata->>'plan' = 'enterprise'`. The first uses the index, the second usually doesn't unless you've also indexed that expression directly.
 {{% /qa %}}
 
 ---
@@ -232,6 +248,8 @@ CREATE INDEX idx_jobs_pending ON jobs (created_at) WHERE status = 'pending';
 ```
 
 It's a poor fit when queries filter on a wide variety of conditions, since a partial index only helps the specific predicate it was built with. Query for `status = 'failed'` and this index does nothing for you.
+
+**Try it:** `EXPLAIN` a query for `WHERE status = 'failed'` against the table from the snippet above. The partial index only covers `status = 'pending'`, so you'll see a sequential scan even though there's an index on the table.
 {{% /qa %}}
 
 ### 12. What's an advisory lock, and when do you reach for one instead of a row or table lock? {#12}
@@ -247,6 +265,8 @@ SELECT pg_try_advisory_lock(42);
 ```
 
 `pg_try_advisory_lock` returns immediately rather than waiting, which is usually what you want for a job runner: the losers should skip the work, not queue up behind it. It's a cheap way to get distributed mutual exclusion out of a database you already have.
+
+**Try it:** open two `psql` sessions and run `SELECT pg_try_advisory_lock(42);` in both. The first returns `true`, the second returns `false` immediately, no waiting, which is the point.
 {{% /qa %}}
 
 ### 13. When do stored procedures or triggers earn their complexity, versus just hiding logic from the app layer? {#13}
@@ -283,6 +303,8 @@ Plain `VACUUM` (which autovacuum runs automatically) reclaims dead tuple space f
 `VACUUM FULL` rewrites the entire table into a new, compact file with no dead space, which does shrink it on disk but takes an exclusive lock for the duration. That makes it a rare, deliberate maintenance operation, not something to run routinely.
 
 Autovacuum is tuned (thresholds, worker count, cost delay), not disabled. Disabling it is what leads to the bloat it exists to prevent.
+
+**Try it:** `UPDATE` the same handful of rows in a loop a few hundred times, check `n_dead_tup` in `pg_stat_user_tables`, run `VACUUM`, and watch it drop back down without the table's on-disk size changing.
 {{% /qa %}}
 
 ### 16. Why can a query slow down over time even though the query, schema, and data volume haven't meaningfully changed? {#16}
@@ -301,6 +323,8 @@ ANALYZE orders;
 ```
 
 Running `ANALYZE` manually is a cheap first move before assuming a missing index is the problem. It slots into the [slow-query checklist]({{< ref "interview-prep-databases-systems.md" >}}#5) (Part 3) as the "did anything actually change" step.
+
+**Try it:** bulk-insert a few hundred thousand rows without running `ANALYZE`, then `EXPLAIN ANALYZE` a filtered query and compare the planner's row estimate to the actual row count. Run `ANALYZE` and re-run the same query to see the estimate snap back in line.
 {{% /qa %}}
 
 ### 17. Nested loop, hash join, and merge join: what does the planner actually choose between, and why? {#17}
@@ -325,6 +349,8 @@ graph TD
 [`EXPLAIN ANALYZE`]({{< ref "interview-prep-databases-systems.md" >}}#7) (Part 3) shows which one actually ran. If a hash join spills to disk because the build side didn't fit in `work_mem`, that shows up as a much slower actual time than the estimate: a signal to raise `work_mem` for that query rather than assume the join type itself is wrong.
 
 **What they're testing:** whether you can read a plan and say why the planner chose what it chose. You're not expected to pick joins by hand, you're expected to know what the planner was reacting to.
+
+**Try it:** `SET enable_hashjoin = off;` before running a join that would normally hash, then `EXPLAIN` it again and watch the planner fall back to a nested loop or merge join instead.
 {{% /qa %}}
 
 ### 18. Table partitioning vs. sharding: where's the line, and why would you reach for one over the other? {#18}
@@ -376,6 +402,8 @@ REFRESH MATERIALIZED VIEW CONCURRENTLY daily_revenue;
 Plain `REFRESH MATERIALIZED VIEW` locks the view against reads for the duration. `CONCURRENTLY` avoids that lock by building the new result set alongside the old one and swapping, at the cost of needing that unique index and taking somewhat longer overall.
 
 The right fit is an expensive aggregate read far more often than the underlying data changes: a dashboard rollup refreshed every few minutes, not something needing per-write freshness.
+
+**Try it:** `UPDATE` a row in `orders`, `SELECT` from `daily_revenue` and see the old total, then `REFRESH MATERIALIZED VIEW CONCURRENTLY daily_revenue;` and select again to see it catch up.
 {{% /qa %}}
 
 ### 20. What is MVCC, and why does it cause table bloat if autovacuum falls behind? {#20}
@@ -398,6 +426,8 @@ graph LR
 A long-running transaction is the classic silent cause. It holds back the oldest snapshot autovacuum has to respect, so even a healthy autovacuum schedule can't reclaim tuples newer than that snapshot until the long transaction finally commits or aborts.
 
 **What they're testing:** whether "why is this table 40GB when it holds 4GB of data" is a question you can answer. The word they're waiting for is bloat, and then the long-running transaction behind it.
+
+**Try it:** run `SELECT pg_size_pretty(pg_total_relation_size('orders'));` before and after a loop of a few thousand no-op `UPDATE`s on the same rows without vacuuming, and watch the number grow even though the row count and logical data size didn't change.
 {{% /qa %}}
 
 ---

@@ -38,6 +38,8 @@ A topic is a named stream of events, split into one or more partitions for paral
 Kafka only guarantees ordering *within a single partition*, not across the whole topic.
 
 **What they're testing:** whether you'll claim Kafka gives you global ordering. It doesn't. The follow-up is always "so how do I keep one customer's events in order?" and the answer is the partition key, [question 19](#19).
+
+**Try it:** produce a few messages with `kafka-console-producer.sh --property parse.key=true --property key.separator=:`, using different keys, then consume with `kafka-console-consumer.sh --property print.partition=true` and watch which partition each key lands on.
 {{% /qa %}}
 
 ### 2. What is a consumer group, and how does partition assignment work across group members? {#2}
@@ -48,6 +50,8 @@ Kafka only guarantees ordering *within a single partition*, not across the whole
 A consumer group is a set of consumer instances sharing a single logical subscription. Kafka guarantees each partition is consumed by exactly one member at a time.
 
 The group coordinator assigns partitions (round-robin, range, or sticky strategies) and reassigns them whenever group membership changes.
+
+**Try it:** start two consumers in the same group against a topic with at least 2 partitions, then kill one and watch `kafka-consumer-groups.sh --describe` show its partitions reassigned to the survivor.
 {{% /qa %}}
 
 ### 3. Which Go Kafka client libraries are commonly used, and what are the key differences? {#3}
@@ -70,6 +74,8 @@ The group coordinator assigns partitions (round-robin, range, or sticky strategi
 A synchronous producer blocks until the broker acknowledges each message. That makes error handling simple, but it limits throughput to one round trip per message.
 
 An asynchronous producer returns immediately and delivers results on separate channels, batching under the hood for much higher throughput. The cost is that you now have to actually read those result channels, or failures disappear silently.
+
+**Try it:** send 1,000 messages with a synchronous producer and time it, then send the same 1,000 with an async producer reading the result channel, and compare.
 {{% /qa %}}
 
 ### 5. Explain Kafka's `acks` setting and the tradeoffs for a Go producer. {#5}
@@ -90,6 +96,8 @@ config.Producer.Retry.Max = 5
 ```
 
 **What they're testing:** whether you pick a setting and justify it for the data in question. "`acks=all` for payments, `acks=1` for click events" is the answer they want, not "always use all."
+
+**Try it:** set `acks=0` on a local producer, kill the broker mid-send, and confirm the client reports success anyway.
 {{% /qa %}}
 
 ### 6. What happens during a consumer group rebalance, and how can it disrupt a Go service mid-processing? {#6}
@@ -102,6 +110,8 @@ The coordinator revokes and reassigns partitions. By default all consumers in th
 If your processing loop doesn't handle the revoke callback properly, you can double-process after reassignment, because the offsets for work you'd already finished were never committed.
 
 **What they're testing:** whether you know a rebalance stops the whole group, not just the consumers whose partitions moved. That's the detail that surprises people the first time they see it in production.
+
+**Try it:** run two consumers in one group, start a third, and watch the group's log lines for the rebalance: revoke, reassign, resume.
 {{% /qa %}}
 
 ### 7. How do you achieve at-least-once processing in a Go Kafka consumer? {#7}
@@ -121,6 +131,8 @@ for msg := range claim.Messages() {
 ```
 
 **What they're testing:** whether "at-least-once" makes you say "so the handler has to be idempotent" without being prompted. That's the whole point of the question.
+
+**Try it:** in the loop above, kill the process right after `process(msg)` returns but before `MarkMessage` runs, then restart it and confirm the same message gets redelivered.
 {{% /qa %}}
 
 ### 8. How would you implement exactly-once-ish semantics in Go without relying purely on Kafka transactions? {#8}
@@ -137,6 +149,8 @@ ON CONFLICT (event_key) DO NOTHING;
 ```
 
 **What they're testing:** whether you treat "exactly-once" as a property of your consumer rather than something the broker hands you. Pushing the guarantee down to a unique constraint is the answer.
+
+**Try it:** run the same event through the `ON CONFLICT DO NOTHING` insert twice with the same key and confirm the row count doesn't change on the second run.
 {{% /qa %}}
 
 ### 9. Explain Kafka's idempotent producer feature, and when you'd enable it. {#9}
@@ -153,6 +167,8 @@ config.Producer.Idempotent = true
 config.Producer.RequiredAcks = sarama.WaitForAll // required
 config.Net.MaxOpenRequests = 1                   // required
 ```
+
+**Try it:** turn `enable.idempotence` off, force the producer to retry a send (a brief broker restart works), and count how many copies land in the topic; turn it on and repeat.
 {{% /qa %}}
 
 ### 10. What is Kafka transactional messaging, and when would you use it in Go? {#10}
@@ -179,6 +195,8 @@ if attempts > maxRetries {
     continue
 }
 ```
+
+**Try it:** publish a message your handler always errors on, and watch it retry `maxRetries` times before landing on the DLQ topic instead of stalling the partition.
 {{% /qa %}}
 
 ### 12. Explain consumer lag and how you'd monitor it in a Go service. {#12}
@@ -189,6 +207,8 @@ if attempts > maxRetries {
 Lag is the difference between the latest produced offset and the consumer group's last committed offset.
 
 Monitor it through Kafka's own exposed metrics, using Burrow or the Kafka exporter for Prometheus. A lag number that's high but flat is fine. A lag number that climbs steadily means consumers can't keep up and something has to change.
+
+**Try it:** run `kafka-consumer-groups.sh --bootstrap-server localhost:9092 --describe --group <name>` while your consumer is running behind, and watch the `LAG` column move.
 {{% /qa %}}
 
 ### 13. How do you handle backpressure when a Go consumer processes slower than messages arrive? {#13}
@@ -213,6 +233,8 @@ for msg := range claim.Messages() {
 ```
 
 Worth saying out loud: this gives up per-partition ordering and makes offset commits trickier, so only reach for it when messages within a partition are genuinely independent.
+
+**Try it:** drop the semaphore from the snippet above, send a burst of messages, and watch goroutine count climb with no ceiling.
 {{% /qa %}}
 
 ### 14. What's the significance of partition count for parallelism, and what happens with more consumers than partitions? {#14}
@@ -223,6 +245,8 @@ Worth saying out loud: this gives up per-partition ordering and makes offset com
 Partition count is the hard ceiling on parallelism within a consumer group. Extra consumer instances beyond the partition count stay completely idle.
 
 **What they're testing:** whether you know you can't scale a consumer group past the partition count. The follow-up is "so add partitions," and the good answer notes that changing partition count changes key-to-partition mapping, which breaks the ordering guarantee from [question 1](#1).
+
+**Try it:** run 4 consumer instances against a 2-partition topic in the same group, then check `kafka-consumer-groups.sh --describe` and see two of them assigned zero partitions.
 {{% /qa %}}
 
 ### 15. Manual vs automatic offset commits, and the pitfalls of auto-commit {#15}
@@ -239,6 +263,8 @@ config.Consumer.Offsets.AutoCommit.Enable = false // commit manually
 ```
 
 **What they're testing:** whether you can name the exact window where a message gets lost. "Between fetch and finish" is the phrase.
+
+**Try it:** turn auto-commit back on, kill the consumer right after a message is fetched but before your handler finishes, restart it, and confirm that message is gone for good.
 {{% /qa %}}
 
 ### 16. How do you handle schema evolution for Kafka messages in Go (Avro/Protobuf and a schema registry)? {#16}
@@ -274,6 +300,8 @@ defer broker.Close()
 ```
 
 For integration-level confidence, run a real Kafka broker in a container via `testcontainers-go`, or use Redpanda as a lighter-weight, Kafka-compatible alternative.
+
+**Try it:** write a test using `sarama.NewMockBroker`, then swap it for a real broker via `testcontainers-go` and see which bugs only show up against the real thing.
 {{% /qa %}}
 
 ### 19. How do you produce a message with a specific key in Go, and why does the key matter? {#19}
@@ -292,6 +320,8 @@ msg := &sarama.ProducerMessage{
 partition, offset, err := producer.SendMessage(msg)
 // same key -> same partition -> preserves per-user ordering
 ```
+
+**Try it:** send several messages with the same key and `print.partition=true` on the consumer side, and confirm they all land on the same partition.
 {{% /qa %}}
 
 ### 20. How would you design a Go consumer to gracefully shut down without losing in-flight messages or committing wrong offsets? {#20}
@@ -318,6 +348,8 @@ func (h *Handler) ConsumeClaim(sess sarama.ConsumerGroupSession,
     }
 }
 ```
+
+**Try it:** send `SIGTERM` to a running consumer mid-batch and check the logs show it finishing the in-flight message and committing before it exits.
 {{% /qa %}}
 
 ---
@@ -591,6 +623,8 @@ sequenceDiagram
     Gateway-->>Client: response
     Note over Client,PaymentSvc: All spans linked by trace-id abc123 in one timeline
 ```
+
+**Try it:** run a two-service call chain with OpenTelemetry instrumentation and a local Jaeger container, then open the Jaeger UI and find the slow span.
 {{% /qa %}}
 
 ### 35. Explain correlation IDs and trace context propagation across service calls. {#35}
@@ -637,6 +671,8 @@ stateDiagram-v2
 ```
 
 **What they're testing:** whether you can explain why retrying harder makes an outage worse. The phrase they're waiting for is retry storm.
+
+**Try it:** wrap a call that always fails in a circuit breaker (`sony/gobreaker` is a common Go one), watch it flip to open after enough failures, and confirm calls fail fast without touching the network while it's open.
 {{% /qa %}}
 
 ### 37. How do you secure service-to-service communication in a microservices architecture? {#37}

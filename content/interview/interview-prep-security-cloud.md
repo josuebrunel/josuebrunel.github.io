@@ -66,6 +66,8 @@ err = bcrypt.CompareHashAndPassword(hash, []byte(attempt))
 ```
 
 **What they're testing:** whether you know the slowness is the feature. "I'd use SHA-256 with a salt" sounds careful and is the wrong answer, and they're waiting to see if you catch it.
+
+**Try it:** hash the same password twice with `bcrypt.GenerateFromPassword` and print both hashes. They'll be completely different strings, since the salt is random each time, and `bcrypt.CompareHashAndPassword` will still say yes to both against the original password.
 {{% /qa %}}
 
 ### 3. How should a service manage secrets (DB passwords, API keys) in production? {#3}
@@ -76,6 +78,8 @@ err = bcrypt.CompareHashAndPassword(hash, []byte(attempt))
 Never commit them to source control or bake them into container images. Pull them at runtime from a dedicated secrets manager (Vault, AWS Secrets Manager, GCP Secret Manager) that supports access-controlled retrieval, audit logging, and rotation.
 
 Environment variables are an acceptable delivery mechanism for the running process. The source of truth should be the secrets manager, not a `.env` file checked in or copy-pasted between engineers.
+
+**Try it:** run `gitleaks detect --source .` against a repo you have write access to. Even a false positive teaches you what a leaked key pattern actually looks like to a scanner.
 {{% /qa %}}
 
 ### 4. Encryption at rest vs. in transit: what protects against what? {#4}
@@ -111,6 +115,8 @@ if allowedOrigins[origin] {
 ```
 
 **What they're testing:** whether you can name the attacker's goal, not just the acronym. For SSRF the goal is usually the cloud metadata endpoint and the credentials sitting behind it.
+
+**Try it:** `curl -H "Origin: https://evil.example" -I https://your-api/some-endpoint` against an API you run and check whether the response echoes that `Origin` back in `Access-Control-Allow-Origin` while also setting `Access-Control-Allow-Credentials: true`. If it does, you've just reproduced the exact misconfiguration above.
 {{% /qa %}}
 
 ### 6. How do you protect against a compromised or malicious dependency in a Go module graph? {#6}
@@ -136,6 +142,8 @@ govulncheck ./...
 STRIDE is a mnemonic for threat categories: Spoofing, Tampering, Repudiation, Information disclosure, Denial of service, Elevation of privilege. You use it to systematically walk a design, usually a data-flow diagram, asking "how could this fail under each category" instead of relying on ad hoc worry.
 
 Run one whenever a new trust boundary is introduced: a new external-facing API, a new service handling sensitive data, a new integration with a third party. Not for every minor internal change.
+
+**Try it:** pick a real API you've built, sketch its data-flow diagram on paper, and walk each box and arrow against all six STRIDE letters out loud. Twenty minutes is enough to feel how much faster it goes the second time.
 {{% /qa %}}
 
 ### 8. Walk through the OAuth2 authorization code flow, and where the token actually ends up. {#8}
@@ -190,6 +198,8 @@ token, err := jwt.Parse(tokenString, func(t *jwt.Token) (interface{}, error) {
 ```
 
 **What they're testing:** whether you understand that signed is not the same as encrypted, and that revocation is the hard part. Those two ideas carry the whole answer.
+
+**Try it:** copy the payload segment of any JWT (the part between the two dots) and run `echo '<segment>' | tr '_-' '/+' | base64 -d`, padding with `=` if it complains. You'll read the claims in plain text, no key involved at any point.
 {{% /qa %}}
 
 ### 10. How does a TLS certificate chain get validated, and what does mTLS add on top of one-way TLS? {#10}
@@ -211,6 +221,8 @@ graph LR
     ClientLeaf["Client Cert"] -.->|"validated the same way, in reverse"| Inter
     end
 ```
+
+**Try it:** run `openssl s_client -connect example.com:443 -showcerts </dev/null` against any HTTPS site and read the chain it prints, leaf certificate first, then each intermediate up to the root.
 {{% /qa %}}
 
 ### 11. What are the most common Go-specific security vulnerabilities, and how do you avoid them? {#11}
@@ -244,6 +256,8 @@ exec.Command("convert", userFile, "out.png")
 **Insecure deserialization.** `encoding/gob`, or unpinned `interface{}` decoding of untrusted input, can be abused to construct unexpected types. Prefer a schema-constrained format, like JSON into a concrete struct, for anything crossing a trust boundary.
 
 **What they're testing:** whether you reach for the parameterized version by reflex. This one usually becomes "write it on the whiteboard," so have the safe pattern ready from memory.
+
+**Try it:** install with `go install github.com/securego/gosec/v2/cmd/gosec@latest`, then run `gosec ./...` against a Go project you maintain and see how many of these four categories it actually flags versus what you assumed was fine.
 {{% /qa %}}
 
 ### 12. What does "defense in depth" mean architecturally, and how does zero trust extend it? {#12}
@@ -289,6 +303,8 @@ A typical Go backend service usually sits on IaaS via an orchestrator (a VM flee
 A set of practices for building portable, scalable cloud-native apps: config via environment variables rather than files baked into the image, backing services (DB, cache, queue) treated as attached resources reachable by URL, stateless disposable processes that start and stop fast, and logs treated as an event stream written to stdout rather than managed by the app.
 
 Go's static binaries and fast startup already fit most of this naturally. A compiled Go binary with env-based config is close to 12-factor by default.
+
+**Try it:** `grep -rn "os.Getenv\|viper\." .` across a service you maintain and see how much of its config is actually environment-driven versus hardcoded or baked into the image.
 {{% /qa %}}
 
 ### 15. HPA vs. VPA vs. cluster autoscaler: what does each one actually scale, and what breaks if you only configure one? {#15}
@@ -301,6 +317,8 @@ HPA (Horizontal Pod Autoscaler) adds and removes pod replicas based on a metric 
 Running HPA alone without a cluster autoscaler means new pod replicas can go Pending forever once existing nodes are full. HPA scaled the workload, but nothing scaled the cluster to fit it.
 
 **What they're testing:** whether you've seen a Pending pod and understood why. The three-layer answer is what separates "I've read the docs" from "I've debugged this at 2am."
+
+**Try it:** `kubectl get hpa` on a cluster with autoscaling configured, then `kubectl describe pod <pending-pod>` on anything stuck Pending and read the Events section for `FailedScheduling`.
 {{% /qa %}}
 
 ### 16. What does Infrastructure as Code actually buy you over provisioning resources by hand in a console? {#16}
@@ -313,6 +331,8 @@ Running HPA alone without a cluster autoscaler means new pod replicas can go Pen
 - **Drift detection.** Running a plan against live infrastructure surfaces anything that changed out of band.
 
 The cost is a learning curve, plus a "click in the console to fix the incident right now" instinct that has to be resisted in favour of "fix it in code, then apply."
+
+**Try it:** run `terraform plan` against infrastructure you've already applied, with nothing changed since. A clean `No changes.` is what drift detection looks like when nothing happened, which is the baseline you need before you can recognize real drift.
 {{% /qa %}}
 
 ### 17. Managed (RDS/Cloud SQL-style) vs. self-hosted database in the cloud: what's the actual trade-off? {#17}
@@ -381,6 +401,8 @@ graph TD
     K --> C2["Container 2<br/>(App + deps only)"]
     end
 ```
+
+**Try it:** `docker history <image>` on any image you have locally and look at the layer sizes, then time `docker run --rm alpine echo hi` against how long your last VM actually took to boot.
 {{% /qa %}}
 
 ### 22. What are the core Kubernetes objects, and how does a request actually reach a pod? {#22}
@@ -405,6 +427,8 @@ graph LR
     Deployment -.->|manages/replaces| Pod2
     Deployment -.->|manages/replaces| Pod3
 ```
+
+**Try it:** `kubectl get pods,deploy,svc,ingress -o wide` in any namespace you have access to, then `kubectl describe svc <name>` and find the Endpoints line, that's the live list of pod IPs the Service is actually load-balancing across right now.
 {{% /qa %}}
 
 ### 23. Active-active vs. active-passive multi-region: what's the trade-off, and why does data residency complicate it? {#23}
@@ -457,6 +481,8 @@ graph LR
     App2 -->|"3: scoped, least-privilege call"| Cloud2[Cloud API]
     end
 ```
+
+**Try it:** run `aws sts get-caller-identity` (or `gcloud auth list`) from inside a workload that's supposed to be using workload identity, then `env | grep -i key` in the same place and confirm there's no static access key sitting behind that identity.
 {{% /qa %}}
 
 ### 25. Blue-green vs. canary vs. rolling deployment: how does each affect rollback speed and blast radius? {#25}
@@ -485,6 +511,8 @@ graph TD
 ```
 
 **What they're testing:** whether you answer in terms of rollback and blast radius rather than listing the three names. The question already names them, so reciting them back gets you nothing.
+
+**Try it:** `kubectl rollout status deployment/<name>` mid-rollout to watch a rolling update progress live, then `kubectl rollout undo deployment/<name>` and time how long the rollback actually takes compared to what blue-green would've given you instantly.
 {{% /qa %}}
 
 ---
