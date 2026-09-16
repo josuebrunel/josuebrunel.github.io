@@ -6,24 +6,130 @@ aliases: ["/go-interview-prep-security-cloud/"]
 nodate: true
 hidemeta: true
 nofeed: true
+mermaid: true
 ---
 
 Part 6 of 7 · [Interview Prep](/interview-prep/) · ← Previous: [Part 5 — Kafka & Microservices](/interview-prep-kafka-microservices/) · Next: [Part 7 — AI Engineering](/interview-prep-ai-engineering/) →
 
+Security is where confident people go vague. Naming a control is easy. Saying what it actually stops, and what it leaves wide open, is the part interviewers listen for. The cloud half has the opposite failure: it's easy to recite service names and never say what you'd pick or why.
+
+**What this assumes:** you've shipped something that talked to a database and a third-party API, and you know roughly what HTTPS and a container are. Everything past that gets explained here.
+
+**What you should be able to do after:** name the threat a control exists to stop, say what it doesn't cover, and pick between two cloud options out loud without hedging.
+
+Every answer opens with **The gist**, one or two plain sentences. If the gist is all you have time for, that's still worth more than a half-remembered detail. The full answer underneath is what you say when they ask you to go deeper.
+
+{{< toc >}}
+
 ## Security
 
-| # | Question | Answer |
-|---|----------|--------|
-| <span id="1"></span>1 | What's the difference between authentication and authorization, and RBAC vs ABAC? | Authentication (authN) verifies who you are; authorization (authZ) decides what you're allowed to do once verified. RBAC grants permissions based on a user's assigned role (admin, viewer) — simple, coarse-grained. ABAC evaluates policy against attributes of the user, resource, and context (department=finance AND resource.owner=user AND time<18:00) — more flexible and fine-grained, at the cost of policy complexity. |
-| <span id="2"></span>2 | How should passwords be stored, and why is rolling your own hashing scheme a bad idea? | Never store plaintext or reversibly-encrypted passwords — hash with a slow, salted algorithm designed for it: bcrypt, scrypt, or argon2 (preferred). These are deliberately slow and tunable to keep pace with hardware, and a unique salt per password defeats precomputed rainbow-table attacks. A fast general-purpose hash like SHA-256 is the wrong tool — it's fast specifically so attackers can brute-force billions of guesses per second against a leaked hash dump. |
-| <span id="3"></span>3 | How should a service manage secrets (DB passwords, API keys) in production? | Never commit them to source control or bake them into container images — pull them at runtime from a dedicated secrets manager (Vault, AWS Secrets Manager, GCP Secret Manager) that supports access-controlled retrieval, audit logging, and rotation. Environment variables are an acceptable delivery mechanism for the running process, but the source of truth should be the secrets manager, not a `.env` file checked in or copy-pasted between engineers. |
-| <span id="4"></span>4 | Encryption at rest vs. in transit — what protects against what? | In transit (TLS) protects data moving across a network from being read or tampered with by anyone sitting on the path. At rest (disk/DB-level encryption, e.g. AES-256) protects data sitting on storage media from being read if the physical disk, backup, or snapshot is stolen or improperly accessed. They're independent controls — TLS alone doesn't protect a stolen database backup, and disk encryption alone doesn't protect a request sniffed off the wire. |
-| <span id="5"></span>5 | What is SSRF, and what's a common CORS misconfiguration? | SSRF (Server-Side Request Forgery) happens when a service fetches a URL supplied by the caller and an attacker points it at an internal-only endpoint (a cloud metadata service, an internal admin API) the server can reach but the attacker can't directly — mitigate with an allowlist of permitted hosts/schemes and blocking requests to private IP ranges. A common CORS mistake is reflecting `Access-Control-Allow-Origin` back as whatever `Origin` header the request sent combined with `Access-Control-Allow-Credentials: true` — that lets any website make authenticated cross-origin requests on a logged-in user's behalf. |
-| <span id="6"></span>6 | How do you protect against a compromised or malicious dependency in a Go module graph? | `go.sum` pins the exact cryptographic checksum of every dependency version, and the checksum database (`GOSUMDB`, `sum.golang.org` by default) verifies a module's checksum on first download against a public, tamper-evident log — so a dependency can't be silently swapped for a malicious version later. Beyond that: run a vulnerability scanner (`govulncheck`, or Snyk/Dependabot) in CI, pin versions rather than using loose ranges, and for a regulated environment, maintain an SBOM (Software Bill of Materials) so you can answer "are we affected" quickly when a CVE drops. |
-| <span id="7"></span>7 | What is STRIDE, and when should an architect actually run a threat model? | STRIDE is a mnemonic for threat categories: Spoofing, Tampering, Repudiation, Information disclosure, Denial of service, Elevation of privilege — used to systematically walk a design (usually a data-flow diagram) and ask "how could this fail under each category" instead of relying on ad hoc worry. Run one whenever a new trust boundary is introduced — a new external-facing API, a new service handling sensitive data, a new integration with a third party — not for every minor internal change. |
+*Questions 1 to 7 are fundamentals you're expected to have now. 8 to 12 go deeper, and 9 and 11 are the two most likely to turn into "show me the code."*
 
-#### 8 — Walk through the OAuth2 authorization code flow, and where the token actually ends up. {#8}
-The user is redirected to the authorization server (e.g. Google) and logs in there, not on the client app — the client never sees the password. The authorization server redirects back to the client with a short-lived authorization code. The client's backend then exchanges that code (plus a client secret) directly with the authorization server for an access token — this token exchange happens server-to-server, so the token never transits through the browser's URL bar or history. OIDC layers an ID token (a JWT asserting identity) on top of OAuth2, which is fundamentally an authorization protocol, not an authentication one — that distinction is a common interview trip-up.
+### 1. What's the difference between authentication and authorization, and RBAC vs ABAC? {#1}
+
+**The gist:** authentication is proving who you are. Authorization is deciding what you're allowed to do next. RBAC answers that by job title, ABAC answers it by looking at the details.
+
+Authentication (authN) verifies who you are. Authorization (authZ) decides what you're allowed to do once verified.
+
+RBAC grants permissions based on a user's assigned role (admin, viewer), which is simple and coarse grained. ABAC evaluates policy against attributes of the user, the resource, and the context, which is more flexible and fine grained, at the cost of policy complexity.
+
+```text
+RBAC:  role == "admin"                  -> allow
+
+ABAC:  user.department == resource.owner_department
+       AND action == "read"
+       AND now() < 18:00                -> allow
+```
+
+### 2. How should passwords be stored, and why is rolling your own hashing scheme a bad idea? {#2}
+
+**The gist:** hash with something deliberately slow, like bcrypt or argon2. A fast hash is fast for the attacker too, which is the whole problem.
+
+Never store plaintext or reversibly encrypted passwords. Hash with a slow, salted algorithm designed for the job: bcrypt, scrypt, or argon2 (preferred). These are deliberately slow and tunable, so you can raise the cost as hardware gets faster, and a unique salt per password defeats precomputed rainbow-table attacks.
+
+A fast general-purpose hash like SHA-256 is the wrong tool. It's fast specifically so attackers can brute-force billions of guesses per second against a leaked hash dump.
+
+```go
+// cost is tunable: raise it as hardware gets faster
+hash, err := bcrypt.GenerateFromPassword(
+    []byte(password), bcrypt.DefaultCost,
+)
+
+// comparison is constant-time and re-reads the cost from the hash
+err = bcrypt.CompareHashAndPassword(hash, []byte(attempt))
+```
+
+**What they're testing:** whether you know the slowness is the feature. "I'd use SHA-256 with a salt" sounds careful and is the wrong answer, and they're waiting to see if you catch it.
+
+### 3. How should a service manage secrets (DB passwords, API keys) in production? {#3}
+
+**The gist:** secrets live in a secrets manager, not in your repo and not baked into your image. Environment variables are fine as delivery, just not as the source of truth.
+
+Never commit them to source control or bake them into container images. Pull them at runtime from a dedicated secrets manager (Vault, AWS Secrets Manager, GCP Secret Manager) that supports access-controlled retrieval, audit logging, and rotation.
+
+Environment variables are an acceptable delivery mechanism for the running process. The source of truth should be the secrets manager, not a `.env` file checked in or copy-pasted between engineers.
+
+### 4. Encryption at rest vs. in transit: what protects against what? {#4}
+
+**The gist:** in transit protects data moving over the wire. At rest protects data sitting on a disk. Neither one covers for the other.
+
+In transit (TLS) protects data moving across a network from being read or tampered with by anyone sitting on the path. At rest (disk or database-level encryption, e.g. AES-256) protects data sitting on storage media from being read if the physical disk, backup, or snapshot is stolen or improperly accessed.
+
+They're independent controls. TLS alone doesn't protect a stolen database backup, and disk encryption alone doesn't protect a request sniffed off the wire.
+
+### 5. What is SSRF, and what's a common CORS misconfiguration? {#5}
+
+**The gist:** SSRF is tricking your server into fetching a URL it can reach and the attacker can't. The classic CORS mistake is echoing back whatever `Origin` was sent while also allowing credentials.
+
+SSRF (Server-Side Request Forgery) happens when a service fetches a URL supplied by the caller and an attacker points it at an internal-only endpoint: a cloud metadata service, an internal admin API, anything the server can reach directly but the attacker can't. Mitigate with an allowlist of permitted hosts and schemes, and by blocking requests to private IP ranges.
+
+The common CORS mistake is reflecting `Access-Control-Allow-Origin` back as whatever `Origin` header the request sent, combined with `Access-Control-Allow-Credentials: true`. That lets any website make authenticated cross-origin requests on a logged-in user's behalf.
+
+```go
+// vulnerable: echoes any origin back and still allows credentials
+origin := r.Header.Get("Origin")
+w.Header().Set("Access-Control-Allow-Origin", origin)
+w.Header().Set("Access-Control-Allow-Credentials", "true")
+
+// safe: check a fixed allowlist before echoing anything
+if allowedOrigins[origin] {
+    w.Header().Set("Access-Control-Allow-Origin", origin)
+    w.Header().Set("Access-Control-Allow-Credentials", "true")
+}
+```
+
+**What they're testing:** whether you can name the attacker's goal, not just the acronym. For SSRF the goal is usually the cloud metadata endpoint and the credentials sitting behind it.
+
+### 6. How do you protect against a compromised or malicious dependency in a Go module graph? {#6}
+
+**The gist:** `go.sum` pins the exact checksum of every dependency, and the public checksum database makes a silent swap detectable. The rest is scanning regularly and knowing what you shipped.
+
+`go.sum` pins the exact cryptographic checksum of every dependency version. The checksum database (`GOSUMDB`, `sum.golang.org` by default) verifies a module's checksum on first download against a public, tamper-evident log, so a dependency can't be silently swapped for a malicious version later.
+
+Beyond that: run a vulnerability scanner in CI, pin versions rather than using loose ranges, and for a regulated environment maintain an SBOM (Software Bill of Materials) so you can answer "are we affected" quickly when a CVE drops.
+
+```bash
+go install golang.org/x/vuln/cmd/govulncheck@latest
+govulncheck ./...
+```
+
+### 7. What is STRIDE, and when should an architect actually run a threat model? {#7}
+
+**The gist:** STRIDE is a checklist of six ways a design can be attacked. You walk your diagram asking each one, instead of hoping you happened to think of everything.
+
+STRIDE is a mnemonic for threat categories: Spoofing, Tampering, Repudiation, Information disclosure, Denial of service, Elevation of privilege. You use it to systematically walk a design, usually a data-flow diagram, asking "how could this fail under each category" instead of relying on ad hoc worry.
+
+Run one whenever a new trust boundary is introduced: a new external-facing API, a new service handling sensitive data, a new integration with a third party. Not for every minor internal change.
+
+### 8. Walk through the OAuth2 authorization code flow, and where the token actually ends up. {#8}
+
+**The gist:** the user logs in at Google, not at your app, so your app never sees the password. Your backend then swaps a short-lived code for a token, out of the browser's reach.
+
+The user is redirected to the authorization server (e.g. Google) and logs in there, not on the client app, so the client never sees the password. The authorization server redirects back to the client with a short-lived authorization code.
+
+The client's backend then exchanges that code, plus a client secret, directly with the authorization server for an access token. That exchange happens server to server, so the token never transits through the browser's URL bar or history.
+
+OIDC layers an ID token (a JWT asserting identity) on top of OAuth2, which is fundamentally an authorization protocol rather than an authentication one.
 
 ```mermaid
 sequenceDiagram
@@ -38,20 +144,42 @@ sequenceDiagram
     Auth->>Client: 6: access token (+ ID token for OIDC)
 ```
 
-#### 9 — What's inside a JWT, and what are the common pitfalls? {#9}
-A JWT is three base64url segments — header (algorithm), payload (claims: user id, expiry, roles), signature — concatenated with dots. Anyone can decode and read the payload; the signature only proves it wasn't tampered with, so never put secrets in the payload. Pitfalls: accepting `alg: none` or letting the client dictate the algorithm (an attacker crafts an unsigned token and a naive verifier trusts it — always hardcode the expected algorithm server-side); not checking `exp` at all; using long-lived access tokens instead of a short-lived access token plus a separate, revocable refresh token; and no revocation path at all, since a valid-but-compromised JWT can't be invalidated before it expires unless you maintain a denylist.
+**What they're testing:** the OAuth2 versus OIDC distinction. Saying "we use OAuth for login" is the trip-up, because OAuth2 on its own tells you what a token may do, not who the user is.
+
+### 9. What's inside a JWT, and what are the common pitfalls? {#9}
+
+**The gist:** three base64 chunks that anyone can read. The signature proves nobody changed it, it doesn't hide anything, so never put a secret in the payload.
+
+A JWT is three base64url segments joined with dots: a header (algorithm), a payload (claims like user id, expiry, roles), and a signature. Anyone can decode and read the payload. The signature only proves it wasn't tampered with.
+
+The pitfalls, in rough order of how often they bite:
+
+- Accepting `alg: none`, or letting the client dictate the algorithm. An attacker crafts an unsigned token and a naive verifier trusts it, so always hardcode the expected algorithm server-side.
+- Not checking `exp` at all.
+- Using long-lived access tokens instead of a short-lived access token plus a separate, revocable refresh token.
+- No revocation path, since a valid-but-compromised JWT can't be invalidated before it expires unless you maintain a denylist.
 
 ```go
 token, err := jwt.Parse(tokenString, func(t *jwt.Token) (interface{}, error) {
+    // pin the algorithm: never trust the header's alg claim
     if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
-        return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
+        return nil, fmt.Errorf("bad signing method: %v", t.Header["alg"])
     }
     return hmacSecret, nil
 })
 ```
 
-#### 10 — How does a TLS certificate chain get validated, and what does mTLS add on top of one-way TLS? {#10}
-A leaf certificate is signed by an intermediate CA, which is signed by a root CA that's pre-trusted (shipped in the OS/browser trust store) — the client walks that chain up to a trusted root to validate the server's identity, plus checks the hostname (or SNI) matches and the cert hasn't expired or been revoked. Standard TLS only authenticates the server to the client. mTLS adds the reverse: the client also presents a certificate, and the server validates it the same way, so both sides cryptographically prove identity — the standard approach for service-to-service auth inside a trusted network (see [securing service-to-service communication]({{< ref "interview-prep-kafka-microservices.md" >}}#37) in Part 5). Certificate rotation matters because a long-lived cert is a long-lived risk if its private key leaks — short-lived certs issued automatically (e.g. via a service mesh's built-in CA) shrink that window.
+**What they're testing:** whether you understand that signed is not the same as encrypted, and that revocation is the hard part. Those two ideas carry the whole answer.
+
+### 10. How does a TLS certificate chain get validated, and what does mTLS add on top of one-way TLS? {#10}
+
+**The gist:** your machine trusts a root CA, the root vouches for an intermediate, the intermediate vouches for the server. mTLS runs that same check in both directions.
+
+A leaf certificate is signed by an intermediate CA, which is signed by a root CA that's pre-trusted (shipped in the OS or browser trust store). The client walks that chain up to a trusted root to validate the server's identity, then checks the hostname (or SNI) matches and the cert hasn't expired or been revoked.
+
+Standard TLS only authenticates the server to the client. mTLS adds the reverse: the client also presents a certificate and the server validates it the same way, so both sides cryptographically prove identity. That's the standard approach for service-to-service auth inside a trusted network (see [securing service-to-service communication]({{< ref "interview-prep-kafka-microservices.md" >}}#37) in Part 5).
+
+Certificate rotation matters because a long-lived cert is a long-lived risk if its private key leaks. Short-lived certs issued automatically, for example via a service mesh's built-in CA, shrink that window.
 
 ```mermaid
 graph LR
@@ -62,20 +190,44 @@ graph LR
     end
 ```
 
-#### 11 — What are the most common Go-specific security vulnerabilities, and how do you avoid them? {#11}
-SQL injection: string-concatenating user input into a query — always use parameterized queries (`?`/`$1` placeholders) or a query builder like Bob, never `fmt.Sprintf` into SQL. Command injection: passing unsanitized input to `os/exec` with a shell (`sh -c`) — pass arguments as a slice to `exec.Command` directly instead of building a shell string, so there's no shell to inject into. Path traversal: joining user-supplied filenames onto a base directory without validation lets `../../etc/passwd` escape it — use `filepath.Clean` and verify the resolved path still has the expected base prefix. Insecure deserialization: `encoding/gob` or unpinned `interface{}` decoding of untrusted input can be abused to construct unexpected types — prefer a schema-constrained format (JSON into a concrete struct) for anything crossing a trust boundary.
+### 11. What are the most common Go-specific security vulnerabilities, and how do you avoid them? {#11}
+
+**The gist:** four classics: SQL injection, command injection, path traversal, and decoding untrusted data into whatever type it claims to be. All four come from letting input carry structure.
+
+**SQL injection.** String-concatenating user input into a query. Always use parameterized queries (`?` or `$1` placeholders) or a query builder, never `fmt.Sprintf` into SQL.
 
 ```go
-// vulnerable: string concatenation lets input break out of the query
+// vulnerable: input can break out of the quotes and change the query
 query := fmt.Sprintf("SELECT * FROM users WHERE email = '%s'", email)
 db.Query(query)
 
-// safe: parameterized query — the driver escapes the value, never the query shape
+// safe: the driver escapes the value, never the query shape
 db.Query("SELECT * FROM users WHERE email = $1", email)
 ```
 
-#### 12 — What does "defense in depth" mean architecturally, and how does zero trust extend it? {#12}
-Defense in depth means no single control is trusted to fully protect the system — network segmentation, authentication, authorization, input validation, and encryption each independently reduce risk, so one failure doesn't mean total compromise. The traditional model paired this with a hardened perimeter and an implicitly-trusted internal network. Zero trust removes that implicit trust: every request is authenticated and authorized regardless of whether it originates inside or outside the network perimeter, on the assumption that the perimeter will eventually be breached — which is why mTLS between internal services (see Part 5) and per-request authorization checks matter even for "internal-only" traffic.
+**Command injection.** Passing unsanitized input to `os/exec` through a shell. Pass arguments as separate values to `exec.Command` so there's no shell to inject into.
+
+```go
+// vulnerable: sh -c means input is parsed as shell syntax
+exec.Command("sh", "-c", "convert "+userFile+" out.png")
+
+// safe: no shell, so arguments stay arguments
+exec.Command("convert", userFile, "out.png")
+```
+
+**Path traversal.** Joining a user-supplied filename onto a base directory without validation lets `../../etc/passwd` escape it. Use `filepath.Clean` and verify the resolved path still has the expected base prefix.
+
+**Insecure deserialization.** `encoding/gob`, or unpinned `interface{}` decoding of untrusted input, can be abused to construct unexpected types. Prefer a schema-constrained format, like JSON into a concrete struct, for anything crossing a trust boundary.
+
+**What they're testing:** whether you reach for the parameterized version by reflex. This one usually becomes "write it on the whiteboard," so have the safe pattern ready from memory.
+
+### 12. What does "defense in depth" mean architecturally, and how does zero trust extend it? {#12}
+
+**The gist:** don't let any single control be the thing that saves you. Zero trust goes one step further and stops assuming the inside of your network is friendly.
+
+Defense in depth means no single control is trusted to fully protect the system. Network segmentation, authentication, authorization, input validation, and encryption each independently reduce risk, so one failure doesn't mean total compromise.
+
+The traditional model paired this with a hardened perimeter and an implicitly trusted internal network. Zero trust removes that implicit trust: every request is authenticated and authorized regardless of whether it came from inside or outside the perimeter, on the assumption that the perimeter will eventually be breached. That's why mTLS between internal services (see Part 5) and per-request authorization checks matter even for traffic you'd call internal-only.
 
 ```mermaid
 graph TD
@@ -90,36 +242,111 @@ graph TD
 
 ## Cloud & Infrastructure
 
-| # | Question | Answer |
-|---|----------|--------|
-| <span id="13"></span>13 | What's the practical difference between IaaS, PaaS, SaaS, and FaaS, and where does a typical Go service sit? | IaaS (EC2, Compute Engine) gives raw VMs — you manage the OS and everything above it. PaaS (Heroku, Cloud Run) abstracts the OS and deployment away — you hand it a container or artifact and it runs it. SaaS is a finished product you consume (Salesforce). FaaS (Lambda, Cloud Functions) runs a single function per invocation with no persistent process at all. A typical Go backend service usually sits on IaaS-via-orchestrator (a VM fleet running Kubernetes) or PaaS (Cloud Run/ECS Fargate) — full FaaS is a poor fit for a long-lived stateful service with persistent connections. |
-| <span id="14"></span>14 | What are the 12-factor app principles, and why do they map cleanly onto Go services? | A set of practices for building portable, scalable cloud-native apps: config via environment variables (not files baked into the image), treat backing services (DB, cache, queue) as attached resources reachable by URL, stateless disposable processes that start/stop fast, logs treated as an event stream written to stdout rather than managed by the app. Go's static binaries and fast startup already fit most of this naturally — a compiled Go binary with env-based config is close to 12-factor by default. |
-| <span id="15"></span>15 | HPA vs. VPA vs. cluster autoscaler — what does each one actually scale, and what breaks if you only configure one? | HPA (Horizontal Pod Autoscaler) adds/removes pod replicas based on a metric like CPU or a custom metric (queue depth). VPA (Vertical Pod Autoscaler) adjusts a pod's CPU/memory requests/limits over time. The cluster autoscaler adds/removes underlying nodes when pods can't be scheduled due to insufficient node capacity. Running HPA alone without a cluster autoscaler means new pod replicas can go Pending forever once existing nodes are full — HPA scaled the workload, but nothing scaled the cluster to fit it. |
-| <span id="16"></span>16 | What does Infrastructure as Code actually buy you over provisioning resources by hand in a console? | Reproducibility — the exact same environment can be recreated (a new region, a disaster-recovery standby) from the same source instead of tribal knowledge of console clicks. Review — infrastructure changes go through the same plan/diff-then-apply, PR review, and version history as code, instead of an unaudited console click. Drift detection — running a plan against live infrastructure surfaces anything that changed out-of-band. The cost is a learning curve and a "clicking in the console to fix an incident right now" instinct that has to be resisted in favor of "fix it in code, then apply." |
-| <span id="17"></span>17 | Managed (RDS/Cloud SQL-style) vs. self-hosted database in the cloud — what's the actual trade-off? | Managed: the provider handles patching, backups, failover, and often read replicas and point-in-time recovery, at the cost of less low-level tuning control, vendor-specific quirks, and a recurring premium over raw compute cost. Self-hosted on your own VMs: full control over configuration, extensions, and version, but your team now owns backup verification, patching, and failover — and failover in particular is easy to get wrong under pressure during an actual incident. For most teams below a certain scale, managed is the right default; self-hosting is a deliberate trade for control that should be justified, not a default. |
-| <span id="18"></span>18 | When is serverless (Lambda/Cloud Functions style) a poor fit for a Go service? | Cold starts add latency to the first request after idle — a problem for latency-sensitive synchronous APIs, less so for async event processing. Execution time limits (typically minutes) rule out long-running jobs. No persistent in-memory state or connections between invocations means every invocation may re-establish DB connections unless you're careful with pooling patterns built for it. Serverless fits well for bursty, event-driven, short-lived work (an S3-upload trigger, a scheduled cleanup job) — a long-lived stateful API with steady traffic is usually cheaper and simpler as a normal deployed service. |
-| <span id="19"></span>19 | What does a typical cloud observability stack look like, and why do traces matter more as the service count grows? | Metrics (Prometheus/CloudWatch-style, time-series aggregates like request rate and error rate) answer "is something wrong right now." Logs (structured, searchable) answer "what exactly happened." Traces (OpenTelemetry, spanning a request across every service it touched) answer "where in this chain of ten services did the slowdown actually happen" — a question metrics and logs alone can't answer once a request fans out across multiple services, since no single service's logs show the whole picture. |
-| <span id="20"></span>20 | What's the difference between RTO and RPO, and how do they drive backup strategy? | RTO (Recovery Time Objective) is how long you can tolerate being down — drives how automated/fast your failover has to be. RPO (Recovery Point Objective) is how much data you can tolerate losing — drives how frequently you back up or replicate. A tight RPO (seconds) needs synchronous or near-real-time replication; a looser RPO (hours) tolerates nightly backups. An architect defines both explicitly per system before choosing a backup/replication strategy, since "back it up daily" is only correct if the business can actually tolerate losing up to a day of data. |
+*Nobody expects a junior to have run a multi-region failover. 13, 14 and 22 come up regardless of level, and 19 and 20 are what you'll actually reach for the first time you're on call.*
 
-#### 21 — Why do containers start faster and pack denser than VMs? {#21}
-A VM virtualizes hardware and runs a full guest OS kernel per instance — booting one means booting an entire operating system. A container shares the host's kernel and only packages the application plus its userspace dependencies, isolated via namespaces and cgroups rather than a hypervisor — so starting one is closer to starting a process than booting a machine, and many containers can share one host's kernel instead of each paying for a redundant OS. Image layering compounds the density win: a base image layer is cached and shared across every container built from it, so only the top application-specific layer needs to be pulled for a new deploy.
+### 13. What's the practical difference between IaaS, PaaS, SaaS, and FaaS, and where does a typical Go service sit? {#13}
+
+**The gist:** it's a question of how much of the stack someone else runs for you. IaaS hands you a machine, PaaS hands you a place to put a container, FaaS hands you a place to put one function.
+
+IaaS (EC2, Compute Engine) gives you raw VMs, and you manage the OS and everything above it. PaaS (Heroku, Cloud Run) abstracts the OS and deployment away: you hand it a container or artifact and it runs it. SaaS is a finished product you consume (Salesforce). FaaS (Lambda, Cloud Functions) runs a single function per invocation with no persistent process at all.
+
+A typical Go backend service usually sits on IaaS via an orchestrator (a VM fleet running Kubernetes) or on PaaS (Cloud Run, ECS Fargate). Full FaaS is a poor fit for a long-lived stateful service holding persistent connections.
+
+### 14. What are the 12-factor app principles, and why do they map cleanly onto Go services? {#14}
+
+**The gist:** a checklist for apps you can kill and restart anywhere without ceremony. Go gets most of it for free, because a static binary starts fast and reads env vars.
+
+A set of practices for building portable, scalable cloud-native apps: config via environment variables rather than files baked into the image, backing services (DB, cache, queue) treated as attached resources reachable by URL, stateless disposable processes that start and stop fast, and logs treated as an event stream written to stdout rather than managed by the app.
+
+Go's static binaries and fast startup already fit most of this naturally. A compiled Go binary with env-based config is close to 12-factor by default.
+
+### 15. HPA vs. VPA vs. cluster autoscaler: what does each one actually scale, and what breaks if you only configure one? {#15}
+
+**The gist:** HPA adds pods, VPA resizes pods, the cluster autoscaler adds machines. Configure only HPA and your new pods sit Pending, because nothing added room for them.
+
+HPA (Horizontal Pod Autoscaler) adds and removes pod replicas based on a metric like CPU or a custom metric such as queue depth. VPA (Vertical Pod Autoscaler) adjusts a pod's CPU and memory requests and limits over time. The cluster autoscaler adds and removes underlying nodes when pods can't be scheduled due to insufficient node capacity.
+
+Running HPA alone without a cluster autoscaler means new pod replicas can go Pending forever once existing nodes are full. HPA scaled the workload, but nothing scaled the cluster to fit it.
+
+**What they're testing:** whether you've seen a Pending pod and understood why. The three-layer answer is what separates "I've read the docs" from "I've debugged this at 2am."
+
+### 16. What does Infrastructure as Code actually buy you over provisioning resources by hand in a console? {#16}
+
+**The gist:** the point isn't automation. It's that your infrastructure gets reviewed, versioned, and rebuildable, instead of living in someone's memory of which buttons they clicked.
+
+- **Reproducibility.** The exact same environment can be recreated, in a new region or as a disaster-recovery standby, from the same source instead of from tribal knowledge.
+- **Review.** Infrastructure changes go through the same plan-then-apply, PR review, and version history as code, instead of an unaudited console click.
+- **Drift detection.** Running a plan against live infrastructure surfaces anything that changed out of band.
+
+The cost is a learning curve, plus a "click in the console to fix the incident right now" instinct that has to be resisted in favour of "fix it in code, then apply."
+
+### 17. Managed (RDS/Cloud SQL-style) vs. self-hosted database in the cloud: what's the actual trade-off? {#17}
+
+**The gist:** managed means someone else gets paged for backups and failover. Self-hosting buys you control and hands you that pager.
+
+Managed: the provider handles patching, backups, failover, and often read replicas and point-in-time recovery. The cost is less low-level tuning control, vendor-specific quirks, and a recurring premium over raw compute.
+
+Self-hosted on your own VMs: full control over configuration, extensions, and version, but your team now owns backup verification, patching, and failover. Failover in particular is easy to get wrong under pressure, during an actual incident, which is the worst possible time to find out.
+
+For most teams below a certain scale, managed is the right default. Self-hosting is a deliberate trade for control that should be justified, not assumed.
+
+### 18. When is serverless (Lambda/Cloud Functions style) a poor fit for a Go service? {#18}
+
+**The gist:** cold starts, execution time limits, and no state between calls. Great for bursty event work, bad for a steady API holding database connections.
+
+Cold starts add latency to the first request after idle, which is a problem for latency-sensitive synchronous APIs and much less so for async event processing. Execution time limits, typically minutes, rule out long-running jobs. No persistent in-memory state or connections between invocations means every invocation may re-establish DB connections unless you're careful with pooling patterns built for it.
+
+Serverless fits well for bursty, event-driven, short-lived work: an S3-upload trigger, a scheduled cleanup job. A long-lived stateful API with steady traffic is usually cheaper and simpler as a normal deployed service.
+
+### 19. What does a typical cloud observability stack look like, and why do traces matter more as the service count grows? {#19}
+
+**The gist:** metrics tell you something's wrong. Logs tell you what happened. Traces tell you which of your ten services actually caused it.
+
+Metrics (Prometheus or CloudWatch-style time-series aggregates like request rate and error rate) answer "is something wrong right now." Logs, structured and searchable, answer "what exactly happened."
+
+Traces (OpenTelemetry, spanning a request across every service it touched) answer "where in this chain of ten services did the slowdown actually happen." Metrics and logs alone can't answer that once a request fans out across multiple services, because no single service's logs show the whole picture.
+
+### 20. What's the difference between RTO and RPO, and how do they drive backup strategy? {#20}
+
+**The gist:** RTO is how long you can be down. RPO is how much data you can afford to lose. Pick both numbers before you pick a backup schedule.
+
+RTO (Recovery Time Objective) is how long you can tolerate being down, which drives how fast and how automated your failover has to be. RPO (Recovery Point Objective) is how much data you can tolerate losing, which drives how frequently you back up or replicate.
+
+A tight RPO measured in seconds needs synchronous or near-real-time replication. A looser RPO measured in hours tolerates nightly backups. An architect defines both explicitly per system before choosing a strategy, since "back it up daily" is only correct if the business can genuinely tolerate losing up to a day of data.
+
+**What they're testing:** whether you ask the business what the numbers are instead of inventing them. The right move is to turn the question back into a requirement.
+
+### 21. Why do containers start faster and pack denser than VMs? {#21}
+
+**The gist:** a VM boots a whole operating system. A container is just a process the kernel keeps in its own box, which is why it starts in milliseconds.
+
+A VM virtualizes hardware and runs a full guest OS kernel per instance, so booting one means booting an entire operating system. A container shares the host's kernel and only packages the application plus its userspace dependencies, isolated via namespaces and cgroups rather than a hypervisor. Starting one is closer to starting a process than to booting a machine, and many containers can share one host's kernel instead of each paying for a redundant OS.
+
+Image layering compounds the density win: a base image layer is cached and shared across every container built from it, so only the top application-specific layer needs pulling for a new deploy.
 
 ```mermaid
 graph TD
-    subgraph "VM — hypervisor"
+    subgraph "VM: hypervisor"
     HW1[Physical Host] --> HV[Hypervisor]
     HV --> G1["Guest OS 1<br/>+ App"]
     HV --> G2["Guest OS 2<br/>+ App"]
     end
-    subgraph "Containers — shared kernel"
+    subgraph "Containers: shared kernel"
     HW2[Physical Host] --> K[Host Kernel]
     K --> C1["Container 1<br/>(App + deps only)"]
     K --> C2["Container 2<br/>(App + deps only)"]
     end
 ```
 
-#### 22 — What are the core Kubernetes objects, and how does a request actually reach a pod? {#22}
-A Pod is the smallest deployable unit — one or more tightly-coupled containers sharing network/storage. A Deployment manages a set of pod replicas, handling rolling updates and self-healing (replacing crashed pods). A Service gives that shifting set of pods a stable virtual IP/DNS name and load-balances across whichever pods are currently healthy, since pod IPs change every time a pod is replaced. An Ingress sits in front of Services and routes external HTTP(S) traffic based on host/path, typically terminating TLS. So a request flows: Ingress → Service (stable, load-balanced) → one of the Deployment's current Pods.
+### 22. What are the core Kubernetes objects, and how does a request actually reach a pod? {#22}
+
+**The gist:** a Pod runs your container, a Deployment keeps the right number of pods alive, a Service gives that shifting set one stable address, and an Ingress lets the outside world in.
+
+A Pod is the smallest deployable unit: one or more tightly coupled containers sharing network and storage. A Deployment manages a set of pod replicas, handling rolling updates and self-healing by replacing crashed pods.
+
+A Service gives that shifting set of pods a stable virtual IP and DNS name, and load-balances across whichever pods are currently healthy. You need it because pod IPs change every time a pod is replaced. An Ingress sits in front of Services and routes external HTTP and HTTPS traffic based on host or path, typically terminating TLS.
+
+So a request flows: Ingress, then Service (stable and load-balanced), then one of the Deployment's current Pods.
 
 ```mermaid
 graph LR
@@ -133,40 +360,63 @@ graph LR
     Deployment -.->|manages/replaces| Pod3
 ```
 
-#### 23 — Active-active vs. active-passive multi-region — what's the trade-off, and why does data residency complicate it? {#23}
-Active-passive: one region serves all traffic, a standby region stays warm (or cold) and takes over on failover — simpler, no cross-region write conflicts, but the standby capacity sits mostly idle and failover itself takes time and is a rarely-exercised code path (risky exactly when you need it most). Active-active: multiple regions serve traffic simultaneously — better latency (serve from the nearest region) and no idle capacity, but now needs a strategy for cross-region write conflicts (last-write-wins, CRDTs, or partitioning writes by region/tenant). Data residency requirements (a regulated fintech workload needing EU customer data to stay in the EU) add a hard constraint on top: which region is even allowed to hold which rows, independent of which architecture handles failover — this often forces a hybrid where write ownership is partitioned by region regardless of active-active vs. passive.
+### 23. Active-active vs. active-passive multi-region: what's the trade-off, and why does data residency complicate it? {#23}
+
+**The gist:** active-passive keeps a spare region warm and switches to it on failure. Active-active runs both at once, which is faster for users and much harder to keep consistent.
+
+Active-passive: one region serves all traffic while a standby stays warm (or cold) and takes over on failover. Simpler, with no cross-region write conflicts, but the standby capacity sits mostly idle, and failover itself takes time and is a rarely exercised code path. That makes it risky exactly when you need it most.
+
+Active-active: multiple regions serve traffic simultaneously, giving better latency by serving from the nearest region and leaving no idle capacity. Now you need a strategy for cross-region write conflicts: last-write-wins, CRDTs, or partitioning writes by region or tenant.
+
+Data residency requirements, like a regulated fintech workload needing EU customer data to stay in the EU, add a hard constraint on top: which region is even allowed to hold which rows, independent of which architecture handles failover. That often forces a hybrid where write ownership is partitioned by region either way.
 
 ```mermaid
 graph TD
     subgraph "Active-Passive"
-    C1[Client] --> R1["Region A — active<br/>(serves all traffic)"]
-    R1 -.->|replicate| R2["Region B — passive standby"]
+    C1[Client] --> R1["Region A: active<br/>(serves all traffic)"]
+    R1 -.->|replicate| R2["Region B: passive standby"]
     end
     subgraph "Active-Active"
     C2[Client] --> GLB[Geo Load Balancer]
-    GLB --> RA["Region A — active"]
-    GLB --> RB["Region B — active"]
+    GLB --> RA["Region A: active"]
+    GLB --> RB["Region B: active"]
     RA <-.->|reconcile conflicts| RB
     end
 ```
 
-#### 24 — How should a service authenticate to other cloud resources, and why is workload identity preferred over static credentials? {#24}
-A long-lived static credential (an access key baked into config or an env var) is a standing liability — if it leaks, it's valid until someone notices and manually rotates it, and rotation itself is often manual and risky. Workload identity (AWS IAM roles for service accounts, GCP Workload Identity) instead lets the cloud platform issue short-lived, automatically-rotated credentials to a workload based on its identity (which pod, which service account), with no long-lived secret to leak in the first place. Combined with least-privilege roles — granting only the specific actions on the specific resources a service actually needs, not a broad admin role for convenience — this is the cloud-native equivalent of the least-privilege principle from [Q12](#12).
+**What they're testing:** whether you treat data residency as a separate axis from availability. People tend to collapse the two, and the follow-up question is usually designed to catch exactly that.
+
+### 24. How should a service authenticate to other cloud resources, and why is workload identity preferred over static credentials? {#24}
+
+**The gist:** a static access key is a secret that works forever once it leaks. Workload identity hands out short-lived tokens based on who the workload is, so there's nothing sitting around to steal.
+
+A long-lived static credential, an access key baked into config or an env var, is a standing liability. If it leaks it stays valid until someone notices and manually rotates it, and that rotation is often manual and risky in itself.
+
+Workload identity (AWS IAM roles for service accounts, GCP Workload Identity) instead lets the cloud platform issue short-lived, automatically rotated credentials to a workload based on its identity: which pod, which service account. There's no long-lived secret to leak in the first place.
+
+Combine that with least-privilege roles, granting only the specific actions on the specific resources a service actually needs rather than a broad admin role for convenience, and you have the cloud-native version of the least-privilege principle from [Q12](#12).
 
 ```mermaid
 graph LR
-    subgraph "Static credential — avoid"
+    subgraph "Static credential: avoid"
     App1[App] -->|"long-lived access key<br/>(env var / config)"| Cloud1[Cloud API]
     end
-    subgraph "Workload identity — preferred"
+    subgraph "Workload identity: preferred"
     App2["App<br/>(service account: order-svc)"] -->|"1: request token"| Provider[Identity Provider]
     Provider -->|"2: short-lived, auto-rotated token"| App2
     App2 -->|"3: scoped, least-privilege call"| Cloud2[Cloud API]
     end
 ```
 
-#### 25 — Blue-green vs. canary vs. rolling deployment — how does each affect rollback speed and blast radius? {#25}
-Rolling: old pods are replaced by new ones gradually, a few at a time — no extra infrastructure cost, but both versions run simultaneously for the whole rollout (see [API versioning during a rolling deployment]({{< ref "interview-prep-kafka-microservices.md" >}}#39) in Part 5), and rolling back means rolling forward again through the same gradual replacement. Blue-green: a full second environment (green) is deployed alongside the live one (blue), verified, then traffic is switched all at once — rollback is just switching traffic back, close to instant, at the cost of running two full environments during the switch. Canary: a small percentage of traffic is routed to the new version first, monitored, then gradually increased — smallest blast radius if something's wrong, since only a fraction of users are affected before you catch it and roll back, but needs traffic-splitting infrastructure and takes longer to fully roll out.
+### 25. Blue-green vs. canary vs. rolling deployment: how does each affect rollback speed and blast radius? {#25}
+
+**The gist:** rolling swaps pods a few at a time, blue-green flips everything at once, canary sends a slice of traffic first. You're trading rollback speed against how much infrastructure you run.
+
+**Rolling:** old pods are replaced by new ones gradually, a few at a time. No extra infrastructure cost, but both versions run simultaneously for the whole rollout (see [API versioning during a rolling deployment]({{< ref "interview-prep-kafka-microservices.md" >}}#39) in Part 5), and rolling back means rolling forward again through the same gradual replacement.
+
+**Blue-green:** a full second environment (green) is deployed alongside the live one (blue), verified, then traffic is switched all at once. Rollback is just switching traffic back, close to instant, at the cost of running two full environments during the switch.
+
+**Canary:** a small percentage of traffic is routed to the new version first, monitored, then gradually increased. Smallest blast radius if something's wrong, since only a fraction of users are affected before you catch it, but it needs traffic-splitting infrastructure and takes longer to fully roll out.
 
 ```mermaid
 graph TD
@@ -177,30 +427,23 @@ graph TD
     BG1["Blue (live, v1)"] -.->|"traffic switch, instant"| BG2["Green (staged, v2)"]
     end
     subgraph "Canary"
-    CY1["v1 — 95% traffic"] --- CY2["v2 canary — 5% traffic, monitored"]
-    CY2 -->|"healthy, ramp up"| CY3["v2 — 100% traffic"]
+    CY1["v1: 95% traffic"] --- CY2["v2 canary: 5% traffic, monitored"]
+    CY2 -->|"healthy, ramp up"| CY3["v2: 100% traffic"]
     end
 ```
 
+**What they're testing:** whether you answer in terms of rollback and blast radius rather than listing the three names. The question already names them, so reciting them back gets you nothing.
+
 ---
 
-## Notes
+## What to drill first
 
-**[Security](#security):** worth over-preparing rather than under-preparing. [9](#9) (JWT pitfalls) and [11](#11) (Go-specific vulnerabilities) are the most likely to get a "show me the code" follow-up; have the vulnerable-vs-safe pattern in [11](#11) ready to write on a whiteboard from memory.
+**[Security](#security):** worth over-preparing rather than under-preparing. [9](#9) (JWT pitfalls) and [11](#11) (Go-specific vulnerabilities) are the most likely to get a "show me the code" follow-up. Have the vulnerable-versus-safe pattern in [11](#11) ready to write on a whiteboard from memory.
 
-**[Cloud & Infrastructure](#cloud--infrastructure):** [22](#22) (Kubernetes request path) and [23](#23) (multi-region/data residency) are the highest-yield for a regulated-domain role; [25](#25) (deploy strategies) ties directly back to [API versioning during a rolling deployment]({{< ref "interview-prep-kafka-microservices.md" >}}#39) in Part 5, so rehearse them together.
+**[Cloud & Infrastructure](#cloud--infrastructure):** [22](#22) (Kubernetes request path) and [23](#23) (multi-region and data residency) are the highest-yield for a regulated-domain role. [25](#25) (deploy strategies) ties directly back to [API versioning during a rolling deployment]({{< ref "interview-prep-kafka-microservices.md" >}}#39) in Part 5, so rehearse them together.
+
+If you're earlier in your career and short on time, start with [2](#2), [11](#11) and [22](#22). Password hashing and parameterized queries come up in almost every security screen at any level, and the Kubernetes request path is the one cloud question you'll be asked whether or not the role is infrastructure-flavoured.
 
 ---
 
 Part 6 of 7 · [Interview Prep](/interview-prep/) · ← Previous: [Part 5 — Kafka & Microservices](/interview-prep-kafka-microservices/) · Next: [Part 7 — AI Engineering](/interview-prep-ai-engineering/) →
-
-<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
-<script>
-document.querySelectorAll('pre code.language-mermaid').forEach(function (el) {
-  var div = document.createElement('div');
-  div.className = 'mermaid';
-  div.textContent = el.textContent;
-  el.parentElement.replaceWith(div);
-});
-mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
-</script>
