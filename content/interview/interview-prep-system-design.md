@@ -1,6 +1,6 @@
 ---
 title: "Interview Prep — Part 4: System Design & Distributed Systems"
-description: "System design fundamentals, distributed systems concepts, and ten runnable system design case studies: 38 interview Q&As with diagrams."
+description: "System design fundamentals, SQL vs. NoSQL, distributed systems concepts, and ten runnable system design case studies: 40 interview Q&As with diagrams."
 url: "/interview-prep-system-design/"
 aliases: ["/interview-prep-databases-systems/", "/go-interview-prep-databases-systems/"]
 nodate: true
@@ -12,7 +12,7 @@ mermaid: true
 
 Part 4 of 7 · [Interview Prep](/interview-prep/) · ← Previous: [Part 3 — Databases & SQL](/interview-prep-databases-sql/) · Next: [Part 5 — Kafka & Microservices](/interview-prep-kafka-microservices/) →
 
-System design is the round people dread, and mostly for the wrong reason. It isn't a memory test. It's a test of whether you can say what breaks first and what you'd do about it. These 38 questions build that up from the fundamentals to full case studies.
+System design is the round people dread, and mostly for the wrong reason. It isn't a memory test. It's a test of whether you can say what breaks first and what you'd do about it. These 40 questions build that up from the fundamentals to full case studies.
 
 **What this assumes:** you've written an API that talks to a database, and you know what a query, an index, and an HTTP request are. Sharding, quorums, and Raft all get explained here.
 
@@ -34,9 +34,10 @@ Each row is a concept and the situation that should make you reach for it, so yo
 
 | Concept | When to reach for it |
 |---|---|
+| SQL vs. NoSQL | Choosing the storage model itself, before sharding or caching even enter the picture ([Q11](#11), [Q12](#12)). |
 | Horizontal scaling | You've hit a ceiling on one box and the workload is stateless enough to split across many ([Q1](#1)). |
 | Sharding / horizontal partitioning | A single database's write throughput or storage has become the bottleneck ([Q3](#3)). |
-| Consistent hashing | Nodes get added and removed, and you need only a fraction of keys to remap rather than almost all of them ([Q25](#25)). |
+| Consistent hashing | Nodes get added and removed, and you need only a fraction of keys to remap rather than almost all of them ([Q27](#27)). |
 | Caching: cache-aside / write-through / write-behind | Reads vastly outnumber writes and some staleness is tolerable. Pick the variant by how fresh reads need to be versus how fast writes need to be ([Q10](#10)). |
 | L4 vs. L7 load balancing | L4 when you just need fast, protocol-agnostic distribution; L7 when routing needs to look at path, host, or cookies ([Q9](#9)). |
 
@@ -45,12 +46,12 @@ Each row is a concept and the situation that should make you reach for it, so yo
 | Concept | When to reach for it |
 |---|---|
 | CAP theorem | Framing any "what happens during a network partition" design decision ([Q8](#8)). |
-| PACELC | Same question, but you also need to reason about the latency/consistency trade-off when there's *no* partition ([Q20](#20)). |
-| Consistency spectrum (strong / causal / read-your-writes / eventual) | Picking the cheapest guarantee that's still correct for the feature: a like count needs less than a balance check ([Q2](#2), [Q27](#27)). |
-| Quorum reads/writes (N/R/W) | You're replicating across N nodes and want a tunable guarantee that reads see the latest write ([Q21](#21)). |
-| Distributed locks | Coordinating mutual exclusion across processes, not just goroutines in one process ([Q11](#11)). |
-| Leader election / Raft | A cluster of nodes needs to agree on exactly one coordinator, and that agreement must survive crashes ([Q12](#12), [Q26](#26)). |
-| Clock skew / logical clocks | You need to order events across machines and wall-clock timestamps aren't reliable enough ([Q14](#14)). |
+| PACELC | Same question, but you also need to reason about the latency/consistency trade-off when there's *no* partition ([Q22](#22)). |
+| Consistency spectrum (strong / causal / read-your-writes / eventual) | Picking the cheapest guarantee that's still correct for the feature: a like count needs less than a balance check ([Q2](#2), [Q29](#29)). |
+| Quorum reads/writes (N/R/W) | You're replicating across N nodes and want a tunable guarantee that reads see the latest write ([Q23](#23)). |
+| Distributed locks | Coordinating mutual exclusion across processes, not just goroutines in one process ([Q13](#13)). |
+| Leader election / Raft | A cluster of nodes needs to agree on exactly one coordinator, and that agreement must survive crashes ([Q14](#14), [Q28](#28)). |
+| Clock skew / logical clocks | You need to order events across machines and wall-clock timestamps aren't reliable enough ([Q16](#16)). |
 
 **Messaging & delivery**
 
@@ -58,43 +59,43 @@ Each row is a concept and the situation that should make you reach for it, so yo
 |---|---|
 | Sync vs. async communication | Sync when you need an immediate answer and can accept coupling to the callee's availability; async when you can decouple in time ([Q6](#6)). |
 | Backpressure | A fast producer would otherwise overwhelm a slow consumer's buffer ([Q7](#7)). |
-| Idempotency & idempotency keys | A client might retry a request and you need retries to be safe ([Q5](#5), [Q22](#22)). |
-| Delivery semantics (at-most / at-least / exactly-once) | Deciding what a message queue actually guarantees you, and what your own code still has to guarantee on top ([Q13](#13)). |
-| Outbox pattern | You need a DB write and a message publish to succeed or fail together ([Q23](#23)). |
-| Saga vs. two-phase commit | A transaction spans multiple services and holding locks across all of them (2PC) is too heavyweight ([Q24](#24)). |
+| Idempotency & idempotency keys | A client might retry a request and you need retries to be safe ([Q5](#5), [Q24](#24)). |
+| Delivery semantics (at-most / at-least / exactly-once) | Deciding what a message queue actually guarantees you, and what your own code still has to guarantee on top ([Q15](#15)). |
+| Outbox pattern | You need a DB write and a message publish to succeed or fail together ([Q25](#25)). |
+| Saga vs. two-phase commit | A transaction spans multiple services and holding locks across all of them (2PC) is too heavyweight ([Q26](#26)). |
 | Kafka vs. RabbitMQ vs. NATS | Kafka for a durable, replayable event log; RabbitMQ for flexible routing and per-message ack/retry; NATS for low-latency, lightweight pub/sub ([Q4](#4)). |
-| Gossip protocols | Detecting node failure across a large cluster without a central bottleneck ([Q19](#19)). |
+| Gossip protocols | Detecting node failure across a large cluster without a central bottleneck ([Q21](#21)). |
 
 **Resilience & failure handling**
 
 | Concept | When to reach for it |
 |---|---|
-| Thundering herd mitigation (jitter, coalescing) | Many clients would otherwise retry or wake up at the same instant against a recovering resource ([Q15](#15)). |
-| Bulkhead vs. circuit breaker | Bulkhead to stop one dependency's failure from starving resources shared with everything else; circuit breaker to stop calling a dependency that's clearly already failing ([Q28](#28)). |
-| Byzantine vs. crash fault tolerance | Byzantine only matters in adversarial or untrusted settings; infrastructure you control just needs crash-fault tolerance (Raft/Paxos) ([Q16](#16)). |
-| Two Generals' Problem | Reasoning about why perfect agreement over an unreliable channel is impossible, and why we settle for retries plus idempotency instead ([Q17](#17)). |
-| CRDTs | Replicas need to accept writes independently (offline-first, multi-region) and eventual convergence is good enough ([Q18](#18)). |
+| Thundering herd mitigation (jitter, coalescing) | Many clients would otherwise retry or wake up at the same instant against a recovering resource ([Q17](#17)). |
+| Bulkhead vs. circuit breaker | Bulkhead to stop one dependency's failure from starving resources shared with everything else; circuit breaker to stop calling a dependency that's clearly already failing ([Q30](#30)). |
+| Byzantine vs. crash fault tolerance | Byzantine only matters in adversarial or untrusted settings; infrastructure you control just needs crash-fault tolerance (Raft/Paxos) ([Q18](#18)). |
+| Two Generals' Problem | Reasoning about why perfect agreement over an unreliable channel is impossible, and why we settle for retries plus idempotency instead ([Q19](#19)). |
+| CRDTs | Replicas need to accept writes independently (offline-first, multi-region) and eventual convergence is good enough ([Q20](#20)). |
 
 **Applied patterns (case studies)**
 
 | Pattern | Use case it solves |
 |---|---|
-| Read-heavy key lookup + cache in front of DB | URL shortener ([Q29](#29)). |
-| Shared atomic counter (Redis + Lua) | Rate limiting across multiple gateway instances ([Q30](#30)). |
-| Bounded parallel fan-out with a deadline | Aggregating many signals under a tight latency SLA ([Q31](#31)). |
-| Queue-based fan-out per channel | Notifying millions of users across push/email/SMS ([Q32](#32)). |
-| Idempotency key + unique constraint | Payment processing that survives retries without double-charging ([Q33](#33)). |
-| Atomic claim + lease/heartbeat | A job scheduler where each job runs exactly once, even across crashes ([Q34](#34)). |
-| Consistent hashing + pub/sub | A sharded, horizontally-scalable chat backend ([Q35](#35)). |
-| Partition by natural key + idempotent upsert | High-throughput event ingestion without double-counting on reprocess ([Q36](#36)). |
-| Strangler fig | Migrating a monolith to microservices incrementally, without a big-bang rewrite ([Q37](#37)). |
-| Hash-chained append-only log | Tamper-evident, queryable audit logging ([Q38](#38)). |
+| Read-heavy key lookup + cache in front of DB | URL shortener ([Q31](#31)). |
+| Shared atomic counter (Redis + Lua) | Rate limiting across multiple gateway instances ([Q32](#32)). |
+| Bounded parallel fan-out with a deadline | Aggregating many signals under a tight latency SLA ([Q33](#33)). |
+| Queue-based fan-out per channel | Notifying millions of users across push/email/SMS ([Q34](#34)). |
+| Idempotency key + unique constraint | Payment processing that survives retries without double-charging ([Q35](#35)). |
+| Atomic claim + lease/heartbeat | A job scheduler where each job runs exactly once, even across crashes ([Q36](#36)). |
+| Consistent hashing + pub/sub | A sharded, horizontally-scalable chat backend ([Q37](#37)). |
+| Partition by natural key + idempotent upsert | High-throughput event ingestion without double-counting on reprocess ([Q38](#38)). |
+| Strangler fig | Migrating a monolith to microservices incrementally, without a big-bang rewrite ([Q39](#39)). |
+| Hash-chained append-only log | Tamper-evident, queryable audit logging ([Q40](#40)). |
 
 ---
 
 ## System Design Fundamentals
 
-*1 to 7 are vocabulary you'll use in every design conversation. 8 to 10 are the ones you should be able to draw from memory.*
+*1 to 7 are vocabulary you'll use in every design conversation. 8 to 10 are the ones you should be able to draw from memory. 11 and 12 are the decision that comes before any of it: what kind of database this even is.*
 
 ### 1. Difference between vertical and horizontal scaling, and when does horizontal stop being trivial? {#1}
 
@@ -240,13 +241,54 @@ graph TD
 **Try it:** implement cache-aside against `redis-cli`: `GET` a key, on a miss read from your database and `SETEX` it with a short TTL, then `GET` it again and confirm the second read never touches the database.
 {{% /qa %}}
 
+### 11. SQL vs. NoSQL: what's actually different, and when would you choose each? {#11}
+
+{{% qa %}}
+**The gist:** SQL enforces a schema up front and gives you joins plus multi-row ACID transactions. NoSQL relaxes some of that on purpose, in exchange for horizontal scale and a data model that's cheap to change.
+
+A relational (SQL) database enforces a schema before you write anything, supports arbitrary joins across normalized tables, and gives strong ACID transactions across multiple rows and tables at once. That structure is also the constraint: scaling writes horizontally means sharding, and sharding is what breaks the cross-shard joins and transactions the model was built around.
+
+A NoSQL database relaxes one or more of those guarantees deliberately, usually the schema, the joins, or the multi-row transaction, to get horizontal scalability and a data model that's cheaper to change as the product changes. Most trade toward BASE (Basically Available, Soft state, Eventually consistent) instead of ACID, the same trade [Q2](#2) covers from the consistency side.
+
+Choose SQL when the data has real relationships you'll query across, and correctness under concurrent writes matters more than raw write throughput: orders, payments, inventory. Choose NoSQL when the access pattern is simple and known ahead of time (fetch by key, append an event), the schema keeps changing, or a single relational instance can't hold the write volume or connection count.
+
+**What they're testing:** whether "NoSQL is for scale" is the whole answer you have, or whether you'll also say what you give up to get it. Plenty of NoSQL migrations get quietly undone once someone needs a join that used to be free.
+
+**Try it:** take one table from a project you know well and write down every join it currently makes. Each one becomes application-code work, or duplicated data to avoid it, the moment that table moves to a non-relational store.
+{{% /qa %}}
+
+### 12. What are the main types of NoSQL databases, and what does each one actually fit? {#12}
+
+{{% qa %}}
+**The gist:** "NoSQL" isn't one data model, it's four unrelated ones that all happen to skip a fixed relational schema. The type decides what it's good at, not the "NoSQL" label.
+
+**Key-value** (Redis, DynamoDB in its simplest mode): a hash map with a network in front of it. Fast and simple, and only good for lookups by a known key: sessions, caches, feature flags.
+
+**Document** (MongoDB): stores semi-structured JSON-like documents, each one self-contained. Fits data that's naturally a single nested object, read and written as a whole, whose shape varies row to row: a product catalog, a user profile.
+
+**Wide-column** (Cassandra, Bigtable): a row can have millions of columns, and each row is looked up by a partition key you choose deliberately, since that key decides which node holds the row. Fits huge write volume with a small, predictable set of query patterns: time-series data, event logs.
+
+**Graph** (Neo4j): stores nodes and the relationships between them as first-class citizens, so a query that would be a five-table join in SQL, "friends of friends who also like X," is a single traversal. Fits data where the relationships matter more than the entities: social graphs, fraud rings, recommendation engines.
+
+```
+Key-value:   {key -> value}                     lookup by key only
+Document:    {_id: 1, name: "x", tags: [...]}   lookup + query within a document
+Wide-column: (partition key, columns...)        huge write volume, known query shape
+Graph:       (node)-[relationship]->(node)      relationships are the query
+```
+
+**What they're testing:** whether you pick the type from the access pattern, not the brand name. "We use MongoDB" doesn't answer "why document over wide-column," and that follow-up is the real question.
+
+**Try it:** take a feature you've built that used a relational table, and work out which of the four types, if any, actually fits its real query pattern better, and specifically why: does that query need a join, a range scan on a partition key, or a graph traversal?
+{{% /qa %}}
+
 ---
 
 ## Distributed Systems Concepts
 
-*The deep end, and nobody expects a junior to have all eighteen. But 13, 15 and 22 show up in ordinary backend work long before anyone calls it distributed systems, so start there.*
+*The deep end, and nobody expects a junior to have all eighteen. But 15, 17 and 24 show up in ordinary backend work long before anyone calls it distributed systems, so start there.*
 
-### 11. Explain a distributed lock, and why plain mutexes don't work across services. {#11}
+### 13. Explain a distributed lock, and why plain mutexes don't work across services. {#13}
 
 {{% qa %}}
 **The gist:** a mutex only coordinates goroutines inside one process. Once two servers need to agree, the lock has to live somewhere they can both see, with a TTL so a crash doesn't wedge it forever.
@@ -256,7 +298,7 @@ A `sync.Mutex` only coordinates goroutines within a single process's memory spac
 **Try it:** acquire a lock with `SET lock:job1 owner NX EX 10` in `redis-cli` from two terminals. Only one returns `OK`; the other gets `nil` and knows to back off.
 {{% /qa %}}
 
-### 12. What's leader election, and how does it typically work? {#12}
+### 14. What's leader election, and how does it typically work? {#14}
 
 {{% qa %}}
 **The gist:** getting a group of nodes to agree on exactly one boss, and to pick a new one quickly when that boss dies.
@@ -264,7 +306,7 @@ A `sync.Mutex` only coordinates goroutines within a single process's memory spac
 It's a mechanism for a group of distributed nodes to agree on exactly one leader. Typically it's implemented via a consensus protocol like Raft: nodes propose themselves, a majority quorum must agree, and if the leader fails to renew its lease, a new election triggers.
 {{% /qa %}}
 
-### 13. At-most-once vs at-least-once vs exactly-once delivery, and why is exactly-once mostly a myth? {#13}
+### 15. At-most-once vs at-least-once vs exactly-once delivery, and why is exactly-once mostly a myth? {#15}
 
 {{% qa %}}
 **The gist:** at-most-once can lose messages, at-least-once can repeat them, exactly-once is mostly marketing. You get the effect of exactly-once by making repeats harmless.
@@ -274,7 +316,7 @@ At-most-once means a message might be lost. At-least-once means it's guaranteed 
 **What they're testing:** whether you push back on the phrase. A broker that advertises exactly-once is describing its own hop, not your handler, and your handler still has to be idempotent.
 {{% /qa %}}
 
-### 14. How do clock skew and distributed time affect ordering of events across services? {#14}
+### 16. How do clock skew and distributed time affect ordering of events across services? {#16}
 
 {{% qa %}}
 **The gist:** two machines' clocks disagree, so you can't order events by comparing timestamps. Use logical clocks, or one thing that hands out the order.
@@ -282,7 +324,7 @@ At-most-once means a message might be lost. At-least-once means it's guaranteed 
 Wall-clock timestamps from different machines aren't reliably comparable, because of clock drift. The solutions are logical clocks (Lamport or vector clocks) that capture causal ordering, or a centralized sequencer or monotonic ID source when a single global order is genuinely required.
 {{% /qa %}}
 
-### 15. What is the thundering herd problem, and how do jitter and coalescing prevent it? {#15}
+### 17. What is the thundering herd problem, and how do jitter and coalescing prevent it? {#17}
 
 {{% qa %}}
 **The gist:** everyone retries at the same instant and re-kills the thing that just came back up. Jitter spreads them out, coalescing makes many callers share a single request.
@@ -296,7 +338,7 @@ Jittered backoff randomizes retry timing. Request coalescing (single-flight) mak
 **Try it:** wrap a cache-refill call in Go's `singleflight.Group`, fire 50 concurrent goroutines requesting the same key on a miss, and confirm only one of them actually reaches the database.
 {{% /qa %}}
 
-### 16. What's the difference between Byzantine and crash-fault tolerance, and why do Raft and Paxos only handle the latter? {#16}
+### 18. What's the difference between Byzantine and crash-fault tolerance, and why do Raft and Paxos only handle the latter? {#18}
 
 {{% qa %}}
 **The gist:** crash faults mean a node goes silent. Byzantine means it lies. Raft handles silence, and silence is all you need for servers you own.
@@ -306,7 +348,7 @@ Crash-fault tolerance assumes a failed node simply stops responding, so it never
 Raft and Paxos only tolerate crash faults, which is why they're safe for trusted infrastructure you control (your own replica set) but insufficient for adversarial settings like blockchain consensus, which need BFT protocols such as PBFT or Tendermint instead.
 {{% /qa %}}
 
-### 17. What is the Two Generals' Problem, and what does it actually prove about distributed consensus? {#17}
+### 19. What is the Two Generals' Problem, and what does it actually prove about distributed consensus? {#19}
 
 {{% qa %}}
 **The gist:** you can never be certain your last message arrived, no matter how many acknowledgements you trade. So real systems stop chasing certainty and use retries plus idempotency.
@@ -316,7 +358,7 @@ Two armies must attack a city simultaneously to win, but can only coordinate via
 In practice, systems don't solve this. They work around it with retries, timeouts, and idempotency, accepting a vanishingly small but nonzero risk instead of a mathematical guarantee.
 {{% /qa %}}
 
-### 18. What is a CRDT, and when would you reach for one instead of a distributed lock? {#18}
+### 20. What is a CRDT, and when would you reach for one instead of a distributed lock? {#20}
 
 {{% qa %}}
 **The gist:** a data structure built so concurrent edits always merge to the same answer, with no coordination. Great for offline-first apps, useless for "balance never goes negative."
@@ -328,7 +370,7 @@ Reach for one when replicas need to accept writes independently (offline-first a
 **Try it:** implement a grow-only counter as a map of replica ID to count, merge two replicas' maps by taking the max per key, and confirm the result is the same no matter which order you merge them in.
 {{% /qa %}}
 
-### 19. How does a gossip protocol detect node failure, and how does that differ from a centralized health check? {#19}
+### 21. How does a gossip protocol detect node failure, and how does that differ from a centralized health check? {#21}
 
 {{% qa %}}
 **The gist:** each node pings a few random peers and passes on what it heard. Failure news spreads like a rumour, with no central health checker to fall over.
@@ -338,7 +380,7 @@ Each node periodically pings a few random peers and forwards what it's heard abo
 A centralized health-check registry is simpler to reason about, but it doesn't scale as well and becomes a single point of failure itself. Gossip (for example SWIM) trades a small amount of detection latency for horizontal scalability and resilience.
 {{% /qa %}}
 
-### 20. What does PACELC add to CAP theorem? {#20}
+### 22. What does PACELC add to CAP theorem? {#22}
 
 {{% qa %}}
 **The gist:** CAP only covers what happens during a partition. PACELC adds the other 99.9% of the time, when you're still trading latency against consistency.
@@ -350,7 +392,7 @@ It's a more complete lens for classifying real systems. DynamoDB is PA/EL, while
 **What they're testing:** whether you notice that CAP describes a rare event. Most of your latency budget is spent in the "else" branch, which is the half CAP says nothing about.
 {{% /qa %}}
 
-### 21. Explain quorum-based consistency (N/R/W). {#21}
+### 23. Explain quorum-based consistency (N/R/W). {#23}
 
 {{% qa %}}
 **The gist:** write to W replicas, read from R, and if R + W is greater than N your read is guaranteed to touch at least one replica holding the newest write.
@@ -374,7 +416,7 @@ sequenceDiagram
 ```
 {{% /qa %}}
 
-### 22. How would you design idempotency keys for a payment API? {#22}
+### 24. How would you design idempotency keys for a payment API? {#24}
 
 {{% qa %}}
 **The gist:** the client sends a unique key with the request. The server claims that key atomically before charging anything, so a retry finds the existing claim and replays the old answer instead of charging twice.
@@ -393,12 +435,12 @@ ON CONFLICT (idempotency_key) DO NOTHING;
 
 The unique constraint is doing the real work here. Two concurrent retries both run this statement, and exactly one of them gets a row back.
 
-**What they're testing:** that the claim happens *before* the charge. Claiming afterwards leaves a window where a retry lands mid-charge, which is the bug this whole design exists to prevent. [Q33](#33) walks the same idea through a full pipeline.
+**What they're testing:** that the claim happens *before* the charge. Claiming afterwards leaves a window where a retry lands mid-charge, which is the bug this whole design exists to prevent. [Q35](#35) walks the same idea through a full pipeline.
 
 **Try it:** run the `INSERT ... ON CONFLICT DO NOTHING` statement above twice with the same key from two separate terminals at roughly the same time, and confirm only one reports a row inserted.
 {{% /qa %}}
 
-### 23. Explain the outbox pattern for reliably publishing events after a DB write. {#23}
+### 25. Explain the outbox pattern for reliably publishing events after a DB write. {#25}
 
 {{% qa %}}
 **The gist:** you can't write to the database and publish to a broker atomically. So write the event into the same database in the same transaction, and let a separate relay publish it afterwards.
@@ -431,7 +473,7 @@ graph LR
 **Try it:** insert a business row and an outbox row in one transaction, then run the relay's `SELECT * FROM outbox WHERE published = false` by hand and confirm your new event is sitting there waiting to be published.
 {{% /qa %}}
 
-### 24. What is a saga pattern, and when would you use it instead of 2PC? {#24}
+### 26. What is a saga pattern, and when would you use it instead of 2PC? {#26}
 
 {{% qa %}}
 **The gist:** split the distributed transaction into local steps, each with an undo step. Harder to reason about than 2PC, but nobody holds locks across services while a human approves something.
@@ -457,7 +499,7 @@ graph TD
 ```
 {{% /qa %}}
 
-### 25. Explain consistent hashing and why it's used for sharding and caching. {#25}
+### 27. Explain consistent hashing and why it's used for sharding and caching. {#27}
 
 {{% qa %}}
 **The gist:** put nodes and keys on a ring, so adding a node only moves the keys sitting next to it. Plain `hash % N` moves almost every key the moment N changes.
@@ -474,7 +516,7 @@ graph LR
 **Try it:** hash 10 keys against `hash(key) % 4` and again against `% 5`, and count how many land on a different node. Then put the same 4 nodes on a ring and add a fifth: far fewer keys move.
 {{% /qa %}}
 
-### 26. Walk through Raft leader election and log replication in more depth. {#26}
+### 28. Walk through Raft leader election and log replication in more depth. {#28}
 
 {{% qa %}}
 **The gist:** nodes vote for a leader each term, the leader replicates writes, and an entry only counts as committed once a majority has stored it. That majority rule is what makes committed writes survive any single crash.
@@ -500,7 +542,7 @@ stateDiagram-v2
 **What they're testing:** the follow-up, which is always "what happens if the leader crashes mid-write." The answer is the election restriction: a candidate missing committed entries can't win a majority.
 {{% /qa %}}
 
-### 27. Where do strong, causal, and eventual consistency sit relative to each other, and what is "read-your-writes"? {#27}
+### 29. Where do strong, causal, and eventual consistency sit relative to each other, and what is "read-your-writes"? {#29}
 
 {{% qa %}}
 **The gist:** strong means every read sees the newest write and costs the most. Eventual costs the least and may hand you stale data. Causal and read-your-writes are the useful middle ground.
@@ -520,7 +562,7 @@ graph LR
 ```
 {{% /qa %}}
 
-### 28. Explain the bulkhead pattern, and how it differs from a circuit breaker. {#28}
+### 30. Explain the bulkhead pattern, and how it differs from a circuit breaker. {#30}
 
 {{% qa %}}
 **The gist:** a circuit breaker stops you calling something that's already broken. A bulkhead stops that broken thing from eating the resources everything else needs.
@@ -588,7 +630,7 @@ And roughly what things cost in time, which is what tells you where a latency bu
 
 The point of the second table is that one cross-region hop costs more than a thousand SSD reads. Latency problems are almost always about how many network hops you made, not how fast your code is.
 
-### 29. Design a URL shortener. {#29}
+### 31. Design a URL shortener. {#31}
 
 {{% qa %}}
 **The gist:** a key-value lookup with a redirect on top. Reads outnumber writes by orders of magnitude, so the cache *is* the design.
@@ -619,7 +661,7 @@ graph TD
 **What you gave up:** the cache is the entire read path. A cold cache after a restart sends 11,600 requests a second straight at the database, so you warm it from the top-N links before taking traffic.
 {{% /qa %}}
 
-### 30. Design a distributed rate limiter shared across multiple API gateway instances. {#30}
+### 32. Design a distributed rate limiter shared across multiple API gateway instances. {#32}
 
 {{% qa %}}
 **The gist:** per-instance counters undercount, because each instance only sees its own share of traffic. The counter has to be shared, and Redis plus one atomic Lua script is the whole answer.
@@ -653,7 +695,7 @@ graph LR
 **What you gave up:** every request now pays a network round trip, about 0.5ms in the same AZ. At the p99 that's real money. Teams that can't afford it keep a local token bucket synced periodically, trading exactness for latency.
 {{% /qa %}}
 
-### 31. Design a real-time fraud scoring system with a tight latency SLA, adding more signals over time. {#31}
+### 33. Design a real-time fraud scoring system with a tight latency SLA, adding more signals over time. {#33}
 
 {{% qa %}}
 **The gist:** run every signal at once with a hard deadline, so you pay for the slowest signal rather than the sum of all of them. Anything too slow gets dropped, not waited for.
@@ -681,7 +723,7 @@ graph TD
 **What you gave up:** caching signals ahead of the request means scoring on slightly stale data. For device reputation that's fine. For a velocity check, "how many times has this card been used in the last minute," staleness is the whole signal, so that one has to stay live and inside the budget.
 {{% /qa %}}
 
-### 32. Design a notification system fanning one event out to millions of users via push, email, and SMS. {#32}
+### 34. Design a notification system fanning one event out to millions of users via push, email, and SMS. {#34}
 
 {{% qa %}}
 **The gist:** accept the event into a queue immediately, then fan out per user per channel onto separate queues, so a slow SMS provider can't back up your push notifications.
@@ -710,16 +752,16 @@ graph LR
 **What you gave up:** at-least-once delivery means some users get a duplicate. Deduping on (user, event, channel) at the worker catches most of it, but a crash after the provider call and before the dedupe write will still double-send. The real fix is an idempotency key on the provider API, and not every provider offers one.
 {{% /qa %}}
 
-### 33. Design an idempotent payment processing pipeline that survives retries without double-charging. {#33}
+### 35. Design an idempotent payment processing pipeline that survives retries without double-charging. {#35}
 
 {{% qa %}}
-**The gist:** the same idempotency key from [Q22](#22), but now wired through the whole pipeline: claim the key, call the processor, store the outcome, and make sure every retry branch has somewhere sensible to land.
+**The gist:** the same idempotency key from [Q24](#24), but now wired through the whole pipeline: claim the key, call the processor, store the outcome, and make sure every retry branch has somewhere sensible to land.
 
 **Scope it:** charge a card exactly once even when the client retries, the network drops, or a worker dies mid-call. Not in scope: refunds, multi-currency, or storing card details.
 
 **The numbers:** 1000 charges a second at peak, against a processor that takes 500ms to 2s. At 2s that's 2000 charges in flight simultaneously, which rules out holding a database transaction open around the processor call. Your connection pool gets sized for the claim and the write, each a few milliseconds, not for the seconds you spend waiting on someone else's API.
 
-[Q22](#22) covers the key itself and the `ON CONFLICT DO NOTHING` claim. This question is about what happens around it once a real payment processor is in the loop.
+[Q24](#24) covers the key itself and the `ON CONFLICT DO NOTHING` claim. This question is about what happens around it once a real payment processor is in the loop.
 
 The client sends a request with a client-generated idempotency key. In a single database transaction, the server claims that key with status `processing`, and the unique constraint means a concurrent duplicate fails immediately. Only after the row is claimed does the service call the payment processor.
 
@@ -729,7 +771,7 @@ The part worth rehearsing is the branches:
 - **Key already claimed, still processing.** The first attempt is in flight. Return a 409 or poll, don't start a second charge.
 - **Claimed, then the process crashes mid-charge.** The row is stuck in `processing`, so you need reconciliation against the processor rather than a blind retry. This is the case people forget.
 
-On success, update the status and write an outbox event ([Q23](#23)) in the same transaction, so downstream systems hear about the charge exactly as reliably as the charge itself was recorded.
+On success, update the status and write an outbox event ([Q25](#25)) in the same transaction, so downstream systems hear about the charge exactly as reliably as the charge itself was recorded.
 
 ```mermaid
 sequenceDiagram
@@ -755,7 +797,7 @@ sequenceDiagram
 **What you gave up:** a charge is never synchronously certain. The client gets a definite answer on the happy path, and on the crash path it gets "ask again shortly," which the client's own UI has to handle. Systems that promise a synchronous yes or no are lying about the crash case.
 {{% /qa %}}
 
-### 34. Design a distributed job scheduler where each job runs exactly once even if a node crashes. {#34}
+### 36. Design a distributed job scheduler where each job runs exactly once even if a node crashes. {#36}
 
 {{% qa %}}
 **The gist:** a conditional `UPDATE` is your lock. The one worker whose update actually affects a row owns the job, and a lease makes sure a crashed worker's job comes back.
@@ -789,7 +831,7 @@ graph TD
 **What you gave up:** you've made your database a queue. That's a genuinely good choice early, because it's one less system and you get transactions for free, but the polling load and lock contention grow with worker count. Past a few hundred workers you're rebuilding a message broker badly, and should switch to one.
 {{% /qa %}}
 
-### 35. Design a sharded, horizontally-scalable chat backend. {#35}
+### 37. Design a sharded, horizontally-scalable chat backend. {#37}
 
 {{% qa %}}
 **The gist:** consistent-hash conversations onto nodes, and put a gateway in front that knows which node owns which conversation. Pub/sub covers anyone who isn't connected to that node.
@@ -817,7 +859,7 @@ graph TD
 **What you gave up:** hashing on conversation ID keeps ordering trivial, since one node owns the conversation. It also means a single very large group chat is a hotspot that can't be split, so at some size you need a different strategy for those specific conversations.
 {{% /qa %}}
 
-### 36. Design a system for ingesting and aggregating high-throughput event streams with the right delivery semantics. {#36}
+### 38. Design a system for ingesting and aggregating high-throughput event streams with the right delivery semantics. {#38}
 
 {{% qa %}}
 **The gist:** partition by a natural key so ordering holds per entity, accept at-least-once delivery, and make the aggregation an upsert so a replay can't double-count.
@@ -841,7 +883,7 @@ graph LR
 **What you gave up:** ordering holds inside a partition and nowhere else, so any aggregate spanning multiple keys has no ordering guarantee at all. If the business asks for a globally ordered view later, that's a redesign, not a config change.
 {{% /qa %}}
 
-### 37. How would you evolve a monolith into microservices without a risky big-bang rewrite? {#37}
+### 39. How would you evolve a monolith into microservices without a risky big-bang rewrite? {#39}
 
 {{% qa %}}
 **The gist:** put a proxy in front of the monolith and move one feature at a time behind it. The monolith shrinks instead of getting replaced.
@@ -865,7 +907,7 @@ graph LR
 **What you gave up:** for the length of the migration you run both systems, with a routing layer and, in places, dual writes. That's more operational surface than you started with, not less, and it stays that way until the last feature moves. Teams that don't finish end up permanently worse off than when they began.
 {{% /qa %}}
 
-### 38. Design a tamper-evident, queryable audit logging system for a fintech platform. {#38}
+### 40. Design a tamper-evident, queryable audit logging system for a fintech platform. {#40}
 
 {{% qa %}}
 **The gist:** append-only, and each entry's hash includes the previous entry's hash. Change anything in the past and every link after it breaks, which is what makes tampering visible.
@@ -914,11 +956,11 @@ graph LR
 
 ## What to drill first
 
-**[System Design Fundamentals](#system-design-fundamentals):** [5](#5) (idempotency) turns up in ordinary backend work every week, long before anyone asks you to design a distributed system. Practice actually drawing [8](#8) through [10](#10) from memory, not just describing them out loud. CAP and the three caching strategies are the two most likely to become a whiteboard request.
+**[System Design Fundamentals](#system-design-fundamentals):** [5](#5) (idempotency) turns up in ordinary backend work every week, long before anyone asks you to design a distributed system. Practice actually drawing [8](#8) through [10](#10) from memory, not just describing them out loud. CAP and the three caching strategies are the two most likely to become a whiteboard request. [11](#11) (SQL vs. NoSQL) is worth having an opinion on too, since most system design rounds ask you to pick a database before anything else.
 
-**[Distributed Systems Concepts](#distributed-systems-concepts):** [26](#26) (Raft), [27](#27) (the consistency spectrum), and [28](#28) (bulkhead) are the ones most likely to turn into a follow-up "ok, now what if the leader crashes mid-write" question, so have those diagrams reflexive, not just recitable. [14](#14), [15](#15), and [21](#21) through [25](#25) are worth sketching too.
+**[Distributed Systems Concepts](#distributed-systems-concepts):** [28](#28) (Raft), [29](#29) (the consistency spectrum), and [30](#30) (bulkhead) are the ones most likely to turn into a follow-up "ok, now what if the leader crashes mid-write" question, so have those diagrams reflexive, not just recitable. [16](#16), [17](#17), and [23](#23) through [27](#27) are worth sketching too.
 
-**[System Design Case Studies](#system-design-case-studies):** [29](#29) through [38](#38) are the whole point of the round. Draw each one on paper before reading the answer, because describing a diagram you can't draw falls apart the moment someone asks a follow-up.
+**[System Design Case Studies](#system-design-case-studies):** [31](#31) through [40](#40) are the whole point of the round. Draw each one on paper before reading the answer, because describing a diagram you can't draw falls apart the moment someone asks a follow-up.
 
 ---
 

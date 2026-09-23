@@ -484,7 +484,7 @@ graph TD
 
 A domain event captures something that happened inside the domain model that other parts of the same bounded context care about, like `OrderPlaced` or `InventoryReserved`. It's raised by an aggregate as a side effect of a state change, usually handled in-process, often within the same transaction.
 
-An integration event is the cross-service version: a domain event, or a more stable version derived from it, published externally over a broker so other bounded contexts can react. That's exactly what the [outbox pattern]({{< ref "interview-prep-system-design.md" >}}#23) (Part 4) exists to publish reliably.
+An integration event is the cross-service version: a domain event, or a more stable version derived from it, published externally over a broker so other bounded contexts can react. That's exactly what the [outbox pattern]({{< ref "interview-prep-system-design.md" >}}#25) (Part 4) exists to publish reliably.
 
 Keeping the two separate matters because a domain event's shape is free to change with the internal model, while an integration event is a public contract other teams depend on and needs the same versioning discipline as an API.
 {{% /qa %}}
