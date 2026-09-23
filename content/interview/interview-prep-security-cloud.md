@@ -1,6 +1,6 @@
 ---
 title: "Interview Prep — Part 6: Security & Cloud"
-description: "Security fundamentals and cloud & infrastructure topics for Go architects: 25 interview Q&As with diagrams."
+description: "Security fundamentals and cloud & infrastructure topics for Go architects: 26 interview Q&As with diagrams."
 url: "/interview-prep-security-cloud/"
 aliases: ["/go-interview-prep-security-cloud/"]
 nodate: true
@@ -26,7 +26,7 @@ Every answer opens with **The gist**, one or two plain sentences. If the gist is
 
 ## Security
 
-*Questions 1 to 7 are fundamentals you're expected to have now. 8 to 12 go deeper, and 9 and 11 are the two most likely to turn into "show me the code."*
+*Questions 1 to 5 are fundamentals you're expected to have now. 6 to 13 go deeper, and 6, 10 and 12 are the three most likely to turn into "show me the code."*
 
 ### 1. What's the difference between authentication and authorization, and RBAC vs ABAC? {#1}
 
@@ -119,7 +119,32 @@ if allowedOrigins[origin] {
 **Try it:** `curl -H "Origin: https://evil.example" -I https://your-api/some-endpoint` against an API you run and check whether the response echoes that `Origin` back in `Access-Control-Allow-Origin` while also setting `Access-Control-Allow-Credentials: true`. If it does, you've just reproduced the exact misconfiguration above.
 {{% /qa %}}
 
-### 6. How do you protect against a compromised or malicious dependency in a Go module graph? {#6}
+### 6. What is XSS, and how does CSRF differ from it? {#6}
+
+{{% qa %}}
+**The gist:** XSS runs the attacker's script inside your page, in the victim's own session. CSRF doesn't run any script at all, it just rides the victim's existing cookies to make a request they never meant to send.
+
+Cross-Site Scripting (XSS) happens when unsanitized user input gets rendered as HTML/JS in another user's browser, so the attacker's script executes with that victim's cookies and session. **Reflected XSS** comes back in the immediate response (a search query echoed unescaped). **Stored XSS** is saved server-side and served to every later visitor (a comment field rendered unescaped). **DOM-based XSS** never touches the server at all, client-side JS writes untrusted input straight into the DOM.
+
+Cross-Site Request Forgery (CSRF) is a different trust failure. The attacker doesn't need to run any code in the victim's browser. They just get the victim's browser, already logged in, to make a request to your site, for example a hidden auto-submitting form pointing at `POST /transfer`. The browser attaches the victim's cookies automatically, so your server sees a request that looks completely legitimate.
+
+```go
+// XSS: vulnerable, writes user input straight into HTML.
+fmt.Fprintf(w, "<p>Welcome, %s</p>", r.URL.Query().Get("name"))
+
+// safe: html/template auto-escapes based on where the value
+// lands in the HTML (text, attribute, URL, script), text/template does not.
+tmpl.Execute(w, map[string]string{"Name": r.URL.Query().Get("name")})
+```
+
+The main defenses solve different halves of the problem. For XSS: escape output by context, and a Content-Security-Policy header to limit what inline scripts can do even if one slips through. For CSRF: a per-session anti-CSRF token the form must echo back, which a cross-site attacker can't read, or `SameSite=Lax`/`Strict` cookies, which stop the browser from attaching cookies to a cross-site request in the first place.
+
+**What they're testing:** whether you know these solve different problems and reach for the right defense for each. A CSRF token doesn't stop XSS, and escaping output doesn't stop CSRF. Teams that only deploy one usually deployed it against whichever vulnerability they'd heard of.
+
+**Try it:** build a tiny handler using `text/template` instead of `html/template` to render a name back into an HTML page, then pass `<script>alert(1)</script>` as that name and watch it execute. Switch to `html/template` and watch the same input come back as inert, escaped text.
+{{% /qa %}}
+
+### 7. How do you protect against a compromised or malicious dependency in a Go module graph? {#7}
 
 {{% qa %}}
 **The gist:** `go.sum` pins the exact checksum of every dependency, and the public checksum database makes a silent swap detectable. The rest is scanning regularly and knowing what you shipped.
@@ -134,7 +159,7 @@ govulncheck ./...
 ```
 {{% /qa %}}
 
-### 7. What is STRIDE, and when should an architect actually run a threat model? {#7}
+### 8. What is STRIDE, and when should an architect actually run a threat model? {#8}
 
 {{% qa %}}
 **The gist:** STRIDE is a checklist of six ways a design can be attacked. You walk your diagram asking each one, instead of hoping you happened to think of everything.
@@ -146,7 +171,7 @@ Run one whenever a new trust boundary is introduced: a new external-facing API, 
 **Try it:** pick a real API you've built, sketch its data-flow diagram on paper, and walk each box and arrow against all six STRIDE letters out loud. Twenty minutes is enough to feel how much faster it goes the second time.
 {{% /qa %}}
 
-### 8. Walk through the OAuth2 authorization code flow, and where the token actually ends up. {#8}
+### 9. Walk through the OAuth2 authorization code flow, and where the token actually ends up. {#9}
 
 {{% qa %}}
 **The gist:** the user logs in at Google, not at your app, so your app never sees the password. Your backend then swaps a short-lived code for a token, out of the browser's reach.
@@ -173,7 +198,7 @@ sequenceDiagram
 **What they're testing:** the OAuth2 versus OIDC distinction. Saying "we use OAuth for login" is the trip-up, because OAuth2 on its own tells you what a token may do, not who the user is.
 {{% /qa %}}
 
-### 9. What's inside a JWT, and what are the common pitfalls? {#9}
+### 10. What's inside a JWT, and what are the common pitfalls? {#10}
 
 {{% qa %}}
 **The gist:** three base64 chunks that anyone can read. The signature proves nobody changed it, it doesn't hide anything, so never put a secret in the payload.
@@ -202,7 +227,7 @@ token, err := jwt.Parse(tokenString, func(t *jwt.Token) (interface{}, error) {
 **Try it:** copy the payload segment of any JWT (the part between the two dots) and run `echo '<segment>' | tr '_-' '/+' | base64 -d`, padding with `=` if it complains. You'll read the claims in plain text, no key involved at any point.
 {{% /qa %}}
 
-### 10. How does a TLS certificate chain get validated, and what does mTLS add on top of one-way TLS? {#10}
+### 11. How does a TLS certificate chain get validated, and what does mTLS add on top of one-way TLS? {#11}
 
 {{% qa %}}
 **The gist:** your machine trusts a root CA, the root vouches for an intermediate, the intermediate vouches for the server. mTLS runs that same check in both directions.
@@ -225,7 +250,7 @@ graph LR
 **Try it:** run `openssl s_client -connect example.com:443 -showcerts </dev/null` against any HTTPS site and read the chain it prints, leaf certificate first, then each intermediate up to the root.
 {{% /qa %}}
 
-### 11. What are the most common Go-specific security vulnerabilities, and how do you avoid them? {#11}
+### 12. What are the most common Go-specific security vulnerabilities, and how do you avoid them? {#12}
 
 {{% qa %}}
 **The gist:** four classics: SQL injection, command injection, path traversal, and decoding untrusted data into whatever type it claims to be. All four come from letting input carry structure.
@@ -260,7 +285,7 @@ exec.Command("convert", userFile, "out.png")
 **Try it:** install with `go install github.com/securego/gosec/v2/cmd/gosec@latest`, then run `gosec ./...` against a Go project you maintain and see how many of these four categories it actually flags versus what you assumed was fine.
 {{% /qa %}}
 
-### 12. What does "defense in depth" mean architecturally, and how does zero trust extend it? {#12}
+### 13. What does "defense in depth" mean architecturally, and how does zero trust extend it? {#13}
 
 {{% qa %}}
 **The gist:** don't let any single control be the thing that saves you. Zero trust goes one step further and stops assuming the inside of your network is friendly.
@@ -285,7 +310,7 @@ graph TD
 
 *Nobody expects a junior to have run a multi-region failover. 13, 14 and 22 come up regardless of level, and 19 and 20 are what you'll actually reach for the first time you're on call.*
 
-### 13. What's the practical difference between IaaS, PaaS, SaaS, and FaaS, and where does a typical Go service sit? {#13}
+### 14. What's the practical difference between IaaS, PaaS, SaaS, and FaaS, and where does a typical Go service sit? {#14}
 
 {{% qa %}}
 **The gist:** it's a question of how much of the stack someone else runs for you. IaaS hands you a machine, PaaS hands you a place to put a container, FaaS hands you a place to put one function.
@@ -295,7 +320,7 @@ IaaS (EC2, Compute Engine) gives you raw VMs, and you manage the OS and everythi
 A typical Go backend service usually sits on IaaS via an orchestrator (a VM fleet running Kubernetes) or on PaaS (Cloud Run, ECS Fargate). Full FaaS is a poor fit for a long-lived stateful service holding persistent connections.
 {{% /qa %}}
 
-### 14. What are the 12-factor app principles, and why do they map cleanly onto Go services? {#14}
+### 15. What are the 12-factor app principles, and why do they map cleanly onto Go services? {#15}
 
 {{% qa %}}
 **The gist:** a checklist for apps you can kill and restart anywhere without ceremony. Go gets most of it for free, because a static binary starts fast and reads env vars.
@@ -307,7 +332,7 @@ Go's static binaries and fast startup already fit most of this naturally. A comp
 **Try it:** `grep -rn "os.Getenv\|viper\." .` across a service you maintain and see how much of its config is actually environment-driven versus hardcoded or baked into the image.
 {{% /qa %}}
 
-### 15. HPA vs. VPA vs. cluster autoscaler: what does each one actually scale, and what breaks if you only configure one? {#15}
+### 16. HPA vs. VPA vs. cluster autoscaler: what does each one actually scale, and what breaks if you only configure one? {#16}
 
 {{% qa %}}
 **The gist:** HPA adds pods, VPA resizes pods, the cluster autoscaler adds machines. Configure only HPA and your new pods sit Pending, because nothing added room for them.
@@ -321,7 +346,7 @@ Running HPA alone without a cluster autoscaler means new pod replicas can go Pen
 **Try it:** `kubectl get hpa` on a cluster with autoscaling configured, then `kubectl describe pod <pending-pod>` on anything stuck Pending and read the Events section for `FailedScheduling`.
 {{% /qa %}}
 
-### 16. What does Infrastructure as Code actually buy you over provisioning resources by hand in a console? {#16}
+### 17. What does Infrastructure as Code actually buy you over provisioning resources by hand in a console? {#17}
 
 {{% qa %}}
 **The gist:** the point isn't automation. It's that your infrastructure gets reviewed, versioned, and rebuildable, instead of living in someone's memory of which buttons they clicked.
@@ -335,7 +360,7 @@ The cost is a learning curve, plus a "click in the console to fix the incident r
 **Try it:** run `terraform plan` against infrastructure you've already applied, with nothing changed since. A clean `No changes.` is what drift detection looks like when nothing happened, which is the baseline you need before you can recognize real drift.
 {{% /qa %}}
 
-### 17. Managed (RDS/Cloud SQL-style) vs. self-hosted database in the cloud: what's the actual trade-off? {#17}
+### 18. Managed (RDS/Cloud SQL-style) vs. self-hosted database in the cloud: what's the actual trade-off? {#18}
 
 {{% qa %}}
 **The gist:** managed means someone else gets paged for backups and failover. Self-hosting buys you control and hands you that pager.
@@ -347,7 +372,7 @@ Self-hosted on your own VMs: full control over configuration, extensions, and ve
 For most teams below a certain scale, managed is the right default. Self-hosting is a deliberate trade for control that should be justified, not assumed.
 {{% /qa %}}
 
-### 18. When is serverless (Lambda/Cloud Functions style) a poor fit for a Go service? {#18}
+### 19. When is serverless (Lambda/Cloud Functions style) a poor fit for a Go service? {#19}
 
 {{% qa %}}
 **The gist:** cold starts, execution time limits, and no state between calls. Great for bursty event work, bad for a steady API holding database connections.
@@ -357,7 +382,7 @@ Cold starts add latency to the first request after idle, which is a problem for 
 Serverless fits well for bursty, event-driven, short-lived work: an S3-upload trigger, a scheduled cleanup job. A long-lived stateful API with steady traffic is usually cheaper and simpler as a normal deployed service.
 {{% /qa %}}
 
-### 19. What does a typical cloud observability stack look like, and why do traces matter more as the service count grows? {#19}
+### 20. What does a typical cloud observability stack look like, and why do traces matter more as the service count grows? {#20}
 
 {{% qa %}}
 **The gist:** metrics tell you something's wrong. Logs tell you what happened. Traces tell you which of your ten services actually caused it.
@@ -367,7 +392,7 @@ Metrics (Prometheus or CloudWatch-style time-series aggregates like request rate
 Traces (OpenTelemetry, spanning a request across every service it touched) answer "where in this chain of ten services did the slowdown actually happen." Metrics and logs alone can't answer that once a request fans out across multiple services, because no single service's logs show the whole picture.
 {{% /qa %}}
 
-### 20. What's the difference between RTO and RPO, and how do they drive backup strategy? {#20}
+### 21. What's the difference between RTO and RPO, and how do they drive backup strategy? {#21}
 
 {{% qa %}}
 **The gist:** RTO is how long you can be down. RPO is how much data you can afford to lose. Pick both numbers before you pick a backup schedule.
@@ -379,7 +404,7 @@ A tight RPO measured in seconds needs synchronous or near-real-time replication.
 **What they're testing:** whether you ask the business what the numbers are instead of inventing them. The right move is to turn the question back into a requirement.
 {{% /qa %}}
 
-### 21. Why do containers start faster and pack denser than VMs? {#21}
+### 22. Why do containers start faster and pack denser than VMs? {#22}
 
 {{% qa %}}
 **The gist:** a VM boots a whole operating system. A container is just a process the kernel keeps in its own box, which is why it starts in milliseconds.
@@ -405,7 +430,7 @@ graph TD
 **Try it:** `docker history <image>` on any image you have locally and look at the layer sizes, then time `docker run --rm alpine echo hi` against how long your last VM actually took to boot.
 {{% /qa %}}
 
-### 22. What are the core Kubernetes objects, and how does a request actually reach a pod? {#22}
+### 23. What are the core Kubernetes objects, and how does a request actually reach a pod? {#23}
 
 {{% qa %}}
 **The gist:** a Pod runs your container, a Deployment keeps the right number of pods alive, a Service gives that shifting set one stable address, and an Ingress lets the outside world in.
@@ -431,7 +456,7 @@ graph LR
 **Try it:** `kubectl get pods,deploy,svc,ingress -o wide` in any namespace you have access to, then `kubectl describe svc <name>` and find the Endpoints line, that's the live list of pod IPs the Service is actually load-balancing across right now.
 {{% /qa %}}
 
-### 23. Active-active vs. active-passive multi-region: what's the trade-off, and why does data residency complicate it? {#23}
+### 24. Active-active vs. active-passive multi-region: what's the trade-off, and why does data residency complicate it? {#24}
 
 {{% qa %}}
 **The gist:** active-passive keeps a spare region warm and switches to it on failure. Active-active runs both at once, which is faster for users and much harder to keep consistent.
@@ -459,7 +484,7 @@ graph TD
 **What they're testing:** whether you treat data residency as a separate axis from availability. People tend to collapse the two, and the follow-up question is usually designed to catch exactly that.
 {{% /qa %}}
 
-### 24. How should a service authenticate to other cloud resources, and why is workload identity preferred over static credentials? {#24}
+### 25. How should a service authenticate to other cloud resources, and why is workload identity preferred over static credentials? {#25}
 
 {{% qa %}}
 **The gist:** a static access key is a secret that works forever once it leaks. Workload identity hands out short-lived tokens based on who the workload is, so there's nothing sitting around to steal.
@@ -468,7 +493,7 @@ A long-lived static credential, an access key baked into config or an env var, i
 
 Workload identity (AWS IAM roles for service accounts, GCP Workload Identity) instead lets the cloud platform issue short-lived, automatically rotated credentials to a workload based on its identity: which pod, which service account. There's no long-lived secret to leak in the first place.
 
-Combine that with least-privilege roles, granting only the specific actions on the specific resources a service actually needs rather than a broad admin role for convenience, and you have the cloud-native version of the least-privilege principle from [Q12](#12).
+Combine that with least-privilege roles, granting only the specific actions on the specific resources a service actually needs rather than a broad admin role for convenience, and you have the cloud-native version of the least-privilege principle from [Q13](#13).
 
 ```mermaid
 graph LR
@@ -485,7 +510,7 @@ graph LR
 **Try it:** run `aws sts get-caller-identity` (or `gcloud auth list`) from inside a workload that's supposed to be using workload identity, then `env | grep -i key` in the same place and confirm there's no static access key sitting behind that identity.
 {{% /qa %}}
 
-### 25. Blue-green vs. canary vs. rolling deployment: how does each affect rollback speed and blast radius? {#25}
+### 26. Blue-green vs. canary vs. rolling deployment: how does each affect rollback speed and blast radius? {#26}
 
 {{% qa %}}
 **The gist:** rolling swaps pods a few at a time, blue-green flips everything at once, canary sends a slice of traffic first. You're trading rollback speed against how much infrastructure you run.
@@ -519,11 +544,11 @@ graph TD
 
 ## What to drill first
 
-**[Security](#security):** worth over-preparing rather than under-preparing. [9](#9) (JWT pitfalls) and [11](#11) (Go-specific vulnerabilities) are the most likely to get a "show me the code" follow-up. Have the vulnerable-versus-safe pattern in [11](#11) ready to write on a whiteboard from memory.
+**[Security](#security):** worth over-preparing rather than under-preparing. [10](#10) (JWT pitfalls), [12](#12) (Go-specific vulnerabilities) and [6](#6) (XSS vs. CSRF) are the most likely to get a "show me the code" follow-up. Have the vulnerable-versus-safe pattern in [12](#12) ready to write on a whiteboard from memory.
 
-**[Cloud & Infrastructure](#cloud--infrastructure):** [22](#22) (Kubernetes request path) and [23](#23) (multi-region and data residency) are the highest-yield for a regulated-domain role. [25](#25) (deploy strategies) ties directly back to [API versioning during a rolling deployment]({{< ref "interview-prep-kafka-microservices.md" >}}#39) in Part 5, so rehearse them together.
+**[Cloud & Infrastructure](#cloud--infrastructure):** [23](#23) (Kubernetes request path) and [24](#24) (multi-region and data residency) are the highest-yield for a regulated-domain role. [26](#26) (deploy strategies) ties directly back to [API versioning during a rolling deployment]({{< ref "interview-prep-kafka-microservices.md" >}}#39) in Part 5, so rehearse them together.
 
-If you're earlier in your career and short on time, start with [2](#2), [11](#11) and [22](#22). Password hashing and parameterized queries come up in almost every security screen at any level, and the Kubernetes request path is the one cloud question you'll be asked whether or not the role is infrastructure-flavoured.
+If you're earlier in your career and short on time, start with [2](#2), [12](#12) and [23](#23). Password hashing and parameterized queries come up in almost every security screen at any level, and the Kubernetes request path is the one cloud question you'll be asked whether or not the role is infrastructure-flavoured.
 
 ---
 

@@ -1,6 +1,6 @@
 ---
 title: "Interview Prep — Part 5: Kafka & Microservices"
-description: "Kafka in depth for Go, and microservices architecture including DDD and event-driven patterns: 39 interview Q&As with diagrams."
+description: "Kafka in depth for Go, and microservices architecture including DDD, CQRS, event sourcing, and event-driven patterns: 41 interview Q&As with diagrams."
 url: "/interview-prep-kafka-microservices/"
 aliases: ["/go-interview-prep-kafka-microservices/"]
 nodate: true
@@ -356,7 +356,7 @@ func (h *Handler) ConsumeClaim(sess sarama.ConsumerGroupSession,
 
 ## Microservices Architecture
 
-*Questions 21 to 23 are fair game at any level. The DDD block, 24 to 31, is where senior interviews live, and nobody expects you to have all of it two years in. 32 onward is day-to-day operational reality.*
+*Questions 21 to 23 are fair game at any level. The DDD block, 24 to 31, is where senior interviews live, and nobody expects you to have all of it two years in. 32 to 39 is day-to-day operational reality. 40 and 41 name two patterns [33](#33) already leans on without spelling out.*
 
 ### 21. What is service discovery in a microservices architecture, and what approaches are common? {#21}
 
@@ -736,6 +736,59 @@ graph LR
 **What they're testing:** whether "rolling deploy" makes you realize both versions are live at once. That's the constraint the whole answer hangs on.
 {{% /qa %}}
 
+### 40. What is CQRS, and why split the write model from the read model? {#40}
+
+{{% qa %}}
+**The gist:** the shape of data that's efficient to write is rarely the shape that's efficient to read. CQRS just admits that out loud and gives each side its own model instead of forcing one schema to serve both.
+
+Command Query Responsibility Segregation splits a service's write path (commands, which change state) from its read path (queries, which only observe it), letting each use a data model, and even a data store, optimized for its own job. Writes go through a normalized, invariant-enforcing model. Reads are served from one or more denormalized, purpose-built projections kept up to date by the events the write side emits.
+
+[Q33](#33) already showed the applied version of this: a materialized read model built from other services' events, so a composite query answers directly instead of fanning out to every owner at request time. CQRS is the name for that shape in general, not only across service boundaries. A single service can run CQRS internally too: one write model, several read-optimized projections for different query needs.
+
+```mermaid
+graph LR
+    Cmd["Command<br/>(PlaceOrder)"] --> WM["Write model<br/>(normalized, enforces invariants)"]
+    WM -->|emits event| Bus[(Event Bus)]
+    Bus --> RM1["Read model: order list<br/>(denormalized for this query)"]
+    Bus --> RM2["Read model: analytics<br/>(denormalized differently)"]
+    Query["Query"] --> RM1
+    Query --> RM2
+```
+
+**What they're testing:** whether you'd reach for it as a default or only when a specific read pattern earns it. CQRS is real complexity, a second model, a sync path, eventual consistency between the two, and most services never need it. The tell that you do: a query that's slow or awkward specifically because it doesn't match the write model's shape, not "reads and writes feel different in principle."
+
+**Try it:** take an endpoint you've built that joins across several tables to answer one read, and sketch what a purpose-built read model for that exact query would look like: one row per thing the query actually returns, no joins required.
+{{% /qa %}}
+
+### 41. What is Event Sourcing, and how is it different from just publishing events? {#41}
+
+{{% qa %}}
+**The gist:** most services store current state and publish events as a side effect of changing it. Event sourcing flips that: the event log *is* the state, and "current state" is just what you get from replaying it.
+
+In a normal, state-first design, a row holds the current value and an event is an afterthought emitted alongside the update, easy to lose or get out of sync with the row it described. Event sourcing makes the append-only log of events the single source of truth: every state change is stored as an event, forever, and current state is derived by replaying every event for that entity from the start, or from the last saved snapshot forward.
+
+```go
+type AccountOpened struct{ ID string }
+type FundsDeposited struct{ ID string; Amount int }
+type FundsWithdrawn struct{ ID string; Amount int }
+
+// Current state is a fold over history, not a stored row.
+func Rebuild(events []Event) Account {
+    var acc Account
+    for _, e := range events {
+        acc = acc.Apply(e) // each event type knows how to fold itself in
+    }
+    return acc
+}
+```
+
+That gives you a genuine audit trail for free, every past state is reconstructable, not just the current one, and it makes [the outbox pattern]({{< ref "interview-prep-system-design.md" >}}#25) (Part 4) almost unnecessary for this entity's own changes, since the event log already *is* the durable, ordered record. The costs: replaying a long history gets slow without periodic snapshots, and the event schema itself now has to stay readable forever, since you can never just migrate old rows in place, only ever add new event types.
+
+**What they're testing:** whether you'd reach for it by default or only for entities where the history itself has value: an audit trail, a "how did we get here" replay, or true temporal queries ("what was the balance at close of business last Tuesday"). Most entities don't need their own past; a bank ledger and an order's status history usually do.
+
+**Try it:** take an entity you track today as a single row with an `updated_at`, and write out the sequence of events that would have produced its current value. If that sequence is genuinely useful on its own, meaning someone would actually want to see it and not just the current row, that's the entity worth event-sourcing.
+{{% /qa %}}
+
 ---
 
 ## What to drill first
@@ -745,6 +798,8 @@ graph LR
 **[Microservices Architecture](#microservices-architecture):** worth a full pass rather than a skim if distributed systems and DDD aren't part of your regular work. [24](#24) (bounded contexts) through [31](#31) (hexagonal architecture) are the DDD core, and [32](#32) (database per service) is the natural follow-up once bounded contexts come up.
 
 Rehearse the DDD block, [25](#25) to [31](#31), as one connected story rather than seven isolated facts: ubiquitous language ([30](#30)) surfaces a bounded context ([24](#24)), which owns aggregates ([26](#26)) built from entities and value objects ([25](#25)), which raise domain events ([27](#27)) and persist through repositories ([28](#28)). An anti-corruption layer ([29](#29)) sits at the edges, and hexagonal architecture ([31](#31)) is the structural pattern tying repositories and ports together.
+
+[40](#40) (CQRS) and [41](#41) (event sourcing) are worth pairing with that same story: a domain event ([27](#27)) is what a CQRS read model is built from, and event sourcing is what happens when you stop treating that event as a side effect and make it the source of truth instead.
 
 If you're earlier in your career and short on time, start with [1](#1), [2](#2), and [7](#7). Those three give you enough Kafka vocabulary to follow any follow-up question, and [36](#36) (circuit breakers) is the microservices answer that comes up most often outside a dedicated architecture round.
 

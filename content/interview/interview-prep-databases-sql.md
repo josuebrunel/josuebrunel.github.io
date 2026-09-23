@@ -1,6 +1,6 @@
 ---
 title: "Interview Prep — Part 3: Databases & SQL"
-description: "Database optimization, indexing internals, advanced query techniques, and query planning/storage/concurrency internals: 30 interview Q&As with diagrams."
+description: "Database optimization, indexing internals, advanced query techniques, query planning/storage/concurrency internals, and zero-downtime schema migrations: 32 interview Q&As with diagrams."
 url: "/interview-prep-databases-sql/"
 aliases: ["/interview-prep-sql-advanced/", "/go-interview-prep-sql-advanced/"]
 nodate: true
@@ -12,7 +12,7 @@ mermaid: true
 
 Part 3 of 7 · [Interview Prep](/interview-prep/) · ← Previous: [Part 2 — Coding Patterns](/interview-prep-coding-patterns/) · Next: [Part 4 — System Design & Distributed Systems](/interview-prep-system-design/) →
 
-Most database interviews don't stay at "what's an index." They move fast from schema and indexing into why a specific query is slow, and from there into execution plans, locking, and the storage internals that make Postgres behave the way it does. These 30 questions cover that whole span: the fundamentals you should already have, and the query and internals questions that separate a senior answer from a junior one.
+Most database interviews don't stay at "what's an index." They move fast from schema and indexing into why a specific query is slow, and from there into execution plans, locking, and the storage internals that make Postgres behave the way it does. These 32 questions cover that whole span: the fundamentals you should already have, the query and internals questions that separate a senior answer from a junior one, and how to change a live schema without taking the service down.
 
 **What this assumes:** you can write a `SELECT` with a `JOIN`, a `GROUP BY`, and a `WHERE`, and you know roughly what an index is for. Everything past that gets explained here.
 
@@ -665,6 +665,69 @@ A long-running transaction is the classic silent cause. It holds back the oldest
 
 ---
 
+## Schema Migrations
+
+*Every question above assumes the schema already exists. These two are about changing it while the service stays up.*
+
+### 31. How do you add or change a column on a live table without downtime? {#31}
+
+{{% qa %}}
+**The gist:** the trick is never doing the destructive part and the code deploy at the same moment. Split one "change the schema" step into several small ones, each safe on its own, and let the application code catch up between them.
+
+A schema change and the code deploy that depends on it can't land atomically across a rolling deployment, since old and new code both run against the database at the same time for a while. The fix is the expand/contract pattern: expand the schema in a way both old and new code can tolerate, deploy the code that uses the new shape, then contract the schema once nothing depends on the old shape anymore.
+
+```sql
+-- Expand: add the column nullable, or with a fast default. Both old
+-- and new application code can run against this shape unmodified.
+ALTER TABLE users ADD COLUMN email_verified boolean;
+
+-- Backfill in batches, not one giant UPDATE that locks the whole table.
+UPDATE users SET email_verified = false
+WHERE id BETWEEN 1 AND 10000 AND email_verified IS NULL;
+
+-- Deploy code that writes (and eventually reads) the new column.
+
+-- Contract, once no running code still expects the old default/nullability.
+ALTER TABLE users ALTER COLUMN email_verified SET NOT NULL;
+```
+
+Adding a column is close to free in modern Postgres: `ADD COLUMN` with a constant default no longer rewrites the table (Postgres 11+). What still takes a heavy lock is `SET NOT NULL` without a pre-validated constraint, or any type change that isn't a no-op cast, so those go last, after the data's already backfilled.
+
+**What they're testing:** whether you think in terms of "what does old code do against the new schema, and what does new code do against the old schema" for every step, since both run simultaneously during a rolling deploy. A migration that only makes sense once every pod has the new code isn't safe to run before that deploy finishes.
+
+**Try it:** run `ALTER TABLE ... ADD COLUMN x int NOT NULL DEFAULT 0` on a large table in one Postgres version you have access to, and `ALTER TABLE ... ADD COLUMN x int` followed later by `... SET NOT NULL` in another. Time both, and watch `pg_locks` during each to see which one blocks concurrent writers for longer.
+{{% /qa %}}
+
+### 32. How do you safely rename or drop a column that application code still references? {#32}
+
+{{% qa %}}
+**The gist:** you can't rename or drop a column that old, still-running code reads or writes. So you don't, not directly: you add the new one, run both in parallel until nothing uses the old one, then remove it.
+
+Unlike adding a column, renaming or dropping one is never backward compatible: old code that references the old name breaks the instant it's gone, and during a rolling deploy old code is still running somewhere. The pattern is the same expand/contract shape, stretched over more steps: add the new column, write to both old and new from the application, backfill history, cut reads over to the new column, stop writing the old one, then drop it, each step its own deploy.
+
+```sql
+-- Step 1 (expand): add the new column alongside the old one.
+ALTER TABLE orders ADD COLUMN customer_email text;
+
+-- Step 2: deploy code that writes both old and new columns.
+-- Step 3: backfill the new column from the old one for existing rows.
+UPDATE orders SET customer_email = customer_email_addr
+WHERE customer_email IS NULL;
+
+-- Step 4: deploy code that reads (and only writes) the new column.
+-- Step 5 (contract): once nothing references the old column anymore.
+ALTER TABLE orders DROP COLUMN customer_email_addr;
+```
+
+Renaming a table works the same way, minus the backfill: create a view under the old name pointing at the new table so unmigrated callers keep working, and drop the view once they've moved.
+
+**What they're testing:** whether "just rename it" survives contact with a rolling deploy. It's the question that separates someone who's run a migration locally from someone who's run one against a service that can't go down.
+
+**Try it:** write the five-step sequence above for a rename in your own project's schema, and for each step, name specifically which currently-running code, old, new, or both, it would break if the previous step hadn't finished yet.
+{{% /qa %}}
+
+---
+
 ## What to drill first
 
 If you're earlier in your career and short on time, start with [4](#4) (N+1) and [5](#5) (the slow-query checklist). Those turn up in ordinary backend work every week, long before anyone asks you about internals.
@@ -676,6 +739,8 @@ If you're earlier in your career and short on time, start with [4](#4) (N+1) and
 **[Query Planning, Storage & Concurrency Internals](#query-planning-storage--concurrency-internals):** [27](#27) (join algorithms) and [30](#30) (MVCC and bloat) are the highest-yield for a senior or architect round, since they test whether you understand what the database is doing under an `EXPLAIN ANALYZE` plan rather than just how to read one. [28](#28) is worth rehearsing next to [sharding]({{< ref "interview-prep-system-design.md" >}}#3) (Part 4): interviewers often ask both back to back to see if you conflate them.
 
 If you're short on time otherwise, [25](#25) and [26](#26) pay off fastest. They're the two that turn "the database is slow" into an actual first move.
+
+**[Schema Migrations](#schema-migrations):** short section, high yield. [31](#31) (adding a column live) is the baseline everyone should have cold, and [32](#32) (renaming or dropping one) is the follow-up that actually separates people who've done this against a service that can't go down.
 
 ---
 
