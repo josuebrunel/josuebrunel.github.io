@@ -1,6 +1,6 @@
 ---
 title: "Interview Prep — Part 1: Go Language"
-description: "Go language fundamentals, types & generics, concurrency, memory/GC, error handling, performance, testing, and web/networking: 75 interview Q&As."
+description: "Go language fundamentals, types & generics, concurrency, memory/GC, error handling, performance, testing, web/networking, and common pitfalls & gotchas: 89 interview Q&As."
 url: "/interview-prep-language/"
 aliases: ["/go-interview-prep-language/"]
 nodate: true
@@ -1530,6 +1530,423 @@ Without a pool, every request pays real latency to open a fresh connection, and 
 
 ---
 
+## Common Pitfalls & Gotchas
+
+*These aren't concepts, they're patterns: code that looks fine until you know what to look for. Show up able to spot them in a snippet, not just define them out loud. [79](#79) through [89](#89) lean concurrency, since that's where most of these actually bite in production.*
+
+### 76. What happens when a `:=` inside an `if` or nested block shadows an outer `err`? {#76}
+
+{{% qa %}}
+**The gist:** `:=` declares a new variable whenever at least one name on the left is new to the current scope. Nest it inside an `if` or `for`, and you get a second `err` that shadows the outer one, so the outer `err` never sees the failure.
+
+Go's short variable declaration creates a new variable for any name not already declared in the *current* block. A nested `if`, `for`, or bare `{ }` block is its own scope, so reusing `err` there alongside at least one genuinely new name silently creates an independent `err` instead of reusing the outer one.
+
+```go
+var err error
+if val, err := doThing(); err != nil {
+    // this "err" is a new variable, scoped to the if-block
+    log.Println(err)
+}
+// the outer "err" declared above is still nil here,
+// even though doThing() failed.
+return err // BUG: always nil
+```
+
+**What they're testing:** whether you can spot it without running the code. A shadow-checking linter (`golangci-lint`'s `shadow` check, or `go vet`'s standalone shadow analyzer) catches most of these, but the interview version is a snippet on a whiteboard with no linter to save you.
+
+**Try it:** run the snippet above with a `doThing` that always returns an error, then print the outer `err` right before the `return`. It's `nil`, and the failure vanished into a variable nobody ever reads.
+{{% /qa %}}
+
+### 77. Why does comparing two values with `==` sometimes compile fine but panic at runtime? {#77}
+
+{{% qa %}}
+**The gist:** the compiler only checks comparability for concrete types. Box an uncomparable value, a slice, a map, a func, inside an `interface{}`/`any`, and the same `==` compiles, then panics the moment it actually runs.
+
+Go rejects `==` at compile time between two values of a concrete type that isn't comparable, like two slices. But `interface{}`/`any` is always comparable as far as the compiler's concerned, no matter what's stored inside it. The runtime only discovers the dynamic type is uncomparable when the comparison actually executes, and it doesn't matter whether the offending field is `nil` or populated, comparability is a property of the type, not its value.
+
+```go
+type Event struct {
+    Name string
+    Tags []string // slices aren't comparable
+}
+
+var a, b any = Event{Name: "x"}, Event{Name: "x"}
+fmt.Println(a == b) // compiles fine...
+// panic: runtime error: comparing uncomparable type main.Event
+```
+
+**What they're testing:** whether you know `any` defers the check instead of skipping it. This shows up for real in a map keyed by `any`, or in `assert.Equal`-style test helpers, comparing structs whose shape changed to include a slice or map field.
+
+**Try it:** run the `Event` example above, then delete the `Tags` field entirely and rerun it. It now prints `true`, because the type itself became comparable, nothing about the values changed.
+{{% /qa %}}
+
+### 78. Why doesn't mutating the loop variable in `for _, v := range structs` change the underlying slice? {#78}
+
+{{% qa %}}
+**The gist:** `v` is a fresh copy of each element, made every iteration. Assigning to `v.Field` mutates that copy, not the struct actually sitting in the slice.
+
+`range` copies each element into the loop variable by value. For a slice of structs, that copy is a whole separate struct; changes to it never write back into the slice it came from.
+
+```go
+type Item struct{ Done bool }
+items := []Item{{}, {}, {}}
+
+for _, v := range items {
+    v.Done = true // mutates the copy, not items[i]
+}
+fmt.Println(items[0].Done) // false
+
+for i := range items {
+    items[i].Done = true // mutates the real element
+}
+fmt.Println(items[0].Done) // true
+```
+
+**What they're testing:** whether reaching for the index is automatic once the slice holds structs rather than pointers. It's a compile-clean, no-panic bug, which is exactly why it survives to production.
+
+**Try it:** run both loops back to back and print `items[0].Done` after each one: the by-value loop leaves it `false`, the by-index loop flips it to `true`.
+{{% /qa %}}
+
+### 79. What's the classic loop-variable-capture bug in a goroutine, and how did Go 1.22 change it? {#79}
+
+{{% qa %}}
+**The gist:** before Go 1.22, a `for` loop reused the *same* loop variable on every iteration, so goroutines launched inside it that read that variable later all saw whatever it ended up on, usually the final value. Go 1.22 gives each iteration its own copy instead.
+
+Pre-1.22, `for i, v := range xs` declared `i` and `v` once for the whole loop, and every closure capturing them by reference captured that same shared variable. If the goroutines ran after the loop had already moved on, they'd all read whatever value was there last.
+
+```go
+// The bug, on a pre-1.22 language version:
+for _, v := range []string{"a", "b", "c"} {
+    go func() { fmt.Println(v) }() // often prints "c", "c", "c"
+}
+
+// Fixed on any version: pass v in explicitly.
+for _, v := range []string{"a", "b", "c"} {
+    go func(v string) { fmt.Println(v) }(v)
+}
+```
+
+From Go 1.22 on, the loop variable is scoped fresh per iteration, so the first snippet is safe, but only if the module's `go.mod` declares `go 1.22` or later. The language version in `go.mod` gates the semantics, not just having a new enough toolchain installed. The same root cause shows up without goroutines too: appending `&v` into a slice inside a pre-1.22 loop leaves every pointer aliasing the same variable.
+
+**What they're testing:** whether you know this changed, and where it still doesn't apply: an old `go.mod`, or vendored code nobody's bumped.
+
+**Try it:** run the first snippet in a module pinned to `go 1.21` in `go.mod`, then bump that line to `go 1.22` and rerun with no other code changes. The output goes from "probably c, c, c" to "a, b, c in some order."
+{{% /qa %}}
+
+### 80. Why does calling `time.After` inside a `select` in a loop leak memory? {#80}
+
+{{% qa %}}
+**The gist:** `time.After` starts a new timer and hands back its channel, with nothing left to call `Stop()` on. If the `select` picks the other case first, that timer just sits there until it eventually fires on its own.
+
+`time.After(d)` is shorthand for `time.NewTimer(d).C`, discarding the `*Timer` itself. Call it once outside a loop, as in [Q31](#31), and one leftover timer is nothing to worry about. Call it every iteration of a loop, and every pass allocates a fresh, unstoppable timer, even the passes where a different case wins.
+
+```go
+// LEAK: a new timer every iteration that's never stopped.
+for {
+    select {
+    case msg := <-ch:
+        handle(msg)
+    case <-time.After(5 * time.Second):
+        log.Println("no message in 5s")
+    }
+}
+
+// FIX: one timer, reset instead of recreated.
+t := time.NewTimer(5 * time.Second)
+defer t.Stop()
+for {
+    if !t.Stop() {
+        <-t.C
+    }
+    t.Reset(5 * time.Second)
+    select {
+    case msg := <-ch:
+        handle(msg)
+    case <-t.C:
+        log.Println("no message in 5s")
+    }
+}
+```
+
+**What they're testing:** whether you treat the one-shot use from [Q31](#31) and this loop as the same case. Reviewers pass the one-shot version every day and only catch the loop version once a memory graph starts climbing.
+
+**Try it:** run the leaking loop with `ch` fed fast enough that the timeout case almost never wins, take a heap profile after a few thousand iterations, and look for live `time.Timer` allocations that never got the chance to fire or be stopped.
+{{% /qa %}}
+
+### 81. What actually breaks when you copy a struct that contains a `sync.Mutex`? {#81}
+
+{{% qa %}}
+**The gist:** the copy gets its own, independent `Mutex`, initialized to whatever lock state the original happened to be in at the moment of the copy. Two goroutines now think they're protecting the same data with two different locks.
+
+A `sync.Mutex` is a value type with internal state (locked or not, plus a queue of waiters). Copying a struct that embeds it copies that state byte-for-byte, producing a second lock with no relationship to the first. Any code relying on "everyone locks the same mutex before touching this data" breaks the moment one goroutine ends up holding a copy instead of the original.
+
+```go
+type Counter struct {
+    mu sync.Mutex
+    n  int
+}
+
+func (c Counter) Inc() { // BUG: value receiver copies the Mutex
+    c.mu.Lock()
+    defer c.mu.Unlock()
+    c.n++ // also mutates the copy, not the original
+}
+```
+
+[`go vet`](#67) flags this by default, the "copylocks" check, the moment a type containing a `sync.Mutex` is passed, returned, or ranged over by value.
+
+**What they're testing:** whether you'd catch it from the receiver alone, before even reading the method body. A value receiver on a type with a `sync.Mutex` field is close to always wrong.
+
+**Try it:** run `go vet` on the snippet above and read the "passes lock by value" warning it prints on the `Inc` method line, then change the receiver to `*Counter` and rerun to see the warning disappear.
+{{% /qa %}}
+
+### 82. What causes `fatal error: all goroutines are asleep - deadlock!` on an unbuffered channel? {#82}
+
+{{% qa %}}
+**The gist:** an unbuffered channel has no storage. A send blocks until some other goroutine is ready to receive at that exact instant, and a receive blocks until a send is ready. If nothing else is running to be that other side, both ends wait forever.
+
+Sends and receives on an unbuffered channel happen at the same instant, handed directly from sender to receiver. If the only goroutine currently running tries to send (or receive) with no other goroutine scheduled to do the matching operation, the runtime detects that every goroutine is blocked and kills the whole program rather than hang silently forever.
+
+```go
+func main() {
+    ch := make(chan int)
+    ch <- 1 // BUG: nothing is receiving, and never will be
+    fmt.Println(<-ch)
+}
+// fatal error: all goroutines are asleep - deadlock!
+```
+
+The fix is either to receive from another goroutine, or to give the channel a buffer of at least 1 so the send doesn't need a receiver standing by.
+
+**What they're testing:** whether you can tell this apart from a goroutine leak ([Q26](#26)). This one kills the whole process immediately and loudly; a leak quietly wastes one goroutine forever while the rest of the program keeps running.
+
+**Try it:** run the snippet above and read the deadlock message, then wrap the send in `go func() { ch <- 1 }()` and rerun to see it complete normally once a second goroutine exists to do the receive.
+{{% /qa %}}
+
+### 83. Why doesn't `recover()` catch a panic when it's called from a function the deferred call invokes? {#83}
+
+{{% qa %}}
+**The gist:** `recover()` only does anything when it's called directly by the function running as the deferred call, at the top of that function's own body. Call it one function deeper, and it's a no-op, and the panic keeps unwinding.
+
+`recover` checks both that the goroutine is currently panicking and that the calling function is the one directly deferred. Wrap that check inside a helper and call the helper from the `defer`, and `recover` runs one frame too deep to see the panic. It returns `nil`, and the panic continues up the stack untouched.
+
+```go
+func safeHelper() {
+    recover() // too deep: this call site never sees the panic
+}
+
+func run() {
+    defer safeHelper() // does NOT stop the panic
+    panic("boom")
+}
+
+func runFixed() {
+    defer func() {
+        recover() // correct: called directly by the deferred func
+    }()
+    panic("boom")
+}
+```
+
+**What they're testing:** whether you know `recover` cares about the call site, not just "was recover called somewhere during unwinding." This is the single most common reason a "we recover from panics everywhere" middleware turns out not to.
+
+**Try it:** call `run()` and watch the panic crash the program despite the `defer`, then call `runFixed()` and watch it recover cleanly.
+{{% /qa %}}
+
+### 84. Why is `fatal error: concurrent map writes` unrecoverable, unlike a normal panic? {#84}
+
+{{% qa %}}
+**The gist:** Go's built-in `map` isn't safe for concurrent writes, and the runtime detects the corruption at the moment it happens and calls `fatal`, not `panic`. Fatal errors can't be caught by `recover`, on purpose: the runtime no longer trusts its own state enough to keep going.
+
+Writing to a `map` from two goroutines at once (or a write racing a read) corrupts the map's internal structure. The runtime's concurrent-access detector treats this as unrecoverable and throws a fatal error rather than a normal panic, specifically so a stray `recover()` somewhere can't paper over data that might already be broken.
+
+```go
+m := make(map[int]int)
+for i := 0; i < 100; i++ {
+    go func(i int) {
+        m[i] = i // BUG: concurrent writes, no synchronization
+    }(i)
+}
+// fatal error: concurrent map writes
+// (recover() anywhere in the program will not stop this)
+```
+
+The fix is a `sync.Mutex`/`sync.RWMutex` around the map, or `sync.Map` for the specific access patterns it's built for: mostly reads, or disjoint keys per goroutine.
+
+**What they're testing:** the word "fatal," specifically, versus "panic." If someone says "we wrap goroutines in `recover`, so we're safe," this is the question that finds out whether they mean it or just believe it.
+
+**Try it:** run the snippet above under `go run -race` and watch it report the race before the fatal error even fires, then wrap `m[i] = i` in a shared `sync.Mutex` and confirm both the race and the fatal error disappear.
+{{% /qa %}}
+
+### 85. If a spawned goroutine panics, why does the whole process crash even though the caller wrapped its own code in `recover`? {#85}
+
+{{% qa %}}
+**The gist:** `recover` only works within the goroutine that's currently panicking. A `recover` sitting in the caller's stack frame is on a different goroutine's stack entirely once `go f()` has actually started running, and can't see across that boundary.
+
+Each goroutine has its own stack, and `recover` can only intercept a panic unwinding that same stack. A goroutine that panics with no deferred `recover` of its own runs off the end of its stack, and the Go runtime terminates the entire process, treating an unhandled panic as the whole program being in an invalid state, not just one goroutine.
+
+```go
+func main() {
+    defer func() {
+        recover() // does NOT protect the goroutine below
+    }()
+
+    go func() {
+        panic("boom") // this crashes the whole process
+    }()
+
+    time.Sleep(time.Second)
+}
+```
+
+Every goroutine that can panic, and that you don't want taking the process down with it, needs its own `defer func() { recover() }()`, typically wrapped once in a helper that every worker pool or fan-out spawns through.
+
+**What they're testing:** whether "we have a recover in main" is treated as a safety net. It very much is not, the moment work moves onto other goroutines.
+
+**Try it:** run the snippet above and watch the whole program die despite the top-level `recover`, then move an equivalent `defer recover()` inside the goroutine's own function and watch the process survive instead.
+{{% /qa %}}
+
+### 86. Why does locking a `sync.Mutex` a second time on the same goroutine hang instead of erroring? {#86}
+
+{{% qa %}}
+**The gist:** Go's `sync.Mutex` isn't reentrant. There's no owner tracking, so the runtime can't tell "the same goroutine is asking again" from "a different goroutine wants in." It just blocks the second `Lock()` call until the first one unlocks, which never happens.
+
+A reentrant lock, which some other languages provide, lets the thread already holding it acquire it again without blocking. Go deliberately left that out: `Lock()` always blocks if the mutex is currently held, full stop. Calling it twice from the same call stack, most often one method that locks calling another exported method that also locks, deadlocks that goroutine forever.
+
+```go
+type Store struct {
+    mu   sync.Mutex
+    data map[string]int
+}
+
+func (s *Store) Get(k string) int {
+    s.mu.Lock()
+    defer s.mu.Unlock()
+    return s.data[k]
+}
+
+func (s *Store) GetOrDefault(k string, def int) int {
+    s.mu.Lock()
+    defer s.mu.Unlock()
+    if v := s.Get(k); v != 0 { // BUG: Get() locks again, deadlock
+        return v
+    }
+    return def
+}
+```
+
+The fix is an unexported, lock-free helper that both public methods call after locking once, instead of one public method calling another.
+
+**What they're testing:** whether you spot the deadlock from the call graph alone, since nothing here looks unusual line by line. It only shows up as "this request just hangs forever" in production.
+
+**Try it:** call `GetOrDefault` on the snippet above and watch it hang, then refactor `Get`'s body into an unexported `get` with no locking, call that from both public methods, and confirm it returns immediately.
+{{% /qa %}}
+
+### 87. Why can code that assumes `select` checks cases in order break under load? {#87}
+
+{{% qa %}}
+**The gist:** when more than one `case` in a `select` is ready at the same time, Go picks among them pseudo-randomly, not top to bottom. Code that lists a cancellation check first, assuming that makes it "checked first," only gets that guarantee when it's the *only* case ready.
+
+This random choice is deliberate, so listing cases in a particular order can never express priority. Under light load, cases are rarely ready at the same instant, so the bug hides. Under load, a fast-filling channel and a ready `ctx.Done()` become ready together, and the "priority" case only wins about half the time.
+
+```go
+select {
+case <-ctx.Done():
+    return ctx.Err() // NOT guaranteed to win even if ready first
+case v := <-ch:
+    process(v)
+}
+
+// If cancellation genuinely needs priority, check it explicitly first:
+select {
+case <-ctx.Done():
+    return ctx.Err()
+default:
+}
+select {
+case <-ctx.Done():
+    return ctx.Err()
+case v := <-ch:
+    process(v)
+}
+```
+
+**What they're testing:** whether you'd catch this in review versus only after it ships and someone reports "shutdown sometimes processes one more item than it should." The bug is invisible in a quiet test environment and shows up first under production traffic.
+
+**Try it:** put a value on `ch` and cancel `ctx` before entering a bare `select` between them, run it a few hundred times in a loop, and count how often each case wins. It won't be 100% either way.
+{{% /qa %}}
+
+### 88. What happens when a downstream call uses `context.Background()` instead of the caller's context? {#88}
+
+{{% qa %}}
+**The gist:** `context.Background()` is a context that's never cancelled and has no deadline. Pass it instead of forwarding the one you were given, and that call becomes deaf to the caller's timeout and cancellation, no matter what happens upstream.
+
+`context.Context` values form a tree, and cancelling a parent cancels every context derived from it. Swap in `context.Background()` anywhere along that chain, most often inside a "fire and forget" goroutine, a background job, or a well-meaning middleware that wanted a "clean" context, and everything below that point is disconnected from the original request's cancellation and deadline entirely.
+
+```go
+func handler(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+    go func() {
+        // BUG: context.Background() ignores the request's cancellation
+        // and outlives the request that spawned it.
+        processAsync(context.Background(), r.Body)
+    }()
+}
+
+// FIX: derive from ctx, even for background work, and give it
+// its own bound instead of inheriting the request's short deadline.
+go func() {
+    bgCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), time.Minute)
+    defer cancel()
+    processAsync(bgCtx, r.Body)
+}()
+```
+
+`context.WithoutCancel` (Go 1.21+) is the deliberate way to keep a context's values while detaching it from the parent's cancellation, which is different from reaching for `context.Background()` and losing everything, values included.
+
+**What they're testing:** whether "just pass `context.Background()`, it compiles" is a reflex you've had to unlearn. It's the most common context mistake, because the compiler never complains about it.
+
+**Try it:** cancel a parent `ctx` and confirm a call using `context.Background()` downstream keeps running past that cancellation, then swap it for `context.WithoutCancel(ctx)` and confirm it still keeps running but now also respects an explicit timeout you set on it directly.
+{{% /qa %}}
+
+### 89. What happens when `mu.Unlock()` is never reached because of an early return or a panic? {#89}
+
+{{% qa %}}
+**The gist:** `Unlock()` doesn't run itself, someone has to call it, and if the code path that was supposed to call it exits early, the lock stays held forever. Every future caller that tries to `Lock()` it blocks for good.
+
+Writing `mu.Lock()` followed later by a plain `mu.Unlock()` call assumes every path between them reaches that line. An early `return`, a `continue`, or a panic partway through skips it, and since a `sync.Mutex` has no timeout and no owner to detect abandonment, nothing ever unblocks the next caller.
+
+```go
+func process(mu *sync.Mutex, items []Item) error {
+    mu.Lock()
+    for _, item := range items {
+        if err := validate(item); err != nil {
+            return err // BUG: mu.Unlock() below is never reached
+        }
+    }
+    mu.Unlock()
+    return nil
+}
+
+// FIX: defer runs on every exit path, including panics.
+func process(mu *sync.Mutex, items []Item) error {
+    mu.Lock()
+    defer mu.Unlock()
+    for _, item := range items {
+        if err := validate(item); err != nil {
+            return err
+        }
+    }
+    return nil
+}
+```
+
+**What they're testing:** whether `defer mu.Unlock()` immediately after `Lock()` is a reflex, not an afterthought added once someone hits the bug. Every function with more than one exit path and a manual `Unlock()` is a suspect.
+
+**Try it:** call the buggy `process` with an item that fails validation, then try to `Lock()` the same mutex from anywhere else afterward and watch it block forever.
+{{% /qa %}}
+
+---
+
 ## What to drill first
 
 **[Concurrency Deep Dive](#concurrency-deep-dive)** is where Go interviews actually happen. If you only drill one section, drill this one. [22](#22) (the GMP scheduler), [26](#26) (goroutine leaks) and [35](#35) (worker pools) come up again and again, and [35](#35) usually arrives as "write it on the board" rather than "describe it."
@@ -1539,6 +1956,8 @@ Without a pool, every request pays real latency to open a fresh connection, and 
 **[Memory Management & GC](#memory-management--gc)** and **[Performance & Profiling](#performance--profiling)** are the senior half. You don't need the internals to do the job well, but [36](#36) (escape analysis) and [41](#41) (string concatenation) change how you write ordinary code, so they pay off earlier than the rest.
 
 **[Error Handling & Idioms](#error-handling--idioms)**, **[Testing & Tooling](#testing--tooling)** and **[Go Web, Networking & Services](#go-web-networking--services)** are the sections most people under-prepare, which makes them cheap points. A specific answer on [65](#65) (testing time) or [75](#75) (connection pooling) lands better than a vague one on GC internals.
+
+**[Common Pitfalls & Gotchas](#common-pitfalls--gotchas)** rewards recognition speed, not depth. [79](#79) (loop capture) and [76](#76) (shadowed err) are the two most likely to appear as an unannounced "what's wrong with this snippet." [84](#84) (concurrent map writes) and [85](#85) (a goroutine's panic taking down the whole process) are the two most likely to have already happened to you in production, whether you clocked the cause or not.
 
 If you're earlier in your career and short on time, start with [8](#8), [9](#9), [10](#10), [26](#26) and [41](#41). Those five turn into bugs you will actually write.
 
