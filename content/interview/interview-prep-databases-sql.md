@@ -1,22 +1,22 @@
 ---
-title: "Interview Prep — Part 4: Advanced SQL"
-description: "Window functions, CTEs, join algorithms, partitioning, JSON querying, and storage internals: 20 interview Q&As with diagrams."
-url: "/interview-prep-sql-advanced/"
-aliases: ["/go-interview-prep-sql-advanced/"]
+title: "Interview Prep — Part 3: Databases & SQL"
+description: "Database optimization, indexing internals, advanced query techniques, and query planning/storage/concurrency internals: 30 interview Q&As with diagrams."
+url: "/interview-prep-databases-sql/"
+aliases: ["/interview-prep-sql-advanced/", "/go-interview-prep-sql-advanced/"]
 nodate: true
 hidemeta: true
 nofeed: true
-mermaid: true
 quizmode: true
+mermaid: true
 ---
 
-Part 4 of 7 · [Interview Prep](/interview-prep/) · ← Previous: [Part 3 — Databases & System Design](/interview-prep-databases-systems/) · Next: [Part 5 — Kafka & Microservices](/interview-prep-kafka-microservices/) →
+Part 3 of 7 · [Interview Prep](/interview-prep/) · ← Previous: [Part 2 — Coding Patterns](/interview-prep-coding-patterns/) · Next: [Part 4 — System Design & Distributed Systems](/interview-prep-system-design/) →
 
-Most SQL interviews don't stop at "write me a join." They stop at "why was that slow?" This part is the 20 questions that live past the join: the ones where you have to say what the database is actually doing, not just what you asked it for.
+Most database interviews don't stay at "what's an index." They move fast from schema and indexing into why a specific query is slow, and from there into execution plans, locking, and the storage internals that make Postgres behave the way it does. These 30 questions cover that whole span: the fundamentals you should already have, and the query and internals questions that separate a senior answer from a junior one.
 
 **What this assumes:** you can write a `SELECT` with a `JOIN`, a `GROUP BY`, and a `WHERE`, and you know roughly what an index is for. Everything past that gets explained here.
 
-**What you should be able to do after:** look at a slow query and have a real first guess, and defend it when someone pushes back.
+**What you should be able to do after:** diagnose a slow query with a real method instead of a guess, and know when to reach for a window function, a partial index, or partitioning instead of brute force.
 
 Every answer opens with **The gist**, one or two plain sentences. If the gist is all you have time for, that's still worth more than a half-remembered detail. The full answer underneath is what you say when they ask you to go deeper.
 
@@ -24,11 +24,244 @@ Every answer opens with **The gist**, one or two plain sentences. If the gist is
 
 {{< quizbar >}}
 
+## Databases & Database Optimization
+
+*Questions 1 to 5 are table stakes for any backend role. 6 to 10 come up in senior rounds even when the job description never mentions databases.*
+
+### 1. What do the four ACID properties guarantee, with a concrete example of a violation? {#1}
+
+{{% qa %}}
+**The gist:** four promises a database makes about transactions. The one interviewers actually probe is atomicity: a transfer that debits one account then crashes can't leave the money nowhere.
+
+**Atomicity:** a transaction is all-or-nothing, so no partial writes are ever visible. **Consistency:** a transaction moves the database from one valid state to another, respecting constraints and invariants. **Isolation:** concurrent transactions don't see each other's uncommitted intermediate state. **Durability:** once committed, a write survives a crash, typically via a write-ahead log flushed to disk before the commit is acknowledged.
+
+Violation example: without atomicity, a funds transfer that debits one account but crashes before crediting the other leaves money vanished.
+
+**What they're testing:** whether you can give a violation example. Reciting the four words is the easy half, and they'll ask for the example either way.
+{{% /qa %}}
+
+### 2. Normalization vs. denormalization: what's the trade-off, and when would you denormalize? {#2}
+
+{{% qa %}}
+**The gist:** normalize to store each fact once, denormalize to skip joins at read time. You're trading write-time safety for read-time speed.
+
+Normalization (3NF and beyond) splits data into related tables joined by foreign keys so each fact is stored once. That saves storage and avoids update anomalies, at the cost of needing joins to read.
+
+Denormalization intentionally duplicates or pre-joins data to avoid those joins at read time: cheaper reads, but it risks write-time inconsistency and costs extra storage.
+
+Denormalize for read-heavy, write-light workloads, for example a precomputed "order summary" table instead of joining orders, items, and users on every page load.
+{{% /qa %}}
+
+### 3. Why does column order matter in a composite index, and what makes an index "covering"? {#3}
+
+{{% qa %}}
+**The gist:** an index on `(a, b, c)` only helps when your `WHERE` starts at `a`. It's a phone book sorted by last name then first name: useless if all you know is the first name.
+
+A composite index on `(a, b, c)` is only useful for queries filtering on a left prefix of those columns. It serves `WHERE a = ?` and `WHERE a = ? AND b = ?`, but not `WHERE b = ?` alone. Put the most selective or most commonly-filtered-alone column first.
+
+```sql
+CREATE INDEX idx_events ON events (tenant_id, created_at, kind);
+
+-- Uses the index: filters start at the leading column.
+SELECT * FROM events WHERE tenant_id = 7;
+SELECT * FROM events WHERE tenant_id = 7 AND created_at > now() - '1d';
+
+-- Does not use it: skips the leading column entirely.
+SELECT * FROM events WHERE created_at > now() - '1d';
+```
+
+A covering index additionally includes every column a query needs, via `INCLUDE` or as a composite over all selected and filtered columns, so the database answers the query entirely from the index without touching the table. That's an index-only scan.
+
+**Try it:** create the two-column index above on a scratch table, then run `EXPLAIN` on a query that filters only on the second column. Watch the planner ignore the index and fall back to a sequential scan.
+{{% /qa %}}
+
+### 4. What is the N+1 query problem, and how do you fix it? {#4}
+
+{{% qa %}}
+**The gist:** you fetch 100 rows, then loop and fire one more query per row. That's 101 queries where 2 would do. It's almost always an ORM lazy-load sitting inside a loop.
+
+It happens when code fetches N parent records with one query, then loops over them issuing one more query per record for related data.
+
+```go
+// N+1: one query for orders, then one per order.
+orders := db.Query(`SELECT id FROM orders WHERE user_id = $1`, uid)
+for _, o := range orders {
+    o.Items = db.Query(`SELECT * FROM items WHERE order_id = $1`, o.ID)
+}
+
+// Fixed: one follow-up query for every order at once.
+items := db.Query(`SELECT * FROM items WHERE order_id = ANY($1)`, ids)
+// then group items by order_id in memory
+```
+
+The fix is either to eager-load the association up front with a `JOIN`, or to batch the follow-up lookups into a single `WHERE parent_id IN (...)` query and group the results in memory.
+
+**What they're testing:** whether you'd spot it in a code review. The query itself is fast, which is exactly why it hides: nothing shows up in a slow-query log.
+
+**Try it:** turn on query logging (`log_statement = 'all'` in Postgres, or your ORM's debug logger) for one API request that renders a list with related records, and count how many queries actually ran.
+{{% /qa %}}
+
+### 5. You're handed a slow production query: what do you check, in order? {#5}
+
+{{% qa %}}
+**The gist:** work outside in. First ask whether it's really one slow query or a hundred fast ones. Then check the plan, the index, the statistics, and the connection pool before you blame the database.
+
+1. `EXPLAIN ANALYZE` it. Is it doing a sequential scan on a large table it shouldn't be?
+2. Confirm an index exists on the filtered and joined columns, and that its leading columns match the query.
+3. Check whether it's actually N+1 queries in disguise from the calling code, not one slow query.
+4. Check that table statistics are fresh and the table isn't bloated (`ANALYZE` and `VACUUM` in Postgres).
+5. Check the connection pool isn't saturated. Queries queueing for a connection look slow even when the query itself is fine (see [connection pooling]({{< ref "interview-prep-language.md" >}}#75) in Part 1).
+6. For a genuinely hot read path, reach for [caching]({{< ref "interview-prep-system-design.md" >}}#10) (Part 4) or a read replica ([Q10](#10)) before reaching for a bigger box.
+
+**What they're testing:** whether you have a method or you guess. Saying "I'd add an index" first is the answer they're hoping you don't give.
+
+**Try it:** take a real query from your own app, run `EXPLAIN (ANALYZE, BUFFERS)` on it, and work through the checklist above line by line before you touch an index.
+{{% /qa %}}
+
+### 6. How does a B-tree index make lookups fast, and when does an index *not* help? {#6}
+
+{{% qa %}}
+**The gist:** it's a sorted, balanced tree, so a lookup takes a handful of hops instead of reading every row. It stops helping the moment the column barely narrows anything down.
+
+A B-tree keeps keys sorted in a balanced tree, so a lookup walks from root to leaf in O(log n) comparisons instead of scanning every row. Leaf nodes are linked in sorted order, which makes range scans (`BETWEEN`, `ORDER BY`) cheap too. Each leaf entry points back to the actual row.
+
+An index does *not* help when:
+
+- The column has low selectivity. A boolean flag on a huge table matches half the rows anyway, so the planner rightly prefers a sequential scan.
+- The query wraps the column in a function (`WHERE LOWER(email) = ...`) without a matching expression index.
+- The pattern has a leading wildcard. `LIKE '%foo'` can't use a plain B-tree, it needs a trigram or full-text index.
+- The table is small enough that a full scan is simply cheaper than random index lookups.
+
+```mermaid
+graph TD
+    Root["50"] --> L["10 | 30"]
+    Root --> R["70 | 90"]
+    L --> LL["1, 5, 8"]
+    L --> LM["12, 15, 22"]
+    L --> LR["35, 40, 45"]
+    R --> RL["55, 60, 65"]
+    R --> RR["75, 85, 99"]
+    LL -.leaf link.-> LM -.leaf link.-> LR -.leaf link.-> RL -.leaf link.-> RR
+```
+
+**Try it:** run `EXPLAIN` on `WHERE email = 'x'` versus `WHERE LOWER(email) = 'x'` on a table with a plain index on `email`. The second one won't use the index unless you build one on the expression itself.
+{{% /qa %}}
+
+### 7. How do you read a query execution plan to diagnose a slow query? {#7}
+
+{{% qa %}}
+**The gist:** `EXPLAIN ANALYZE` runs the query and shows what the planner chose plus real timings. The single most useful thing on the page is estimated rows versus actual rows.
+
+Key things to check:
+
+- **Scan type per node.** `Seq Scan` is a full table scan, `Index Scan` uses an index then fetches the row, `Index Only Scan` is answered entirely from the index, `Bitmap Heap Scan` combines several index matches before hitting the table.
+- **Cost estimate**, shown as startup..total in arbitrary planner units.
+- **Estimated rows vs. actual rows**, which matters most. A big divergence means the table's statistics are stale, so the planner is guessing wrong, and a wrong guess is what makes it pick a bad plan. The fix is often just `ANALYZE table_name`.
+
+```sql
+-- No index on customer_id:
+EXPLAIN ANALYZE SELECT * FROM orders WHERE customer_id = 42;
+
+Seq Scan on orders
+  (cost=0.00..18334.00 rows=12 width=120)
+  (actual time=0.02..142.30 rows=8 loops=1)
+  Filter: (customer_id = 42)
+  Rows Removed by Filter: 999992
+
+-- After: CREATE INDEX idx_orders_customer ON orders(customer_id);
+Index Scan using idx_orders_customer on orders
+  (cost=0.42..8.44 rows=12 width=120)
+  (actual time=0.015..0.021 rows=8 loops=1)
+  Index Cond: (customer_id = 42)
+```
+
+**What they're testing:** whether you read plans or just run them. "Rows Removed by Filter: 999992" is the line that tells the whole story, and they want to see you find it.
+
+**Try it:** run `EXPLAIN ANALYZE` on a query with no index, note the estimated versus actual row counts, add the index, and run it again to see both numbers converge.
+{{% /qa %}}
+
+### 8. Explain the transaction isolation levels and the anomalies each one prevents. {#8}
+
+{{% qa %}}
+**The gist:** four levels, each preventing more of the odd things concurrent transactions can see. Most apps sit on Read Committed and never think about it again.
+
+Each stricter level prevents more of the read anomalies that come from concurrent transactions, at the cost of more locking and lower concurrency:
+
+| Isolation level | Dirty read | Non-repeatable read | Phantom read |
+|---|---|---|---|
+| Read Uncommitted | possible | possible | possible |
+| Read Committed | prevented | possible | possible |
+| Repeatable Read | prevented | prevented | possible (Postgres's snapshot-based RR also prevents phantoms) |
+| Serializable | prevented | prevented | prevented |
+
+A **dirty read** sees another transaction's uncommitted write. A **non-repeatable read** re-reads the same row within one transaction and gets a different value, because another transaction committed a change in between. A **phantom read** re-runs the same filtered query and sees a different *set* of rows, because another transaction inserted or deleted matching rows in between.
+
+Most applications default to Read Committed. Serializable is reserved for invariants that absolutely cannot tolerate any anomaly, since it costs the most concurrency, often via retries on serialization failure.
+
+**Try it:** open two `psql` sessions, set one to `REPEATABLE READ` and read a row, have the other session update and commit that row, then re-read it in the first session and watch it not change.
+{{% /qa %}}
+
+### 9. Optimistic vs. pessimistic locking, and how does a deadlock happen? {#9}
+
+{{% qa %}}
+**The gist:** pessimistic locks the row up front. Optimistic doesn't lock at all, it just checks at write time that nobody else changed it. A deadlock is two transactions each holding what the other is waiting for.
+
+Pessimistic locking acquires a lock before touching a row (`SELECT ... FOR UPDATE`) so nothing else can modify it until you're done. Safe under contention, but it reduces concurrency and can deadlock.
+
+Optimistic locking reads a version or timestamp column, does the work, then writes conditionally on that version being unchanged (`WHERE version = read_version`), retrying on a mismatch. Better throughput when contention is low, wasted work when it's high.
+
+A deadlock happens when two transactions each hold a lock the other is waiting for, in opposite order: a circular wait.
+
+```sql
+-- T1                          -- T2
+BEGIN;                         BEGIN;
+UPDATE accounts                UPDATE accounts
+  SET balance = balance - 10     SET balance = balance - 10
+  WHERE id = 1;                  WHERE id = 2;
+
+UPDATE accounts                UPDATE accounts
+  SET balance = balance + 10     SET balance = balance + 10
+  WHERE id = 2;                  WHERE id = 1;
+-- T1 waits on T2's lock, T2 waits on T1's. Circular wait.
+-- The database kills one of them as the deadlock victim.
+```
+
+The database's deadlock detector picks a victim, rolls it back with an error, and the application must retry it.
+
+**What they're testing:** the fix, which is always to acquire locks on rows in a consistent global order. Sort the IDs before you lock them and the cycle can't form.
+
+**Try it:** open two `psql` sessions and run the T1/T2 statements above in the interleaved order shown. Postgres will pick a victim and return `deadlock detected` in one of them.
+{{% /qa %}}
+
+### 10. Explain leader-follower replication and replication lag. {#10}
+
+{{% qa %}}
+**The gist:** writes go to one leader, followers copy the changes and serve reads. Copying takes time, so a read right after your own write can still show the old value.
+
+Writes go to the leader (primary), which streams its change log (for example Postgres's WAL) to one or more followers (replicas), which apply the changes and can serve reads. This gives horizontal read scaling and a hot standby for failover.
+
+Because replication is usually asynchronous, followers apply changes with a delay, called replication lag, so a read against a follower immediately after a write to the leader can return stale data.
+
+This bites hardest on "read your own write" right after an update. Either route that specific read to the leader, or use synchronous replication for stronger consistency at a latency cost. See also [sharding and partitioning]({{< ref "interview-prep-system-design.md" >}}#3) (Part 4), which splits data across nodes rather than copying all of it to each.
+
+```mermaid
+graph TD
+    App[App] -->|writes| Leader[("Leader / Primary")]
+    Leader -->|"WAL stream, async"| F1[("Follower 1")]
+    Leader -->|"WAL stream, async"| F2[("Follower 2")]
+    App -.->|"reads, may lag"| F1
+    App -.->|"reads, may lag"| F2
+```
+{{% /qa %}}
+
+
+---
+
 ## Advanced Query Techniques
 
-*Questions 1 to 7 are everyday SQL you can reasonably be expected to know now. 8 to 10 are where a senior screen starts.*
+*Questions 11 to 17 are everyday SQL you can reasonably be expected to know now. 18 to 20 are where a senior screen starts.*
 
-### 1. What's the difference between `UNION` and `UNION ALL`, and why does it matter for performance? {#1}
+### 11. What's the difference between `UNION` and `UNION ALL`, and why does it matter for performance? {#11}
 
 {{% qa %}}
 **The gist:** `UNION` removes duplicates, and removing duplicates means sorting or hashing every row first. `UNION ALL` just glues the two result sets together and skips all that work.
@@ -45,7 +278,7 @@ SELECT id, 'closed' AS bucket FROM orders WHERE status = 'closed';
 **Try it:** run the same query with `UNION` instead of `UNION ALL` and diff the row counts. Since the two branches can't overlap here, the counts should match, that's the dedup pass doing nothing but costing you a sort.
 {{% /qa %}}
 
-### 2. `EXISTS`, `IN`, or a `JOIN` for an existence check: does it matter which one you pick? {#2}
+### 12. `EXISTS`, `IN`, or a `JOIN` for an existence check: does it matter which one you pick? {#12}
 
 {{% qa %}}
 **The gist:** usually the planner turns all three into the same plan, so speed isn't the real difference. `NULL` is. One `NULL` inside an `IN` subquery can silently wipe out your entire result.
@@ -75,7 +308,7 @@ WHERE NOT EXISTS (
 **Try it:** create a tiny `customers` table with one row where `referrer_id` is `NULL`, then run both queries above against it. The `NOT IN` version returns 0 rows no matter what's in `orders`, the `NOT EXISTS` version doesn't.
 {{% /qa %}}
 
-### 3. What does `INSERT ... ON CONFLICT DO UPDATE` (upsert) buy you over a separate `SELECT` then `INSERT`/`UPDATE`? {#3}
+### 13. What does `INSERT ... ON CONFLICT DO UPDATE` (upsert) buy you over a separate `SELECT` then `INSERT`/`UPDATE`? {#13}
 
 {{% qa %}}
 **The gist:** check-then-write is a race. Two requests both see "no row here" and both try to insert. `ON CONFLICT` collapses the check and the write into one step the database won't let anything slip between.
@@ -95,7 +328,7 @@ RETURNING *;
 **Try it:** open two `psql` sessions and run the same `INSERT ... ON CONFLICT DO UPDATE` for the same `user_id` at the same time. One blocks briefly on the row lock, then both succeed, no duplicate and no error, which is the difference from a plain `INSERT` you'd otherwise have to catch a unique-violation from.
 {{% /qa %}}
 
-### 4. What's a `LATERAL` join, and when do you actually need one? {#4}
+### 14. What's a `LATERAL` join, and when do you actually need one? {#14}
 
 {{% qa %}}
 **The gist:** a normal join's right side can't look at the row on the left. `LATERAL` lets it, which is what turns "top 3 per customer" into one readable query.
@@ -115,7 +348,7 @@ CROSS JOIN LATERAL (
 ```
 {{% /qa %}}
 
-### 5. Full-text search with `tsvector`/`tsquery` vs. a `LIKE '%term%'` scan: what's the actual difference? {#5}
+### 15. Full-text search with `tsvector`/`tsquery` vs. a `LIKE '%term%'` scan: what's the actual difference? {#15}
 
 {{% qa %}}
 **The gist:** a leading `%` rules out the index, so the database reads every row in the table. Full-text search indexes the words themselves, so the same search becomes a lookup.
@@ -139,7 +372,7 @@ WHERE to_tsvector('english', body)
 **Try it:** `EXPLAIN` a `WHERE body LIKE '%database%'` query on a table with 100k or more rows, then `EXPLAIN` the `to_tsvector` version with the GIN index in place. The first shows `Seq Scan`, the second shows `Bitmap Index Scan`.
 {{% /qa %}}
 
-### 6. What does `pg_trgm` add on top of full-text search? {#6}
+### 16. What does `pg_trgm` add on top of full-text search? {#16}
 
 {{% qa %}}
 **The gist:** full-text search matches whole words, so a typo matches nothing. Trigrams match three-letter chunks, which is how you catch "Jonh" when the row says "John."
@@ -151,7 +384,7 @@ Use full-text search for "find documents about this topic" and trigram for "find
 **Try it:** `CREATE EXTENSION pg_trgm;`, add `CREATE INDEX idx_customers_name_trgm ON customers USING GIN (name gin_trgm_ops);`, then run `SELECT name FROM customers WHERE name % 'Jonh Smith';` and watch it match "John Smith" even though the spelling's wrong.
 {{% /qa %}}
 
-### 7. Postgres changed how CTEs behave around version 12: what changed, and why does it matter? {#7}
+### 17. Postgres changed how CTEs behave around version 12: what changed, and why does it matter? {#17}
 
 {{% qa %}}
 **The gist:** before Postgres 12 a CTE was a wall the planner couldn't see through. Now it's inlined by default, so the same query can be fast on one server and slow on another for no reason you can see in the SQL.
@@ -163,7 +396,7 @@ That version difference is worth knowing because it's a real production surprise
 **Try it:** on Postgres 12 or later, run the same CTE-heavy query twice: once as-is, once with the CTE marked `MATERIALIZED`. `EXPLAIN` both and watch the second one refuse to push the outer `WHERE` down into the CTE, which is the pre-12 behavior forced back on.
 {{% /qa %}}
 
-### 8. How do window functions differ from `GROUP BY`, and what does `ROW_NUMBER`/`RANK`/`LAG` give you that aggregation can't? {#8}
+### 18. How do window functions differ from `GROUP BY`, and what does `ROW_NUMBER`/`RANK`/`LAG` give you that aggregation can't? {#18}
 
 {{% qa %}}
 **The gist:** `GROUP BY` throws the individual rows away and hands back one row per group. A window function does the same maths and keeps every row, which is how you get "this row's rank within its group."
@@ -187,7 +420,7 @@ FROM orders;
 **What they're testing:** this one usually turns into "now write it." Have `PARTITION BY ... ORDER BY` ready to produce from memory, not just recognize.
 {{% /qa %}}
 
-### 9. When does a recursive CTE actually earn its complexity, and what's the failure mode if you get the recursion wrong? {#9}
+### 19. When does a recursive CTE actually earn its complexity, and what's the failure mode if you get the recursion wrong? {#19}
 
 {{% qa %}}
 **The gist:** use one when the data is a tree of unknown depth, like an org chart or a comment thread. You can't write "however many levels deep this goes" as a fixed number of joins.
@@ -212,7 +445,7 @@ Get the recursive term wrong, most commonly a join condition that can revisit a 
 **Try it:** intentionally break the recursive term's join condition so the same row can be revisited, then run the query with a `LIMIT 20` as a safety net and watch it happily keep producing rows past where a real org chart would have stopped.
 {{% /qa %}}
 
-### 10. When should a column be `JSONB` instead of a normalized set of tables, and how do you index it? {#10}
+### 20. When should a column be `JSONB` instead of a normalized set of tables, and how do you index it? {#20}
 
 {{% qa %}}
 **The gist:** `JSONB` is right when the shape genuinely differs per row and you read the whole blob at once. It's wrong the moment you're filtering on the same two keys every day, because those keys are relational data in a costume.
@@ -233,9 +466,9 @@ SELECT * FROM accounts WHERE metadata @> '{"plan": "enterprise"}';
 
 ## Query Planning, Storage & Concurrency Internals
 
-*This is the internals half, and nobody expects a junior to have all of it. But 15, 16 and 20 come up constantly the first time you're on call for a database, so they're worth the time even if the rest can wait.*
+*This is the internals half, and nobody expects a junior to have all of it. But 25, 26 and 30 come up constantly the first time you're on call for a database, so they're worth the time even if the rest can wait.*
 
-### 11. Partial index vs. indexing the whole column: when does a partial index win? {#11}
+### 21. Partial index vs. indexing the whole column: when does a partial index win? {#21}
 
 {{% qa %}}
 **The gist:** if 95% of your rows are `'completed'` and you only ever query the other 5%, indexing all of them is wasted space. A partial index covers just the rows you actually look for.
@@ -252,7 +485,7 @@ It's a poor fit when queries filter on a wide variety of conditions, since a par
 **Try it:** `EXPLAIN` a query for `WHERE status = 'failed'` against the table from the snippet above. The partial index only covers `status = 'pending'`, so you'll see a sequential scan even though there's an index on the table.
 {{% /qa %}}
 
-### 12. What's an advisory lock, and when do you reach for one instead of a row or table lock? {#12}
+### 22. What's an advisory lock, and when do you reach for one instead of a row or table lock? {#22}
 
 {{% qa %}}
 **The gist:** a lock on an idea rather than on data. You pick a number, the database hands that number to exactly one connection at a time, and that's your "only one server runs this job" guarantee.
@@ -269,7 +502,7 @@ SELECT pg_try_advisory_lock(42);
 **Try it:** open two `psql` sessions and run `SELECT pg_try_advisory_lock(42);` in both. The first returns `true`, the second returns `false` immediately, no waiting, which is the point.
 {{% /qa %}}
 
-### 13. When do stored procedures or triggers earn their complexity, versus just hiding logic from the app layer? {#13}
+### 23. When do stored procedures or triggers earn their complexity, versus just hiding logic from the app layer? {#23}
 
 {{% qa %}}
 **The gist:** put it in the database when it has to be true no matter what touches the table, including a script someone runs by hand. Keep it in the app when it's business logic that'll change next quarter.
@@ -279,7 +512,7 @@ They earn it when the logic must be true regardless of which client touches the 
 They become a liability when they encode business logic that changes often, since that logic is now split across the app codebase and the database, invisible to code review and hard to unit test. Default to keeping logic in the application, and push it into the database only for invariants that must hold no matter what touches the table.
 {{% /qa %}}
 
-### 14. PgBouncer's transaction pooling mode vs. session mode: what actually breaks in transaction mode? {#14}
+### 24. PgBouncer's transaction pooling mode vs. session mode: what actually breaks in transaction mode? {#24}
 
 {{% qa %}}
 **The gist:** transaction mode hands your connection back to the pool the instant you commit. Anything you left sitting on that connection, a prepared statement, a `SET`, a `LISTEN`, is gone or on someone else's connection next time.
@@ -293,7 +526,7 @@ Transaction mode is the right default for a stateless web app's pool. Session st
 **What they're testing:** whether you know why your ORM started throwing "prepared statement does not exist" after someone put PgBouncer in front of the database. That's the war story this question is fishing for.
 {{% /qa %}}
 
-### 15. `VACUUM`, `VACUUM FULL`, and autovacuum: what does each actually do? {#15}
+### 25. `VACUUM`, `VACUUM FULL`, and autovacuum: what does each actually do? {#25}
 
 {{% qa %}}
 **The gist:** plain `VACUUM` marks dead space reusable without locking anything. `VACUUM FULL` rewrites the table to actually shrink the file, and locks everyone out while it does. Autovacuum is plain `VACUUM` running on its own.
@@ -307,7 +540,7 @@ Autovacuum is tuned (thresholds, worker count, cost delay), not disabled. Disabl
 **Try it:** `UPDATE` the same handful of rows in a loop a few hundred times, check `n_dead_tup` in `pg_stat_user_tables`, run `VACUUM`, and watch it drop back down without the table's on-disk size changing.
 {{% /qa %}}
 
-### 16. Why can a query slow down over time even though the query, schema, and data volume haven't meaningfully changed? {#16}
+### 26. Why can a query slow down over time even though the query, schema, and data volume haven't meaningfully changed? {#26}
 
 {{% qa %}}
 **The gist:** the planner picks a plan from statistics, and statistics go stale. It's still working from a picture of your table taken weeks ago.
@@ -322,12 +555,12 @@ FROM pg_stat_user_tables WHERE relname = 'orders';
 ANALYZE orders;
 ```
 
-Running `ANALYZE` manually is a cheap first move before assuming a missing index is the problem. It slots into the [slow-query checklist]({{< ref "interview-prep-databases-systems.md" >}}#5) (Part 3) as the "did anything actually change" step.
+Running `ANALYZE` manually is a cheap first move before assuming a missing index is the problem. It slots into the [slow-query checklist](#5) as the "did anything actually change" step.
 
 **Try it:** bulk-insert a few hundred thousand rows without running `ANALYZE`, then `EXPLAIN ANALYZE` a filtered query and compare the planner's row estimate to the actual row count. Run `ANALYZE` and re-run the same query to see the estimate snap back in line.
 {{% /qa %}}
 
-### 17. Nested loop, hash join, and merge join: what does the planner actually choose between, and why? {#17}
+### 27. Nested loop, hash join, and merge join: what does the planner actually choose between, and why? {#27}
 
 {{% qa %}}
 **The gist:** three ways to match rows. Nested loop looks each one up individually, hash join builds a lookup table from the smaller side, merge join walks both sides in order like a zipper. The planner guesses which is cheapest from your table sizes and indexes.
@@ -346,21 +579,21 @@ graph TD
     C -->|"both sides already sorted<br/>on the join key"| MJ["Merge Join<br/>sorted merge, no extra sort"]
 ```
 
-[`EXPLAIN ANALYZE`]({{< ref "interview-prep-databases-systems.md" >}}#7) (Part 3) shows which one actually ran. If a hash join spills to disk because the build side didn't fit in `work_mem`, that shows up as a much slower actual time than the estimate: a signal to raise `work_mem` for that query rather than assume the join type itself is wrong.
+[`EXPLAIN ANALYZE`](#7) shows which one actually ran. If a hash join spills to disk because the build side didn't fit in `work_mem`, that shows up as a much slower actual time than the estimate: a signal to raise `work_mem` for that query rather than assume the join type itself is wrong.
 
 **What they're testing:** whether you can read a plan and say why the planner chose what it chose. You're not expected to pick joins by hand, you're expected to know what the planner was reacting to.
 
 **Try it:** `SET enable_hashjoin = off;` before running a join that would normally hash, then `EXPLAIN` it again and watch the planner fall back to a nested loop or merge join instead.
 {{% /qa %}}
 
-### 18. Table partitioning vs. sharding: where's the line, and why would you reach for one over the other? {#18}
+### 28. Table partitioning vs. sharding: where's the line, and why would you reach for one over the other? {#28}
 
 {{% qa %}}
 **The gist:** partitioning splits a table into pieces on one machine. Sharding splits it across many machines. Same idea, wildly different operational cost.
 
 Partitioning splits one logical table into physical sub-tables (by range, list, or hash on a key) that all still live on the same database instance, transparent to most queries. A query filtering on the partition key only scans the relevant partition, and you get cheap bulk drops: drop a whole month's partition instead of running a slow `DELETE`.
 
-[Sharding]({{< ref "interview-prep-databases-systems.md" >}}#13) (Part 3) splits data across separate database instances entirely. That solves a write-throughput or storage-capacity ceiling a single machine can't hold, at the cost of cross-shard queries and joins becoming genuinely hard.
+[Sharding]({{< ref "interview-prep-system-design.md" >}}#3) (Part 4) splits data across separate database instances entirely. That solves a write-throughput or storage-capacity ceiling a single machine can't hold, at the cost of cross-shard queries and joins becoming genuinely hard.
 
 ```mermaid
 graph TD
@@ -380,7 +613,7 @@ Reach for partitioning first: it's a single-instance, low-complexity win for a l
 **What they're testing:** whether you conflate the two. Interviewers often ask both back to back for exactly that reason.
 {{% /qa %}}
 
-### 19. Materialized view vs. a regular view: what do you give up, and how do you keep a materialized view from serving stale data? {#19}
+### 29. Materialized view vs. a regular view: what do you give up, and how do you keep a materialized view from serving stale data? {#29}
 
 {{% qa %}}
 **The gist:** a regular view re-runs the query every time you read it. A materialized view stores the answer, so reads are free but the data is as old as your last refresh.
@@ -406,7 +639,7 @@ The right fit is an expensive aggregate read far more often than the underlying 
 **Try it:** `UPDATE` a row in `orders`, `SELECT` from `daily_revenue` and see the old total, then `REFRESH MATERIALIZED VIEW CONCURRENTLY daily_revenue;` and select again to see it catch up.
 {{% /qa %}}
 
-### 20. What is MVCC, and why does it cause table bloat if autovacuum falls behind? {#20}
+### 30. What is MVCC, and why does it cause table bloat if autovacuum falls behind? {#30}
 
 {{% qa %}}
 **The gist:** Postgres never edits a row in place. An `UPDATE` writes a new copy and marks the old one dead, which is how readers never block on writers. If nothing cleans up the dead copies, the file just keeps growing.
@@ -434,12 +667,16 @@ A long-running transaction is the classic silent cause. It holds back the oldest
 
 ## What to drill first
 
-**[Advanced Query Techniques](#advanced-query-techniques):** [8](#8) (window functions) and [9](#9) (recursive CTEs) are the two most likely to get a "write this query" follow-up. Have the `PARTITION BY`/`OVER` syntax and the anchor-plus-recursive-term shape ready to write from memory, not just recite. [2](#2) is the one people get wrong under pressure, because the `NULL` behaviour is genuinely counterintuitive.
+If you're earlier in your career and short on time, start with [4](#4) (N+1) and [5](#5) (the slow-query checklist). Those turn up in ordinary backend work every week, long before anyone asks you about internals.
 
-**[Query Planning, Storage & Concurrency Internals](#query-planning-storage--concurrency-internals):** [17](#17) (join algorithms) and [20](#20) (MVCC and bloat) are the highest-yield for a senior or architect round, since they test whether you understand what the database is doing under an `EXPLAIN ANALYZE` plan rather than just how to read one (Part 3). [18](#18) is worth rehearsing next to sharding (Part 3): interviewers often ask both back to back to see if you conflate them.
+**[Databases & Database Optimization](#databases--database-optimization):** worth its own drilling pass. Indexing, isolation levels, and locking and deadlocks ([6](#6), [8](#8), [9](#9)) come up constantly in architect-level interviews, even outside a formal system design segment.
 
-If you're earlier in your career and short on time, [15](#15) and [16](#16) pay off fastest. They're the two that turn "the database is slow" into an actual first move.
+**[Advanced Query Techniques](#advanced-query-techniques):** [18](#18) (window functions) and [19](#19) (recursive CTEs) are the two most likely to get a "write this query" follow-up. Have the `PARTITION BY`/`OVER` syntax and the anchor-plus-recursive-term shape ready to write from memory, not just recite. [12](#12) is the one people get wrong under pressure, because the `NULL` behaviour is genuinely counterintuitive.
+
+**[Query Planning, Storage & Concurrency Internals](#query-planning-storage--concurrency-internals):** [27](#27) (join algorithms) and [30](#30) (MVCC and bloat) are the highest-yield for a senior or architect round, since they test whether you understand what the database is doing under an `EXPLAIN ANALYZE` plan rather than just how to read one. [28](#28) is worth rehearsing next to [sharding]({{< ref "interview-prep-system-design.md" >}}#3) (Part 4): interviewers often ask both back to back to see if you conflate them.
+
+If you're short on time otherwise, [25](#25) and [26](#26) pay off fastest. They're the two that turn "the database is slow" into an actual first move.
 
 ---
 
-Part 4 of 7 · [Interview Prep](/interview-prep/) · ← Previous: [Part 3 — Databases & System Design](/interview-prep-databases-systems/) · Next: [Part 5 — Kafka & Microservices](/interview-prep-kafka-microservices/) →
+Part 3 of 7 · [Interview Prep](/interview-prep/) · ← Previous: [Part 2 — Coding Patterns](/interview-prep-coding-patterns/) · Next: [Part 4 — System Design & Distributed Systems](/interview-prep-system-design/) →

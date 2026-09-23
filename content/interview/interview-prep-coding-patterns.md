@@ -9,7 +9,7 @@ quizmode: true
 mermaid: true
 ---
 
-Part 2 of 7 · [Interview Prep](/interview-prep/) · ← Previous: [Part 1 — Go Language](/interview-prep-language/) · Next: [Part 3 — Databases & System Design](/interview-prep-databases-systems/) →
+Part 2 of 7 · [Interview Prep](/interview-prep/) · ← Previous: [Part 1 — Go Language](/interview-prep-language/) · Next: [Part 3 — Databases & SQL](/interview-prep-databases-sql/) →
 
 Most coding-interview questions aren't novel, they're a known pattern wearing a different story. Once you can name the pattern, the algorithm mostly writes itself. This part walks through the 23 patterns that cover the large majority of what shows up, each with how to recognize it, a clean, correct, test-verified reference implementation in Python, and a worked example so you can trace the code by hand instead of taking it on faith.
 
@@ -945,4 +945,4 @@ If you're earlier in your career and short on time, drill sliding window ([1](#1
 
 ---
 
-Part 2 of 7 · [Interview Prep](/interview-prep/) · ← Previous: [Part 1 — Go Language](/interview-prep-language/) · Next: [Part 3 — Databases & System Design](/interview-prep-databases-systems/) →
+Part 2 of 7 · [Interview Prep](/interview-prep/) · ← Previous: [Part 1 — Go Language](/interview-prep-language/) · Next: [Part 3 — Databases & SQL](/interview-prep-databases-sql/) →

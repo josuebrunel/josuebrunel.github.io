@@ -16,8 +16,8 @@ nofeed: true
 
 - **[Part 1 — Go Language](/interview-prep-language/)** — Q1–75. Fundamentals, types & generics, concurrency, memory/GC, error handling, performance, testing, web & networking.
 - **[Part 2 — Coding Patterns](/interview-prep-coding-patterns/)** — Q1–23. The 23 recurring patterns behind most coding-interview questions: sliding window, two pointers, tree BFS/DFS, backtracking, topological sort, grid BFS, knapsack, tries, and more.
-- **[Part 3 — Databases & System Design](/interview-prep-databases-systems/)** — Q1–48. Database optimization, system design fundamentals, distributed systems, and system design case studies.
-- **[Part 4 — Advanced SQL](/interview-prep-sql-advanced/)** — Q1–20. Window functions, CTEs, join algorithms, partitioning, JSON querying, and storage/concurrency internals.
+- **[Part 3 — Databases & SQL](/interview-prep-databases-sql/)** — Q1–30. Database optimization, window functions, CTEs, join algorithms, partitioning, JSON querying, and storage/concurrency internals.
+- **[Part 4 — System Design & Distributed Systems](/interview-prep-system-design/)** — Q1–38. System design fundamentals, distributed systems concepts, and system design case studies.
 - **[Part 5 — Kafka & Microservices](/interview-prep-kafka-microservices/)** — Q1–39. Kafka in depth for Go, microservices architecture, DDD and event-driven patterns.
 - **[Part 6 — Security & Cloud](/interview-prep-security-cloud/)** — Q1–25. Security fundamentals, cloud & infrastructure.
 - **[Part 7 — AI Engineering](/interview-prep-ai-engineering/)** — Q1–36. LLM fundamentals, prompting and context engineering, RAG and retrieval systems, and agentic production AI: tool use, MCP, evaluation, and guardrails.
