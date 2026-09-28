@@ -639,7 +639,13 @@ The point of the second table is that one cross-region hop costs more than a tho
 
 **The numbers:** call it 10M new links a day, which is about 116 writes a second. At a 100:1 read ratio that's 1B redirects a day, near 11,600 reads a second. At roughly 500 bytes a row you write about 4.7GB a day, so 1.7TB a year. Seven base62 characters gives 3.5 trillion codes, which at this rate lasts 965 years. Six gives 56 billion and runs out in 16. So seven, and you can say why.
 
-Key components: a write path that generates a short code (base62-encode an auto-incrementing ID, or a hash with a collision check) and stores `short_code → long_url`, plus a read path that's a simple key lookup and a 301/302 redirect. Reads vastly outnumber writes, so put a cache in front of the database for the read path.
+**Load balancer:** L7, so it can route `POST /` (write) and `GET /:code` (read) to the same fleet without caring which, since both are stateless HTTP.
+
+**Code generator:** base62-encode an auto-incrementing ID (alphabet `[0-9a-zA-Z]`, repeatedly divide by 62 and map the remainder to a character), or hash the URL and check for a collision. Base62 is unique for free; a hash needs a read before every write to catch collisions.
+
+**Cache:** keyed on `short_code`, value is `long_url`, TTL long (links rarely change) with LRU eviction so the hot tail of recently-created and frequently-hit links stays resident.
+
+**Primary DB + read replica:** the `links` table is just `short_code` (PK), `long_url`, `created_at`, `expires_at`. Reads go to the replica behind the cache; writes go straight to the primary. Replica lag means a link can 404 for a few milliseconds right after creation, which is why a write also seeds the cache directly instead of waiting for the next read to populate it.
 
 ```mermaid
 graph TD
@@ -670,7 +676,11 @@ graph TD
 
 **The numbers:** 50k requests a second across the fleet means 50k counter operations a second, because every request checks. 10M active clients at about 100 bytes of state each is under 1GB, so the working set fits in memory on a single Redis node. That node is now both your bottleneck and your single point of failure, which is the interesting half of this question.
 
-Each gateway instance can't keep its own local counter, since that under-counts total traffic. Use a shared, fast store (Redis) holding per-client counters with a sliding-window or token-bucket algorithm, implemented via an atomic Lua script.
+**Gateway instances:** stateless by design, so they can't hold the count locally, each only sees its own slice of the 50k requests a second and would under-count the client's real total.
+
+**Redis:** one shared store holding a counter per client, key format `rate:{client_id}:{window_start}`, with the key's TTL set to the window length so it expires itself instead of needing a cleanup job.
+
+**The Lua script:** what's shown here is a fixed counter that starts at a limit and decrements, not a true token bucket, there's no refill over time, just a hard reset when the key expires and the window rolls over. A real token bucket would restore tokens gradually based on elapsed time, giving smoother throughput than an all-or-nothing reset.
 
 ```lua
 -- executed atomically via EVAL, keyed per client
@@ -704,7 +714,11 @@ graph LR
 
 **The numbers:** say 5k transactions a second and a p99 budget of 100ms end to end. With 8 signals where the slowest takes 80ms, running them in series is 640ms and you've already blown it. In parallel it's 80ms and you fit. That one comparison is the entire design, which is why the fan-out is the first thing you draw.
 
-Run signals in parallel goroutines with a bounded per-request timeout, so total latency is close to the slowest single signal, not the sum. Precompute and cache expensive signals asynchronously ahead of the request, and set a hard deadline so a single slow signal degrades gracefully instead of blowing the SLA.
+**Fan-out orchestrator:** spins up one goroutine per signal, all sharing a single `context.Context` deadline, so a signal that blows past its share of the budget gets cancelled rather than awaited.
+
+**Signal services:** each computes one feature (device reputation, IP intelligence, velocity) and caches its own result under a key like `signal:device:{device_id}`, with a TTL sized to how fast that signal goes stale: minutes for device reputation, seconds for velocity.
+
+**Aggregator:** combines whichever signals came back in time into a single score, typically a weighted sum against the model's learned weights, then buckets that score against two thresholds into approve, review, or decline.
 
 ```mermaid
 graph TD
@@ -732,7 +746,13 @@ graph TD
 
 **The numbers:** one event reaching 10M users across 3 channels is 30M individual messages. Push at 10k/sec clears in about 17 minutes. The same 10M over SMS through a provider capped at 100/sec takes 27.8 hours. That number is the design: the channels cannot share a queue, because the slowest one would hold the others hostage for over a day.
 
-Ingest the triggering event into a message queue rather than processing synchronously. A fan-out worker resolves the target user list (paginated) and publishes one message per user per channel onto per-channel queues, each with dedicated worker pools respecting that channel's own rate limits.
+**Kafka ingest:** the triggering event lands as a single message (event type, audience filter, payload), so ingestion cost is constant no matter how many users it'll eventually reach.
+
+**Fan-out worker:** walks the user list in pages (cursor-based, not offset, so a page boundary doesn't shift underneath a long-running walk), and checkpoints the last cursor per range so a crash resumes instead of restarting from user zero.
+
+**Per-channel queues:** one message per user per channel, `{user_id, channel, payload, dedupe_key}`, with the dedupe key (a hash of user, event, and channel) letting a worker skip a duplicate it's already sent.
+
+**Channel worker pools:** each pool runs its own token bucket sized to its provider's actual rate cap, so a slow SMS provider's bucket empties independently of push's, and one channel throttling never blocks another.
 
 ```mermaid
 graph LR
@@ -764,6 +784,8 @@ graph LR
 [Q24](#24) covers the key itself and the `ON CONFLICT DO NOTHING` claim. This question is about what happens around it once a real payment processor is in the loop.
 
 The client sends a request with a client-generated idempotency key. In a single database transaction, the server claims that key with status `processing`, and the unique constraint means a concurrent duplicate fails immediately. Only after the row is claimed does the service call the payment processor.
+
+**Idempotency store:** the `payment_requests` row above, keyed on `idempotency_key`, is the whole lock, no separate locking system needed. **Payment processor call:** made with a short timeout and no automatic retry from this layer, since a retry here is exactly the double-charge risk the key exists to prevent. **Outbox:** the same event table and relay from [Q25](#25), reused rather than reinvented, since a completed payment is just another fact that needs to reach downstream systems reliably. **Reconciliation job:** polls the processor by idempotency key for any row still stuck `processing` past a timeout (a minute or two past the processor's own worst-case latency), and settles the row to whatever the processor actually did.
 
 The part worth rehearsing is the branches:
 
@@ -806,7 +828,11 @@ sequenceDiagram
 
 **The numbers:** 1M jobs a day averages about 12 a second, which sounds trivial and isn't, because scheduled work clusters. Everything set for midnight fires at midnight, so you size for the spike rather than the mean. With 100 workers polling once a second you're also running 100 mostly-empty queries a second against the jobs table, which is why `FOR UPDATE SKIP LOCKED` or a notify channel beats naive polling well before you think it matters.
 
-Store jobs and their next-run-time in a shared database. Workers poll for due jobs and atomically claim one via a conditional update, which acts as a lightweight distributed lock. Include a lease and heartbeat so that if the worker crashes mid-execution, the lock expires and another worker can reclaim it.
+**`jobs` table:** `id`, `next_run_at`, `locked_by`, `locked_at`, `lease_expires_at`, `status`. Everything a worker needs to decide whether a job is due and free lives in that one row.
+
+**Polling algorithm:** `SELECT * FROM jobs WHERE next_run_at <= now() AND (locked_by IS NULL OR lease_expires_at < now()) FOR UPDATE SKIP LOCKED LIMIT 1`. `SKIP LOCKED` is what makes concurrent polling cheap: a worker never waits behind another worker's row lock, it just moves to the next candidate.
+
+**Lease and heartbeat:** the claiming worker renews `lease_expires_at` on an interval well under the lease length (a 30-second lease renewed every 10 seconds, say), so a live worker never loses its own job, and a crashed one's lease simply expires and becomes claimable again.
 
 ```sql
 UPDATE jobs
@@ -840,7 +866,13 @@ graph TD
 
 **The numbers:** 10M daily users and 50M messages a day is 580 a second on average, about 1,700 at a 3x peak. Message throughput is not your problem. Connections are: 1M concurrent WebSockets at roughly 10KB of kernel and application state each is about 500MB per 50k connections, so you need around 20 nodes purely to hold sockets open. Storage at 1KB a message is 47GB a day and 17TB a year.
 
-Shard users and conversations across backend nodes using consistent hashing on a conversation or user ID. A connection-routing gateway looks up which shard owns a conversation and forwards accordingly. For offline delivery, persist messages and use a pub/sub layer so any node can catch up.
+**Connection gateway:** places both real nodes and conversation IDs on a hash ring, with each real node claiming several points on the ring (virtual nodes) so load spreads evenly instead of piling onto whichever node happens to own a lucky range.
+
+**Shard nodes:** each holds the live WebSocket connections and in-memory state for the conversations it owns, nothing more, so a node's memory footprint scales with connections, not with total platform history.
+
+**Pub/sub layer:** one topic per conversation rather than one global topic, so a node only subscribes to the conversations it's actively serving and a burst in one busy group chat doesn't fan out to every node in the cluster.
+
+**Message store schema:** `conversation_id`, `seq` (monotonic per conversation), `sender_id`, `body`, `created_at`. `seq` is what makes both in-order delivery and offline catch-up possible: a reconnecting client sends its last-seen `seq`, and the node replays everything after it from the store.
 
 ```mermaid
 graph TD
@@ -868,7 +900,13 @@ graph TD
 
 **The numbers:** 500k events a second at 200 bytes each is about 95MB a second, so 7.9TB a day. A Kafka partition handles roughly 10MB/s comfortably, so that's 10 partitions minimum and you'd provision 50 for headroom and consumer parallelism. Seven days of retention is around 55TB, which is a hardware conversation rather than a config line.
 
-Producers publish events partitioned by a natural key (a game ID, say) so ordering is preserved per entity. Consumers process with at-least-once semantics and make aggregation idempotent, using upserts keyed on event ID, so reprocessing after a crash doesn't double-count.
+**Producers:** compute `hash(game_id) % partition_count` per event, so every event for a given entity always lands on the same partition and ordering holds for that entity specifically.
+
+**Kafka partitions:** sized off the throughput math above (10 minimum, 50 provisioned for headroom and consumer parallelism), since a partition is also the unit of consumer parallelism, more partitions means more consumers can work at once.
+
+**Consumers:** commit offsets only after the aggregate write succeeds, so a crash between processing and committing replays the same event rather than losing it, at-least-once by construction.
+
+**Aggregated state schema:** keyed on `event_id` (or `entity_id + window` for a windowed aggregate), with the write shaped as `INSERT ... ON CONFLICT (event_id) DO UPDATE` so a replayed event updates the same row instead of double-counting.
 
 ```mermaid
 graph LR
@@ -892,7 +930,11 @@ graph LR
 
 **The numbers:** the number that matters here isn't QPS, it's how long the first extraction takes. Pick a first service you can ship to production within a quarter. If your best candidate needs six months before anything runs for real, it's the wrong candidate, because you'll spend half a year maintaining two systems with nothing to show for it and the appetite will be gone.
 
-Use the strangler fig pattern: put a routing layer in front of the monolith, then incrementally extract one bounded-context feature at a time into a new service, routing that specific traffic there while everything else still goes to the monolith.
+**Routing proxy:** a rule table keyed on path or host (`/orders/* → new-service`, everything else → monolith), checked per request, simple enough that adding the next extracted feature is a config change, not a deploy of new routing logic.
+
+**New service:** calls back into the monolith over its API rather than reading its tables directly, so the monolith's schema stays free to change underneath, which is the whole point of not sharing a database mid-migration.
+
+**Data ownership cutover:** backfill the new service's store from the monolith's historical data, dual-write to both during the transition window so neither copy goes stale, then cut reads over to the new service and stop writing to the monolith's copy. Dual-write only earns its keep because the window is short: if the first extraction can't ship within a quarter, the plan already said that's the wrong candidate.
 
 ```mermaid
 graph LR
@@ -917,6 +959,14 @@ graph LR
 **The numbers:** 50M events a day at 1KB each is 47GB a day and 17TB a year. Fintech retention is commonly seven years, so roughly 119TB. That number is why "put it all in Elasticsearch" is the wrong answer: the append-only log belongs in cheap object storage, and only a recent window needs to sit in the query index.
 
 Write audit events to an append-only store, and make tampering detectable by hash-chaining entries, so each entry's hash includes the previous entry's hash. For queryability, stream and index the same events into a separate query-optimized store asynchronously, keeping the append-only log as the source of truth.
+
+**Log entry schema:** `seq`, `tenant_id`, `payload`, `prev_hash`, `hash`, `written_at`, matching the struct below with one addition, `tenant_id`, needed once the chain is partitioned per tenant.
+
+**Per-tenant partitioning:** each tenant gets its own sequence and its own single writer, so tampering stays detectable within the boundary an auditor actually cares about, one tenant's chain, without forcing every write in the system through one global writer.
+
+**Indexer:** streams new entries out of the log asynchronously, the same shape as the outbox relay in [Q25](#25) (poll for unindexed rows, index them, mark done), rather than writing to both stores in the request path.
+
+**Query store schema:** indexed on `actor`, `resource`, and `time range`, the three dimensions an auditor actually filters by, with the append-only log staying the source of truth if the index and the query store ever disagree.
 
 ```go
 type AuditEntry struct {
