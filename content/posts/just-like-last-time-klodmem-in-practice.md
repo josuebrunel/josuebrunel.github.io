@@ -1,0 +1,46 @@
+---
+title: "Just Like Last Time: What klodmem Did for Me"
+date: 2026-10-13
+description: "A month after building klodmem, I audited my own Claude Code transcripts to see how often I used it and what it actually gave me."
+tags: ["claude-code", "mcp", "klodmem", "ai", "workflow"]
+---
+
+I almost never tell Claude to search my history. I say "just like last time" and let it work out the rest.
+
+That's where [klodmem]({{< ref "klodmem.md" >}}) earns its keep. I built it to make old memories and conversations searchable. A month later, I wanted to know if it actually helps. So I did the boring thing and audited my own transcripts.
+
+## What the numbers say
+
+Lighter use than I expected, and more specific.
+
+- **53 sessions** across **20 projects** since I set it up.
+- **5 memory files** saved by Claude so far.
+- **3 real searches** in my own work, all in one session. The other calls in my logs are from writing this post.
+
+One caveat: klodmem doesn't index tool calls, so there's no dashboard for this. I counted by reading the raw transcripts myself.
+
+Three searches isn't much. But one of them paid for the whole tool.
+
+## The "just like last time" session
+
+I'd opened a different repo, a work project, and typed this:
+
+> Just like in the previous convo, can you list the open tickets and sort them by blast radius and priority.
+
+The "previous convo" was weeks old, and it lived in a different project. Nothing in this one's context knew about it.
+
+Claude did two searches. The memory search came back empty, because I'd never saved a note about it. The history search found my old question, where I'd asked for tickets sorted by effort and blast radius. It checked how I'd handled tickets before, ran `gh issue list`, and gave me a table: ticket, priority, blast radius, and whether it was blocked.
+
+My next message was "proceed with #30". Two messages from me, and the whole thing was done.
+
+This is the case memory can't cover. Nobody writes a note for "how I like tickets ranked." It happened once, in a conversation, and the conversation is the only place it exists. It's also the same habit I wrote about in [How I Deploy My SaaS With an AI Agent]({{< ref "deploying-with-an-ai-agent-and-cli-tools.md" >}}): tickets are the memory, and klodmem helps the agent find them again.
+
+## Memory that crosses repos
+
+The second win showed up while I was writing this post. A memory search turned up a note Claude had saved in another project, about how I want my blog posts to end. I'm in the blog repo now. The note was written during a different post.
+
+Without klodmem, that note stays in its own silo, and I'd have given the same correction twice. This post follows it, and ends with a single closing paragraph.
+
+## The gain is not re-explaining myself
+
+Three searches in a month isn't a lot, but each one saved me from starting over. The ticket ranking alone saved me from explaining a whole way of working to a fresh session, and the blog note saved me a correction I'd already made once. I don't need klodmem every day. I need it on the day I say "just like last time", and on that day it means I don't have to say anything else.

@@ -39,7 +39,7 @@ The 2024–2026 posts are the current standard, and they match the site's `writi
 - Content must be skimmable and easy to follow: short paragraphs, one idea each, plain sentence structure. A reader should get the gist from headers and bolded leads alone, without reading every word.
 - Punchy, specific H2 headers, not "Overview" or "Conclusion."
 - Code speaks for itself: don't narrate what a snippet obviously does, explain *why* it's shaped that way.
-- For project or decision writeups, close with an honest `**What works:**` / `**What doesn't (yet):**` pair instead of a one-sided pitch. PulseDash and the SaaS stack post both do this; it's the standard, not the exception.
+- Close with a single closing paragraph, not a `**What works:**` / `**What doesn't (yet):**` pair and not a separate "Payoff" section. Older posts (PulseDash, the SaaS stack post) use the pair; that's history, not the standard for new posts. Be honest about limits in the body, where they belong.
 - End on a callback or payoff line, not a call-to-action.
 - English only for anything new. Older posts are a mix of French and English; that's a historical fact about the archive, not a target to keep hitting.
 - This applies to prose meant to sound like Josue (posts, READMEs, PR descriptions). Pure reference material (config tables, API docs) and code comments stay neutral and factual.
