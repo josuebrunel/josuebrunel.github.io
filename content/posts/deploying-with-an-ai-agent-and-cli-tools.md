@@ -40,7 +40,7 @@ flowchart TD
 
 The arrows that point back are the point. When a step fails, the agent reads the error, fixes the cause, and goes round again. I'm not the one doing the loop.
 
-Every arrow is something I can run from a shell. That's the rule: **CLI first, API second, MCP last.**
+Every arrow is something I can run from a shell. That's the rule: **CLI first, API second, MCP third, browser last.**
 
 A CLI is the best interface for an agent. It documents itself with `--help`, it prints text, it fails with an exit code, and it chains with `&&`. An MCP server is fine when there's no other way in. Most of the time there is.
 
@@ -165,6 +165,16 @@ stripe trigger checkout.session.completed
 
 I keep this on test mode keys until I decide otherwise.
 
+## No CLI? Let the agent drive the browser
+
+**The browser is the last resort.** Some things only exist as a settings page. Updating the OAuth2 app behind GitHub sign-in is the classic one: there's a form for the name, the homepage, the description, the callback URL and the logo, and no CLI for any of it.
+
+I'm lazy about that kind of work, so I ask the agent to do it in the browser. It uses my own Chrome, where I'm already signed in. It opens the app's settings page, reads the form, fills in the new values and the right callback URL, uploads the logo and clicks save. Then it takes a screenshot to check the page shows what it should.
+
+The secrets stay out of it. Anything that has to reach the app goes into the encrypted env file, never into the chat, and the deploy continues as before.
+
+It's slower than a CLI, and it breaks when a page changes. So the order stays: **CLI first, API second, MCP third, browser last.** But "last" still beats "me, clicking through five pages."
+
 ## Integration tests are just curl
 
 **The final check is a loop.** It isn't a framework:
@@ -184,7 +194,7 @@ Then it writes the results into the GitHub issue as a progress comment. The tick
 ## What I get out of it
 
 - **Speed.** The steps are the same as before. The waiting and the typing are gone.
-- **One terminal.** Tickets, CI, deploy, DNS, payments and checks all happen in the same place.
+- **One terminal.** Tickets, CI, deploy, DNS, payments and checks all happen in the same place. Even the odd browser-only task goes through the agent.
 - **Everything is reviewable.** The agent shows each command before it runs. I approve it or I don't.
 - **Config lives in git.** Caddy files, compose files and encrypted env files are all in the repo. The server is a copy, not the source of truth.
 - **Failures fix themselves.** Validate first, apply second, and loop back when something breaks.
