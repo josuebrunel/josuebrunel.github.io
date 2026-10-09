@@ -9,7 +9,7 @@ draft: false
 
 I just wanted to show you how I deploy and update my SaaS.
 
-Nothing new here. It's the same flow I've always used. The difference is that an AI agent now does the steps I used to do by hand, and it does them faster.
+Nothing new here. It's the same flow I've always used. The difference is that an AI agent now does the steps I used to do by hand. It's faster, and I'll admit it: it's also better at it. It knows these CLIs more thoroughly than I do, and it uses them more carefully.
 
 ## One flow, with a few loops
 
@@ -28,12 +28,15 @@ flowchart TD
     end
     subgraph Aside[Set up aside, in any order]
         I[Cloudflare<br/>DNS and more<br/>cf]
+        G2[Google Cloud<br/>gcloud]
         P[Stripe and other services<br/>stripe]
     end
     F -.-> I
+    F -.-> G2
     F -.-> P
     H --> J[Integration tests<br/>curl]
     I --> J
+    G2 --> J
     P --> J
     J -->|fails| C
 ```
@@ -45,6 +48,19 @@ Every arrow is something I can run from a shell. That's the rule: **CLI first, A
 A CLI is the best interface for an agent. It documents itself with `--help`, it prints text, it fails with an exit code, and it chains with `&&`. An MCP server is fine when there's no other way in. Most of the time there is.
 
 It also fits the rest of my setup. If you've read [My SaaS Tech Stack]({{< ref "my-simple-and-happy-stack.md" >}}), you know I like few moving parts. Few parts means few tools to teach the agent.
+
+## Why it's better at CLIs than I am
+
+**A CLI rewards patience and memory, and the agent has plenty of both.** I use `gcloud`, `cf` or `km` a few times a year, then forget them. The agent doesn't have that problem. Here's what that looks like in practice:
+
+- **It reads the manual every time.** It runs `--help` first. With `cf`, it even searched the CLI for the right command (`cf cli search "list rules in a zone ruleset"`) instead of guessing a name.
+- **It asks for just the data it needs.** It uses `--format`, `jq` and small scripts to pick the fields that matter, instead of scrolling through a screen of JSON.
+- **It checks before it changes.** It lists what exists, validates a config on a copy, and compares the CLI version with the server's.
+- **It reads errors as instructions.** "API not enabled" or "config invalid" isn't a stop sign. It's the next step.
+- **It never skips the boring checks.** It curls the neighboring sites after every reload. I'd forget that at midnight.
+- **It keeps secrets out of the way.** It lists which keys are in a config file, never their values.
+
+None of this is clever on its own. It's what a careful engineer would do. The difference is that it does all of it, every time, in a few seconds.
 
 ## What it looks like
 
@@ -165,9 +181,65 @@ stripe trigger checkout.session.completed
 
 I keep this on test mode keys until I decide otherwise.
 
+## Google: where the agent beats my memory
+
+**`gcloud` is huge, and I can't remember it.** It has hundreds of commands and flags, and I use them a few times a year. Nobody keeps that in their head. An agent doesn't need to: it reads `gcloud <group> --help`, finds the right command, and gets the flags right.
+
+That's the real gain. The agent isn't doing anything `gcloud` can't do. It's doing all of it, without me opening the docs.
+
+### Look first, then change
+
+Before touching anything, the agent reads. It checks the active account and project, then lists what already exists, so it never creates a duplicate:
+
+```bash
+gcloud config list
+gcloud projects list --format="table(projectId,name)"
+gcloud services list --enabled --format="value(config.name)"
+```
+
+The `--format` flag matters. The agent asks for exactly the fields it needs and filters the rest with `jq`, instead of scrolling through a wall of output like I would.
+
+### Then the setup, in the right order
+
+A new project has an order of operations that's easy to get wrong: create it, link billing, enable the APIs, create a service account, give it only the roles it needs.
+
+```bash
+gcloud projects create my-app-prod --name="My App"
+gcloud billing projects link my-app-prod --billing-account=ACCOUNT_ID
+gcloud services enable secretmanager.googleapis.com run.googleapis.com
+gcloud iam service-accounts create my-app --display-name="My App runtime"
+gcloud projects add-iam-policy-binding my-app-prod \
+  --member="serviceAccount:my-app@my-app-prod.iam.gserviceaccount.com" \
+  --role="roles/secretmanager.secretAccessor"
+```
+
+I approve each line. I don't write any of them.
+
+### Errors are just the next step
+
+This is where the agent beats a human at a terminal. `gcloud` errors are specific: "API not enabled", "permission denied on this role". A person reads them, sighs, and goes to search. The agent reads the message, enables the API or adds the missing role, and runs the command again. It's the same loop as the rest of the pipeline.
+
+### Audit, not just create
+
+The agent is as good at checking as at creating:
+
+```bash
+gcloud projects get-iam-policy my-app-prod --format=json
+gcloud billing budgets create --billing-account=ACCOUNT_ID \
+  --display-name="my-app monthly" --budget-amount=50USD \
+  --threshold-rule=percent=0.9
+gcloud logging read 'severity>=ERROR' --limit=20 --freshness=1h
+```
+
+It reads the IAM policy and flags roles that are too broad. It sets a budget alert so a mistake doesn't turn into a surprise bill. And it reads the latest errors in the logs when something breaks in production. Nothing there is new. What's new is that I actually do it, because it takes one sentence.
+
+### The one part with no CLI
+
+**"Sign in with Google" lives in the console.** The consent screen and the OAuth2 client (name, authorized origins, callback URL) have no `gcloud` command. That's a job for the browser, which is the next section. The agent creates the client there, and the client ID and secret go into the encrypted env file.
+
 ## No CLI? Let the agent drive the browser
 
-**The browser is the last resort.** Some things only exist as a settings page. Updating the OAuth2 app behind GitHub sign-in is the classic one: there's a form for the name, the homepage, the description, the callback URL and the logo, and no CLI for any of it.
+**The browser is the last resort.** Some things only exist as a settings page. Updating the OAuth2 app behind GitHub sign-in is the classic one, and Google's OAuth2 client is another: there's a form for the name, the homepage, the description, the callback URL and the logo, and no CLI for any of it.
 
 I'm lazy about that kind of work, so I ask the agent to do it in the browser. It uses my own Chrome, where I'm already signed in. It opens the app's settings page, reads the form, fills in the new values and the right callback URL, uploads the logo and clicks save. Then it takes a screenshot to check the page shows what it should.
 
@@ -194,6 +266,7 @@ Then it writes the results into the GitHub issue as a progress comment. The tick
 ## What I get out of it
 
 - **Speed.** The steps are the same as before. The waiting and the typing are gone.
+- **Better CLI skills than mine.** It reads the docs, picks the right flags and filters the output, so I stop relearning tools I use twice a year.
 - **One terminal.** Tickets, CI, deploy, DNS, payments and checks all happen in the same place. Even the odd browser-only task goes through the agent.
 - **Everything is reviewable.** The agent shows each command before it runs. I approve it or I don't.
 - **Config lives in git.** Caddy files, compose files and encrypted env files are all in the repo. The server is a copy, not the source of truth.
