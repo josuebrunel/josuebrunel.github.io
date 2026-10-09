@@ -22,6 +22,7 @@ copyright = '© Josue Brunel'
 
 [params]
     homepage = true
+    favicon = true
     subtitle = 'Code, Linux, and open source — one post at a time.'
     keywords = ['python', 'go', 'linux', 'programming', 'open source']
     description = 'Personal blog of Josue Brunel — software engineer writing about Python, Go, Linux, and open source.'
