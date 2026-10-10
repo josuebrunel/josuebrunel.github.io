@@ -41,6 +41,16 @@ The second win showed up while I was writing this post. A memory search turned u
 
 Without klodmem, that note stays in its own silo, and I'd have given the same correction twice. This post follows it, and ends with a single closing paragraph.
 
+## It works across agents, not just across repos
+
+This is the part I didn't plan for, and it's been amazing.
+
+klodmem is an MCP server, so it doesn't care which agent is asking. Any agent that can talk to it can search the same index. And that index holds my Claude Code sessions.
+
+So I can open a different agent and say: "look at that thread in my Claude session, the one where we sorted out the deploy, and continue from there." The agent searches the history, finds the conversation, and picks up where Claude left off. No copy and paste, no summary written by hand.
+
+Before this, a conversation belonged to the tool I had it in. Now it belongs to me. I can start a problem in Claude, move to another agent when it suits the job, and the context comes along.
+
 ## The gain is not re-explaining myself
 
-Three searches in a month isn't a lot, but each one saved me from starting over. The ticket ranking alone saved me from explaining a whole way of working to a fresh session, and the blog note saved me a correction I'd already made once. I don't need klodmem every day. I need it on the day I say "just like last time", and on that day it means I don't have to say anything else.
+Three searches in a month isn't a lot, but each one saved me from starting over. The ticket ranking alone saved me from explaining a whole way of working to a fresh session, and the blog note saved me a correction I'd already made once. Pointing another agent at a Claude thread saved me from retelling a whole conversation. I don't need klodmem every day. I need it on the day I say "just like last time", and on that day it means I don't have to say anything else.
