@@ -2,7 +2,7 @@
 title: "The Idea I Can't Drop: Scrapeit, Minus the Payments, Plus Browser Automation"
 date: 2026-10-25
 description: "An experimental design for a Scrapeit without the marketplace: a Go server hands jobs to a browser extension that scrapes pages or runs automation scripts in a real, logged-in browser."
-tags: ["golang", "browser-extension", "automation", "web-scraping", "manifest-v3", "postgres"]
+tags: ["golang", "browser-extension", "automation", "web-scraping", "manifest-v3", "postgres", "scrapeit"]
 mermaid: true
 ---
 
@@ -77,7 +77,7 @@ That also means **delivery is at-least-once**. A browser can finish a job, lose 
 
 **A job can ask for a human.** Sooner or later a job hits a captcha or a 2FA prompt. A headless setup is stuck at that point. Here the job pauses, the server pings my phone, I solve it in the tab that's already open, and the job carries on. The lease keeps getting heartbeats while it waits, so nobody else picks it up. This is the thing a real browser can do that a server farm can't: there's a person nearby.
 
-## The hard constraint: no remote code
+## Can an extension run scripts sent from a server?
 
 This is the part that shaped everything else. Manifest V3 forbids remotely hosted code. The server can't send the extension a string of JavaScript and have it `eval` it. Chrome won't allow it and the Web Store will reject it.
 
@@ -109,7 +109,7 @@ I like this one because it's also the safest. The server can only ask for what t
 
 One more MV3 wrinkle: the service worker gets killed when it's idle. To stay reachable it needs either an alarm (30 seconds is the minimum interval) or a WebSocket with keepalive pings. Long-polling helps, but I'd still want to test how long a worker really survives.
 
-## What I'd use it for
+## What would I actually use it for?
 
 The common thread is a real browser session that I'm already signed in to.
 

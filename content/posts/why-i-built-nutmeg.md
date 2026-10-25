@@ -2,7 +2,7 @@
 title: "Why I Built Nutmeg (So My Friends Would Stop Lying About Their Stats)"
 date: 2026-08-01
 description: "Why I built Nutmeg, a self-hosted stats tracker for pickup soccer groups, after one too many arguments about who actually won."
-tags: ["golang", "htmx", "self-hosted", "soccer", "side-project"]
+tags: ["golang", "htmx", "self-hosted", "soccer", "side-project", "nutmeg"]
 ---
 
 Every group chat has one guy. You know the one. You score the winning goal on
@@ -14,6 +14,8 @@ in fifteen people's unreliable memories and WhatsApp voice notes nobody
 replays.
 
 I got tired of losing arguments I was factually winning. So I built Nutmeg.
+
+**Nutmeg is a self-hosted stats tracker for pickup soccer groups:** log the matches, get the leaderboard, and win the argument with receipts.
 
 {{< figure src="/img/nutmeg/leaderboard.png" alt="Nutmeg leaderboard showing wins, draws, losses, goals, and assists for a pickup soccer group" caption="Receipts. All of them, sorted by whoever's winning." >}}
 

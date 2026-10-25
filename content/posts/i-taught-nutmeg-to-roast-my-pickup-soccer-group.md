@@ -2,7 +2,7 @@
 title: "I Taught Nutmeg to Roast My Pickup Soccer Group (So I Wouldn't Have To)"
 date: 2026-08-03
 description: "Nutmeg's stats now get read out loud by an LLM: savage player roasts and full satirical match reports, grounded strictly in real numbers. Here's how it works and what almost went wrong."
-tags: ["golang", "llm", "self-hosted", "soccer", "side-project"]
+tags: ["golang", "llm", "self-hosted", "soccer", "side-project", "nutmeg"]
 ---
 
 [Last time]({{< ref "why-i-built-nutmeg.md" >}}) I said this might be a post on its own, if it turned into something worth shipping instead of a pile of prompt-tuning regrets. It shipped. Nutmeg now writes its own trash talk.

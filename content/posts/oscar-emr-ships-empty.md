@@ -16,6 +16,8 @@ I reached for [Synthea](https://synthetichealth.github.io/synthea/), which
 generates exactly that kind of synthetic-but-realistic history, and set out
 to load a CSV export of a few thousand fake people into OSCAR.
 
+**The short version:** it worked, but only after a lot of schema archaeology. A 15-year-old EMR schema is a history, not a data model.
+
 That sounded like a CSV-to-database problem. It wasn't. It turned into
 reading a 15-year-old Ontario EMR's schema like an archaeologist,
 decompiling a Java class to find a missing null check, and eventually

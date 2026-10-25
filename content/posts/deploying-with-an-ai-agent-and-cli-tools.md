@@ -11,6 +11,8 @@ I just wanted to show you how I deploy and update my SaaS.
 
 Nothing new here. It's the same flow I've always used. The difference is that an AI agent now does the steps I used to do by hand. It's faster, and I'll admit it: it's also better at it. It knows these CLIs more thoroughly than I do, and it uses them more carefully.
 
+**The short version:** I plan in tickets, CI is the gate, and the agent runs the CLIs for everything after that.
+
 ## One flow, with a few loops
 
 ```mermaid

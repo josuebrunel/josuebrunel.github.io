@@ -2,7 +2,7 @@
 title: "klodmem: Full-Text Search for Claude Code's Memory and History"
 date: 2026-09-09
 description: "Why I built klodmem, an MCP server that gives Claude Code's auto-memory and conversation history full-text search across every project."
-tags: ["golang", "mcp", "claude-code", "sqlite", "self-hosted"]
+tags: ["golang", "mcp", "claude-code", "sqlite", "self-hosted", "klodmem"]
 ---
 
 Claude Code writes memory files as it works: little markdown notes about your
@@ -16,6 +16,8 @@ about you in one repo is invisible in the next.
 
 I got tired of memories I knew existed but couldn't find. So I built
 klodmem. [Check it out on GitHub](https://github.com/josuebrunel/klodmem).
+
+**klodmem is an MCP server that adds full-text search to Claude Code's memory files and conversation history, across every project.**
 
 {{< figure src="/img/klodmem/klodmem-example.png" alt="Claude Code session searching its memories with klodmem's search_memory tool" caption="Ask in plain language, get the memory back." >}}
 

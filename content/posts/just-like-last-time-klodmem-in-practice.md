@@ -9,7 +9,9 @@ I almost never tell Claude to search my history. I say "just like last time" and
 
 That's where [klodmem]({{< ref "klodmem.md" >}}) earns its keep. I built it to make old memories and conversations searchable. A month later, I wanted to know if it actually helps. So I did the boring thing and audited my own transcripts.
 
-## What the numbers say
+**The short answer:** yes, but lightly. Three real searches in 53 sessions, and one of them paid for the whole tool.
+
+## Does klodmem actually get used?
 
 Lighter use than I expected, and more specific.
 

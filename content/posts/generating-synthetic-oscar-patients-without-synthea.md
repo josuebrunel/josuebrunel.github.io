@@ -69,7 +69,7 @@ The CSV path has a property I leaned on heavily in the last post: re-running the
 
 `-generate` doesn't have that. Every run mints fresh random patient IDs, so running `-generate 10000` twice doesn't refresh a population, it adds a second one on top of the first. `-generate-seed N` gets you a reproducible population, same names, same conditions, same everything, across runs with the same seed, but reproducible isn't the same as idempotent. Two runs with the same seed against a fresh database produce identical data; two runs with the same seed against the *same* database still produce two populations. If you need re-runs to converge rather than accumulate, this isn't that tool yet.
 
-## When to reach for which
+## Synthea or `-generate`: which one should you use?
 
 `-generate` is what I use now for anything that just needs plausible-looking volume: local dev seeding, load testing the ingest path itself, demo environments where nobody's going to audit whether patient #4,832's diabetes progressed realistically. It has no external dependencies and no disk footprint beyond the database it's writing to.
 

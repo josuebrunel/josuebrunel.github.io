@@ -2,14 +2,16 @@
 title: "How Scrapeit's Workers Find Each Other Without a Central Broker"
 date: 2025-07-22
 description: "A REST endpoint as a rendezvous point, a Kademlia DHT for wide discovery, mDNS for the LAN, and a polling loop that keeps Postgres and Ethereum honest with each other: the plumbing behind Scrapeit's worker swarm."
-tags: ["golang", "libp2p", "p2p", "distributed-systems", "networking"]
+tags: ["golang", "libp2p", "p2p", "distributed-systems", "networking", "scrapeit"]
 ---
 
 Fully decentralized discovery sounds nice until you realize peer zero has to come from somewhere.
 
 [Scrapeit]({{< ref "why-i-built-scrapeit.md" >}}) broadcasts scraping jobs to a swarm of workers instead of handing them out from a queue. That only works if a brand-new worker, one that has never talked to this network, can find the swarm. My answer is a small, deliberate compromise: one centralized rendezvous point to get in the door, then real peer-to-peer discovery from there on.
 
-## One URL in
+**The short version:** a worker calls one REST endpoint to learn the root peer's address, then a Kademlia DHT finds peers across the internet and mDNS finds them on the LAN. Two small polling loops keep Postgres and Ethereum in agreement.
+
+## How does a new worker find the swarm?
 
 A worker starts by calling a plain REST endpoint on a known "root peer," usually the server that's already running:
 
@@ -152,7 +154,7 @@ for {
 
 There are two flags, `OnChain` and later `Paid`. Both are set asynchronously, and both are checked before the next step fires. It's a small reconciliation loop, and it keeps a database that answers instantly from disagreeing with a blockchain that doesn't.
 
-## Stopping two workers from racing the same task
+## What stops two workers from claiming the same task?
 
 GossipSub tells everyone, so nothing stops two workers from claiming the same task. The guard lives in `Submit()`, the shared handler behind both claim and complete:
 
@@ -175,6 +177,6 @@ It's not bulletproof. If a funding transaction never confirms, the reconciliatio
 
 ---
 
-*Update: the next iteration drops this discovery layer for a central server and browser extensions: [The Idea I Can't Drop]({{< ref "the-idea-i-cant-drop-scrapeit-without-payments.md" >}}).*
+*This is part of the [Scrapeit series](/tags/scrapeit/). Update: the next iteration drops this discovery layer for a central server and browser extensions: [The Idea I Can't Drop]({{< ref "the-idea-i-cant-drop-scrapeit-without-payments.md" >}}).*
 
 *Scrapeit is open source. [View on GitHub](https://github.com/josuebrunel/scrapeit).*

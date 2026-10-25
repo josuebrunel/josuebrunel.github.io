@@ -2,7 +2,7 @@
 title: "Why I Built Scrapeit: A Decentralized Scraping Marketplace"
 date: 2025-07-08
 description: "Scraping at any real scale costs money in infrastructure, proxies, and upkeep. Scrapeit is a marketplace where anyone can earn ETH scraping pages for people who'd rather pay a few cents than run the infrastructure themselves."
-tags: ["golang", "web-scraping", "ethereum", "libp2p", "marketplace", "solidity"]
+tags: ["golang", "web-scraping", "ethereum", "libp2p", "marketplace", "solidity", "scrapeit"]
 ---
 
 Scraping a page sounds trivial until you have to do it forty times a day without getting blocked.
@@ -10,6 +10,8 @@ Scraping a page sounds trivial until you have to do it forty times a day without
 A single headless browser eats a lot of memory. Push too many requests through one IP address and most sites start throwing captchas, or quietly return garbage. Proxy providers charge by the gigabyte for IPs that haven't been flagged yet. Every few months a site changes how it detects bots, and someone has to keep watching the pipeline just to keep it working.
 
 None of that is the actual scrape. It's the infrastructure standing in front of it, and it costs real money whether you scrape one page a day or a million.
+
+**Scrapeit is my answer:** an open source marketplace where you post a URL and a reward, and the first independent worker to prove it scraped the page gets paid in ETH. No platform in the middle.
 
 ## Most of that infrastructure sits idle
 
@@ -31,7 +33,7 @@ curl -X POST localhost:8080/api/v1/task \
   -d '{"url": "https://example.com"}'
 ```
 
-## Who actually needs this
+## Who needs a scraping marketplace?
 
 **Requesters** need scraping occasionally, not constantly. Think of a small team checking competitor prices once a week, a researcher pulling a one-time dataset, or a journalist collecting public records for a story that wraps up in a month. None of them want to rotate proxies and babysit an anti-bot arms race for a handful of jobs. A few cents per page beats standing up infrastructure you'll use twice.
 
@@ -39,7 +41,7 @@ curl -X POST localhost:8080/api/v1/task \
 
 Both sides show up because the alternative is worse. One builds infrastructure for occasional use, the other lets good hardware earn nothing.
 
-## Money without trust
+## How do strangers pay each other without trust?
 
 A marketplace between strangers only works if neither side has to trust the other first. The requester doesn't know who will pick up the task. The worker doesn't know if the requester will pay.
 
@@ -61,6 +63,6 @@ Scrapeit says so in its own nav bar, on purpose. The reward is a flat rate inste
 
 ---
 
-*Update: I've since sketched a stripped-down version with no marketplace, no ETH and a browser extension as the worker: [The Idea I Can't Drop]({{< ref "the-idea-i-cant-drop-scrapeit-without-payments.md" >}}).*
+*This is part of the [Scrapeit series](/tags/scrapeit/). Update: I've since sketched a stripped-down version with no marketplace, no ETH and a browser extension as the worker: [The Idea I Can't Drop]({{< ref "the-idea-i-cant-drop-scrapeit-without-payments.md" >}}).*
 
 *Scrapeit is open source. [View on GitHub](https://github.com/josuebrunel/scrapeit).*
