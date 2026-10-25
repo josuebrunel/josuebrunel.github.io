@@ -2,6 +2,7 @@ baseURL = 'https://josuebrunel.github.io/'
 languageCode = 'en-us'
 title = 'Josue Kouka'
 theme = 'hugo-vitae'
+enableGitInfo = true
 [pagination]
     pagerSize = 10
 copyright = '© Josue Brunel'
@@ -27,6 +28,7 @@ copyright = '© Josue Brunel'
     keywords = ['python', 'go', 'linux', 'programming', 'open source']
     description = 'Personal blog of Josue Brunel — software engineer writing about Python, Go, Linux, and open source.'
     avatar = 'images/fg.jpg'
+    images = ['images/fg.jpg']
     hideAuthor = true
     readingTime = true
     wordCount = false

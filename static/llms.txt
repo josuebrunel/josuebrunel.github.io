@@ -1,0 +1,24 @@
+# Josue Kouka
+
+> Personal blog of Josue Kouka, a software engineer writing about Go, self-hosted tools, browser automation, AI-assisted workflows and small SaaS products.
+
+Posts are first-person and technical. Each one links to code or a working project where one exists.
+
+## Posts
+
+- [The Idea I Can't Drop: Scrapeit, Minus the Payments, Plus Browser Automation](https://josuebrunel.github.io/posts/the-idea-i-cant-drop-scrapeit-without-payments/): A Go server hands jobs to a browser extension that scrapes pages or automates sites in a real, logged-in browser.
+- [Why I Built Scrapeit: A Decentralized Scraping Marketplace](https://josuebrunel.github.io/posts/why-i-built-scrapeit/): A marketplace where anyone can earn ETH scraping pages for people who'd rather pay a few cents than run the infrastructure.
+- [How Scrapeit's Workers Find Each Other Without a Central Broker](https://josuebrunel.github.io/posts/how-scrapeit-workers-find-each-other/): A REST rendezvous point, a Kademlia DHT, mDNS and a reconciliation loop between Postgres and Ethereum.
+- [How I Deploy My SaaS With an AI Agent](https://josuebrunel.github.io/posts/deploying-with-an-ai-agent-and-cli-tools/): GitHub Actions, a container registry, Komodo or Kubernetes, Caddy, Cloudflare and Stripe, driven by an AI agent through CLIs.
+- [My SaaS Tech Stack: Chosen by an Engineer Who Likes Simplicity](https://josuebrunel.github.io/posts/my-simple-and-happy-stack/): Why a boring, simple tech stack is what makes a SaaS scalable.
+- [klodmem: Full-Text Search for Claude Code's Memory and History](https://josuebrunel.github.io/posts/klodmem/): An MCP server that adds full-text search to Claude Code's auto-memory and conversation history.
+- [Go for Healthcare Software: 3 Problems, One Language](https://josuebrunel.github.io/posts/go-for-healthcare-software/): Fake patients, recurring jobs, and a de-identified AI layer downstream of an EMR, all in Go.
+- [How to Test Go Code Without a Test Framework](https://josuebrunel.github.io/posts/how-to-test-go-code-without-a-test-framework/): Type-safe Go test helpers with generics, reflect.DeepEqual and testing.Helper().
+- [Building PulseDash: Replacing a Dead Wearable's Apps](https://josuebrunel.github.io/posts/building-pulsedash/): Reverse-engineering a BLE protocol to build an open-source companion app for an abandoned wearable.
+- [Why I Built Nutmeg (So My Friends Would Stop Lying About Their Stats)](https://josuebrunel.github.io/posts/why-i-built-nutmeg/): A self-hosted stats tracker for pickup soccer groups.
+
+## Other
+
+- [All posts](https://josuebrunel.github.io/posts/)
+- [Sitemap](https://josuebrunel.github.io/sitemap.xml)
+- [GitHub](https://github.com/josuebrunel)

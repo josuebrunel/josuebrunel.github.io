@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://josuebrunel.github.io/sitemap.xml

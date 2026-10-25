@@ -175,4 +175,6 @@ It's not bulletproof. If a funding transaction never confirms, the reconciliatio
 
 ---
 
+*Update: the next iteration drops this discovery layer for a central server and browser extensions: [The Idea I Can't Drop]({{< ref "the-idea-i-cant-drop-scrapeit-without-payments.md" >}}).*
+
 *Scrapeit is open source. [View on GitHub](https://github.com/josuebrunel/scrapeit).*

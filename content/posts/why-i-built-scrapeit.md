@@ -61,4 +61,6 @@ Scrapeit says so in its own nav bar, on purpose. The reward is a flat rate inste
 
 ---
 
+*Update: I've since sketched a stripped-down version with no marketplace, no ETH and a browser extension as the worker: [The Idea I Can't Drop]({{< ref "the-idea-i-cant-drop-scrapeit-without-payments.md" >}}).*
+
 *Scrapeit is open source. [View on GitHub](https://github.com/josuebrunel/scrapeit).*
