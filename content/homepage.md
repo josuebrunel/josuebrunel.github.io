@@ -4,7 +4,7 @@ nodate: true
 hidemeta: true
 ---
 
-Hi there 👋
+Hi there <span class="wave">👋</span>
 
 Most days start with Go and Linux, and end somewhere far away from a keyboard: a soccer pitch, a golf course, or a trail with no cell signal.
 

@@ -877,3 +877,7 @@ p code {
 /* GenericTraceback */ html[data-theme="dark"] .chroma .gt {  }
 /* GenericUnderline */ html[data-theme="dark"] .chroma .gl {  }
 /* TextWhitespace */ html[data-theme="dark"] .chroma .w {  }
+
+/* Flat hand emoji: transparent glyph, solid shadow. Black on light, white on dark. */
+.wave { color: transparent; text-shadow: 0 0 0 #000; }
+[data-theme="dark"] .wave { text-shadow: 0 0 0 #fff; }
