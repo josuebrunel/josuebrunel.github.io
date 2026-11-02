@@ -145,7 +145,7 @@ The code is at [github.com/josuebrunel/xpadlink](https://github.com/josuebrunel/
 
 **What doesn't (yet):**
 - Only Linux can create the virtual pad. The macOS and Windows builds compile but I haven't tried them on real machines.
-- No rumble, no gyro.
+- Vibration and gyro (for Cemu's tilt games) are built, but I haven't tested them in a game yet.
 - LAN only, no encryption. The token just keeps strangers on your Wi-Fi from sending input.
 - Bluetooth controllers should work like the GameSir does, but I haven't tested one.
 
