@@ -69,6 +69,14 @@ Same steps as before: **Options, Input settings, SDLController**, pick the pad f
 
 No manual mapping, no profile tweaking. It just looks like an Xbox pad.
 
+## Vibration, from the game to my hand
+
+A game asks the pad to rumble, and the phone buzzes. Getting there takes a few steps.
+
+The virtual pad advertises force feedback, so the kernel passes the game's rumble requests to `xpadlinkd`. The daemon answers the kernel's upload and play requests, then sends a small rumble packet over UDP: a strong motor, a weak motor, and a duration. The app turns that into a vibration on the phone, or on the controller if it has motors.
+
+I tested the server half without a phone first, with a tiny tool that plays an effect on the virtual pad the way a game would. The log showed `strong=50000 weak=20000 ms=600`. Then I played in Cemu, and the phone buzzed. It's about 150 lines of Go.
+
 ## The bugs that taught me something
 
 **The GameSir that wasn't there.** I pressed buttons on the GameSir and nothing happened in the app. The logs showed no gamepad at all, only the touchscreen and the headset jack. The reason was silly: my phone has one USB-C port, and `adb` was using it. The GameSir X2 plugs into that same port.
@@ -89,6 +97,12 @@ No code change. Just a cable.
 **macOS CI crash.** The GitHub Actions build failed on macOS with `missing LC_UUID load command`. Go 1.22 test binaries don't start on current macOS. I pinned CI to Go 1.24.
 
 **Cemu's pad name.** I named the virtual pad `XPadLink - Xbox Controller 1`. The browser shows that name, but Cemu shows `X360 Controller`. SDL swaps in its own label for the Xbox 360 vendor and product pair. That's the price of needing no mapping, and it's only a problem if you plug in a second Xbox pad and need to tell them apart.
+
+**The gyro that wasn't there.** The Breath of the Wild maze shrines need the Wii U GamePad's tilt. Cemu reads motion from a small UDP service called DSU, so I built one into the daemon and sent the phone's gyro to it. Then the app log said `motion unavailable: gyro=false`. My phone has an accelerometer, a magnetometer and a rotation vector, and no gyroscope at all.
+
+So I derive the turn rate from the rotation vector: the change between two readings, divided by the time between them. The numbers flow, Cemu subscribes, and the maze reacts. But it still flips upside down in the shrine, and I haven't found why. I'm calling motion **experimental**, and a phone with a real gyro might behave better.
+
+**The upside-down screen.** Android said the phone was in landscape with the top on the left. I was holding it the other way, so the display was upside down, and my tilt code was off by 180 degrees. The system just didn't follow the sensor. I added a **flip** button to the app. The motion code reads the screen rotation too, so one tap fixes both.
 
 ## Logs, because Wi-Fi isn't perfect
 
@@ -128,7 +142,7 @@ make uinput-setup   # one time: udev rule + input group, then log out and in
 xpadlinkd install   # start it in the background
 ```
 
-For the app you need the Flutter SDK:
+The app is `xpadlink.apk` on the same page. To build it yourself you need the Flutter SDK:
 
 ```bash
 make app && make app-run
@@ -140,12 +154,13 @@ The code is at [github.com/josuebrunel/xpadlink](https://github.com/josuebrunel/
 
 **What works:**
 - Phone touch controls and a GameSir pad plugged into the phone.
+- Vibration: a game's rumble buzzes the phone.
 - Automatic server discovery, saved servers, up to 4 phones at once.
 - Linux daemon as a service, with release binaries for Linux, macOS and Windows.
 
 **What doesn't (yet):**
 - Only Linux can create the virtual pad. The macOS and Windows builds compile but I haven't tried them on real machines.
-- Vibration and gyro (for Cemu's tilt games) are built, but I haven't tested them in a game yet.
+- Gyro is experimental. It reaches Cemu, but the Breath of the Wild maze shrine still flips. My phone has no gyroscope, so the turn rate is derived and noisy.
 - LAN only, no encryption. The token just keeps strangers on your Wi-Fi from sending input.
 - Bluetooth controllers should work like the GameSir does, but I haven't tested one.
 
