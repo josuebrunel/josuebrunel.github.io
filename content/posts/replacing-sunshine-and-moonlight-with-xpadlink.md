@@ -35,12 +35,6 @@ Why UDP? Because a late button press is a useless button press. If a packet gets
 
 The virtual pad reports the Xbox 360 vendor and product IDs (`045e:028e`). SDL, Steam, Proton and Cemu already know that pair, so there's no mapping to do.
 
-## Built with AI, one ticket at a time
-
-I built it with Claude Code. I described the idea, it wrote the Go server, the tests and the Flutter app, and I tested every step on a real phone over `adb`.
-
-I made one rule: **every request gets a GitHub ticket**. The repo ended up with 22 of them, and most commits close one. It's about 2,600 lines in total, and it took one afternoon.
-
 ## Seeing it work
 
 Open the app and it finds your PC on its own. It sends a UDP broadcast, and the server answers with its hostname and port. No typing an IP.
@@ -156,3 +150,5 @@ The code is at [github.com/josuebrunel/xpadlink](https://github.com/josuebrunel/
 - Bluetooth controllers should work like the GameSir does, but I haven't tested one.
 
 Sunshine and Moonlight are uninstalled. XPadLink is the new sheriff in town.
+
+The bigger point isn't the gamepad. It's that when no app fits your need, you can now build the one that does.
