@@ -118,7 +118,7 @@ The eye hides the touch controls, and it also happens by itself when you plug in
 
 Pair the phone with the PC once, in the Bluetooth settings of both. Start the daemon, and it says `bluetooth listening`. Then in the app: **Bluetooth** tab, **Show paired devices**, your PC, **Connect**. If it still fails, `bluetoothctl trust <phone-address>` on the PC is the first thing to try.
 
-The new release has the server binaries and the APK on the [releases page](https://github.com/josuebrunel/xpadlink/releases). The code is at [github.com/josuebrunel/xpadlink](https://github.com/josuebrunel/xpadlink).
+**v0.3.0** has the server binaries and the APK on the [releases page](https://github.com/josuebrunel/xpadlink/releases/tag/v0.3.0). The code is at [github.com/josuebrunel/xpadlink](https://github.com/josuebrunel/xpadlink).
 
 ## What I know and what I don't
 
