@@ -25,9 +25,9 @@ Every answer opens with **The gist**, one or two plain sentences. If the gist is
 
 ## The four steps
 
-Someone asking you to design a URL shortener isn't checking whether you've memorized one. They're watching whether you clarify before you build, pick storage you can defend, find the part that's actually hard, and close the loop. Every answer below follows the same four steps, and the steps matter more than any single design.
+Someone asking you to design a URL shortener isn't checking whether you've memorized one. They're watching whether you clarify before you build, pick storage you can defend, find the part that's actually hard, and close the loop. Every answer below follows the same four steps, and the steps matter more than any single design. Each case also lists the patterns it uses, linked to the [Part 4]({{< ref "interview-prep-system-design.md" >}}) question that explains each one. The steps are the plan, and the patterns are what you reach for inside it.
 
-1. **Clarification.** Say what the system must do (functional), how well it must do it (non-functional, with numbers), and what you're leaving out. Five minutes of "so we don't need analytics or custom domains, right?" saves you from designing the wrong system for the other forty.
+1. **Clarification.** Say what the system must do (functional), the core entities it stores, how well it must do it (non-functional, with numbers), and what you're leaving out. Five minutes of "so we don't need analytics or custom domains, right?" saves you from designing the wrong system for the other forty.
 2. **High-level design.** The API, the path the data takes, and where it's stored. For each store, say why that one. Keep it small enough to fit on the board.
 3. **Deep dive.** There's always one hard part: a bottleneck, a single point of failure, a shard key. Find it, then pick the one component that carries it and explain how it works inside: its data, its steps, what happens when it fails. This is the meat of the round, and it's what they're grading.
 4. **Wrap up.** Name what you gave up, then say how you'd know it's healthy: the metrics you'd watch and the alerts you'd page on. Naming the tradeoff yourself is most of the difference between a senior answer and a confident junior one.
@@ -65,9 +65,12 @@ The point of the second table is that one cross-region hop costs more than a tho
 {{% qa %}}
 **The gist:** a key-value lookup with a redirect on top. Reads outnumber writes by orders of magnitude, so the cache *is* the design.
 
+**Patterns used:** [cache-aside caching]({{< ref "interview-prep-system-design.md" >}}#10), [sharding]({{< ref "interview-prep-system-design.md" >}}#3), [L7 load balancing]({{< ref "interview-prep-system-design.md" >}}#9), [SQL vs. NoSQL]({{< ref "interview-prep-system-design.md" >}}#11).
+
 **1. Clarification**
 
 - **Functional:** shorten a long URL, redirect a short code, expire a link.
+- **Core entities:** `Link` (`short_code`, `long_url`, `created_at`, `expires_at`).
 - **Non-functional:** 10M new links a day is about 116 writes a second. At a 100:1 read ratio that's 1B redirects a day, near 11,600 reads a second. At roughly 500 bytes a row you write about 4.7GB a day, so 1.7TB a year. Seven base62 characters gives 3.5 trillion codes, which at this rate lasts 965 years. Six gives 56 billion and runs out in 16. So seven, and you can say why.
 - **Out of scope:** vanity domains, click analytics, user accounts. Say those out loud so they can pull one back in if they want it.
 
@@ -122,9 +125,12 @@ Before encoding, run the ID through a reversible scramble (multiply by a large o
 {{% qa %}}
 **The gist:** per-instance counters undercount, because each instance only sees its own share of traffic. The counter has to be shared, and Redis plus one atomic Lua script is the whole answer.
 
+**Patterns used:** [shared state instead of local mutexes]({{< ref "interview-prep-system-design.md" >}}#13), [CAP, for the fail open or closed choice]({{< ref "interview-prep-system-design.md" >}}#8), [sharding]({{< ref "interview-prep-system-design.md" >}}#3).
+
 **1. Clarification**
 
 - **Functional:** limit each API client to N requests per window across the whole fleet, and return a 429 with a retry hint.
+- **Core entities:** `Client`, and a `Bucket` per client (`tokens`, `last_refill`).
 - **Non-functional:** 50k requests a second across the fleet means 50k counter operations a second, because every request checks. The check must add well under a millisecond. 10M active clients at about 100 bytes of state each is under 1GB, so the working set fits in memory on a single Redis node.
 - **Out of scope:** per-endpoint quotas, billing, or fairness between one client's own users.
 
@@ -190,9 +196,12 @@ Capacity is the burst a client may spend at once, and the refill rate is the sus
 {{% qa %}}
 **The gist:** run every signal at once with a hard deadline, so you pay for the slowest signal rather than the sum of all of them. Anything too slow gets dropped, not waited for.
 
+**Patterns used:** [sync vs. async calls]({{< ref "interview-prep-system-design.md" >}}#6), [bulkheads]({{< ref "interview-prep-system-design.md" >}}#30), [caching]({{< ref "interview-prep-system-design.md" >}}#10).
+
 **1. Clarification**
 
 - **Functional:** score a transaction as approve, review, or decline, and let new signals be added later without a rewrite.
+- **Core entities:** `Transaction`, `Signal` (name, value, missing), and `Verdict` (approve, review, decline).
 - **Non-functional:** 5k transactions a second and a p99 budget of 100ms end to end. With 8 signals where the slowest takes 80ms, running them in series is 640ms and you've already blown it. In parallel it's 80ms and you fit. That one comparison is the entire design, which is why the fan-out is the first thing you draw.
 - **Out of scope:** training the model, or the human review queue behind it.
 
@@ -262,9 +271,12 @@ Three details matter. The channel is buffered, so a signal that finishes after t
 {{% qa %}}
 **The gist:** accept the event into a queue immediately, then fan out per user per channel onto separate queues, so a slow SMS provider can't back up your push notifications.
 
+**Patterns used:** [Kafka vs. RabbitMQ]({{< ref "interview-prep-system-design.md" >}}#4), [backpressure]({{< ref "interview-prep-system-design.md" >}}#7), [delivery semantics]({{< ref "interview-prep-system-design.md" >}}#15), [idempotency]({{< ref "interview-prep-system-design.md" >}}#5).
+
 **1. Clarification**
 
 - **Functional:** one event reaches millions of users across push, email and SMS, respecting each channel's rate limits, without duplicate sends.
+- **Core entities:** `Event`, `Message` (`user_id`, `channel`, `dedupe_key`), and a `Range` of users with a cursor.
 - **Non-functional:** one event reaching 10M users across 3 channels is 30M individual messages. Push at 10k/sec clears in about 17 minutes. The same 10M over SMS through a provider capped at 100/sec takes 27.8 hours. That number is the design: the channels cannot share a queue, because the slowest one would hold the others hostage for over a day.
 - **Out of scope:** preference management, template rendering, unsubscribe handling.
 
@@ -317,9 +329,12 @@ Cursor paging matters because offset paging rereads and skips rows when users si
 {{% qa %}}
 **The gist:** the same idempotency key from [Q24]({{< ref "interview-prep-system-design.md" >}}#24), but now wired through the whole pipeline: claim the key, call the processor, store the outcome, and make sure every retry branch has somewhere sensible to land.
 
+**Patterns used:** [idempotency keys]({{< ref "interview-prep-system-design.md" >}}#24), [the outbox pattern]({{< ref "interview-prep-system-design.md" >}}#25), [delivery semantics]({{< ref "interview-prep-system-design.md" >}}#15).
+
 **1. Clarification**
 
 - **Functional:** charge a card exactly once even when the client retries, the network drops, or a worker dies mid-call.
+- **Core entities:** `PaymentRequest` (`idempotency_key`, `request_hash`, `status`, `processor_ref`).
 - **Non-functional:** 1000 charges a second at peak, against a processor that takes 500ms to 2s. At 2s that's 2000 charges in flight simultaneously, which rules out holding a database transaction open around the processor call. Your connection pool gets sized for the claim and the write, each a few milliseconds, not for the seconds you spend waiting on someone else's API.
 - **Out of scope:** refunds, multi-currency, or storing card details.
 
@@ -392,9 +407,12 @@ The part worth rehearsing is the branches:
 {{% qa %}}
 **The gist:** a conditional `UPDATE` is your lock. The one worker whose update actually affects a row owns the job, and a lease makes sure a crashed worker's job comes back.
 
+**Patterns used:** [distributed locks]({{< ref "interview-prep-system-design.md" >}}#13), [clock skew]({{< ref "interview-prep-system-design.md" >}}#16), [delivery semantics]({{< ref "interview-prep-system-design.md" >}}#15).
+
 **1. Clarification**
 
 - **Functional:** run each scheduled job on time, once, surviving worker crashes.
+- **Core entities:** `Job` (`next_run_at`, `locked_by`, `lease_expires_at`, `attempt`, `status`).
 - **Non-functional:** 1M jobs a day averages about 12 a second, which sounds trivial and isn't, because scheduled work clusters. Everything set for midnight fires at midnight, so you size for the spike rather than the mean. With 100 workers polling once a second you're also running 100 mostly-empty queries a second against the jobs table.
 - **Out of scope:** job dependencies and DAGs, backfills, or per-job resource isolation.
 
@@ -456,9 +474,12 @@ The worker keeps the returned `attempt` and sends it with every write it makes: 
 {{% qa %}}
 **The gist:** consistent-hash conversations onto nodes, and put a gateway in front that knows which node owns which conversation. Pub/sub covers anyone who isn't connected to that node.
 
+**Patterns used:** [consistent hashing]({{< ref "interview-prep-system-design.md" >}}#27), [the thundering herd]({{< ref "interview-prep-system-design.md" >}}#17), [consistency models]({{< ref "interview-prep-system-design.md" >}}#29).
+
 **1. Clarification**
 
 - **Functional:** 1:1 and group messages, ordered within a conversation, with offline users catching up on reconnect.
+- **Core entities:** `Conversation`, `Message` (`conversation_id`, `seq`, `sender_id`, `body`), and `Connection`.
 - **Non-functional:** 10M daily users and 50M messages a day is 580 a second on average, about 1,700 at a 3x peak. Message throughput is not your problem. Connections are: 1M concurrent WebSockets at roughly 10KB of kernel and application state each is about 500MB per 50k connections, so you need around 20 nodes purely to hold sockets open. Storage at 1KB a message is 47GB a day and 17TB a year.
 - **Out of scope:** voice and video, end-to-end encryption, read receipts, or typing indicators.
 
@@ -511,9 +532,12 @@ A client that sees a gap in `seq` (got 41, then 43) knows it missed one and asks
 {{% qa %}}
 **The gist:** partition by a natural key so ordering holds per entity, accept at-least-once delivery, and make the aggregation an upsert so a replay can't double-count.
 
+**Patterns used:** [Kafka]({{< ref "interview-prep-system-design.md" >}}#4), [delivery semantics]({{< ref "interview-prep-system-design.md" >}}#15), [idempotency]({{< ref "interview-prep-system-design.md" >}}#5), [sharding]({{< ref "interview-prep-system-design.md" >}}#3).
+
 **1. Clarification**
 
 - **Functional:** ingest a high-volume event stream and maintain running aggregates that survive consumer restarts.
+- **Core entities:** `Event` (`event_id`, `game_id`, `points`) and the `Aggregate` built from it.
 - **Non-functional:** 500k events a second at 200 bytes each is about 95MB a second, so 7.9TB a day. A Kafka partition handles roughly 10MB/s comfortably, so that's 10 partitions minimum and you'd provision 50 for headroom and consumer parallelism. Seven days of retention is around 55TB, which is a hardware conversation rather than a config line.
 - **Out of scope:** ad-hoc historical queries over raw events, or exactly-once delivery into external systems.
 
@@ -571,9 +595,12 @@ Batching turns 500 round trips into one, which is where most of the throughput c
 {{% qa %}}
 **The gist:** put a proxy in front of the monolith and move one feature at a time behind it. The monolith shrinks instead of getting replaced.
 
+**Patterns used:** [sync vs. async calls]({{< ref "interview-prep-system-design.md" >}}#6), [consistency models]({{< ref "interview-prep-system-design.md" >}}#29), [the outbox pattern]({{< ref "interview-prep-system-design.md" >}}#25).
+
 **1. Clarification**
 
 - **Functional:** go from one deployable to several without a rewrite and without a feature freeze.
+- **Core entities:** A `Route` rule (path to target) and the feature's data set, owned by one side at a time.
 - **Non-functional:** the number that matters here isn't QPS, it's how long the first extraction takes. Pick a first service you can ship to production within a quarter. If your best candidate needs six months before anything runs for real, it's the wrong candidate, because you'll spend half a year maintaining two systems with nothing to show for it and the appetite will be gone.
 - **Out of scope:** changing database technology at the same time, which is how these migrations turn into the rewrite you were avoiding.
 
@@ -621,9 +648,12 @@ Prefer change data capture over application dual writes when you can. Dual write
 {{% qa %}}
 **The gist:** append-only, and each entry's hash includes the previous entry's hash. Change anything in the past and every link after it breaks, which is what makes tampering visible.
 
+**Patterns used:** [the outbox pattern]({{< ref "interview-prep-system-design.md" >}}#25), [leader election]({{< ref "interview-prep-system-design.md" >}}#14), [sharding]({{< ref "interview-prep-system-design.md" >}}#3).
+
 **1. Clarification**
 
 - **Functional:** append-only, tamper-evident, queryable by actor, resource and time range, retained for the regulatory period.
+- **Core entities:** `AuditEntry` (`tenant_id`, `seq`, `payload`, `prev_hash`, `hash`) and a per-tenant chain.
 - **Non-functional:** 50M events a day at 1KB each is 47GB a day and 17TB a year. Fintech retention is commonly seven years, so roughly 119TB. That number is why "put it all in Elasticsearch" is the wrong answer: the append-only log belongs in cheap object storage, and only a recent window needs to sit in the query index.
 - **Out of scope:** making it tamper-proof, which needs an anchor outside your own infrastructure.
 
