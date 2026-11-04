@@ -10,7 +10,7 @@ quizmode: true
 mermaid: true
 ---
 
-Part 1 of 7 · [Interview Prep](/interview-prep/) · Next: [Part 2 — Coding Patterns](/interview-prep-coding-patterns/) →
+Part 1 of 8 · [Interview Prep](/interview-prep/) · Next: [Part 2 — Coding Patterns](/interview-prep-coding-patterns/) →
 
 Go is a small language, and interviewers know it. So Go interviews go deep instead of wide. They take something you use every day, a slice, a channel, an error, and keep asking why until they find the edge of what you actually understand.
 
@@ -1963,4 +1963,4 @@ If you're earlier in your career and short on time, start with [8](#8), [9](#9),
 
 ---
 
-Part 1 of 7 · [Interview Prep](/interview-prep/) · Next: [Part 2 — Coding Patterns](/interview-prep-coding-patterns/) →
+Part 1 of 8 · [Interview Prep](/interview-prep/) · Next: [Part 2 — Coding Patterns](/interview-prep-coding-patterns/) →

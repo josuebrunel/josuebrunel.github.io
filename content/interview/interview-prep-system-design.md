@@ -1,6 +1,6 @@
 ---
 title: "Interview Prep — Part 4: System Design & Distributed Systems"
-description: "System design fundamentals, SQL vs. NoSQL, distributed systems concepts, and ten runnable system design case studies: 40 interview Q&As with diagrams."
+description: "System design fundamentals, SQL vs. NoSQL, distributed systems concepts, and a pointer to the case studies in Part 5: 30 interview Q&As with diagrams."
 url: "/interview-prep-system-design/"
 aliases: ["/interview-prep-databases-systems/", "/go-interview-prep-databases-systems/"]
 nodate: true
@@ -10,9 +10,9 @@ quizmode: true
 mermaid: true
 ---
 
-Part 4 of 7 · [Interview Prep](/interview-prep/) · ← Previous: [Part 3 — Databases & SQL](/interview-prep-databases-sql/) · Next: [Part 5 — Kafka & Microservices](/interview-prep-kafka-microservices/) →
+Part 4 of 8 · [Interview Prep](/interview-prep/) · ← Previous: [Part 3 — Databases & SQL](/interview-prep-databases-sql/) · Next: [Part 5 — System Design Case Studies](/interview-prep-system-design-case-studies/) →
 
-System design is the round people dread, and mostly for the wrong reason. It isn't a memory test. It's a test of whether you can say what breaks first and what you'd do about it. These 40 questions build that up from the fundamentals to full case studies.
+System design is the round people dread, and mostly for the wrong reason. It isn't a memory test. It's a test of whether you can say what breaks first and what you'd do about it. These 30 questions build that up from the fundamentals. The full case studies live in [Part 5]({{< ref "interview-prep-system-design-case-studies.md" >}}).
 
 **What this assumes:** you've written an API that talks to a database, and you know what a query, an index, and an HTTP request are. Sharding, quorums, and Raft all get explained here.
 
@@ -76,20 +76,20 @@ Each row is a concept and the situation that should make you reach for it, so yo
 | Two Generals' Problem | Reasoning about why perfect agreement over an unreliable channel is impossible, and why we settle for retries plus idempotency instead ([Q19](#19)). |
 | CRDTs | Replicas need to accept writes independently (offline-first, multi-region) and eventual convergence is good enough ([Q20](#20)). |
 
-**Applied patterns (case studies)**
+**Applied patterns (case studies in Part 5)**
 
 | Pattern | Use case it solves |
 |---|---|
-| Read-heavy key lookup + cache in front of DB | URL shortener ([Q31](#31)). |
-| Shared atomic counter (Redis + Lua) | Rate limiting across multiple gateway instances ([Q32](#32)). |
-| Bounded parallel fan-out with a deadline | Aggregating many signals under a tight latency SLA ([Q33](#33)). |
-| Queue-based fan-out per channel | Notifying millions of users across push/email/SMS ([Q34](#34)). |
-| Idempotency key + unique constraint | Payment processing that survives retries without double-charging ([Q35](#35)). |
-| Atomic claim + lease/heartbeat | A job scheduler where each job runs exactly once, even across crashes ([Q36](#36)). |
-| Consistent hashing + pub/sub | A sharded, horizontally-scalable chat backend ([Q37](#37)). |
-| Partition by natural key + idempotent upsert | High-throughput event ingestion without double-counting on reprocess ([Q38](#38)). |
-| Strangler fig | Migrating a monolith to microservices incrementally, without a big-bang rewrite ([Q39](#39)). |
-| Hash-chained append-only log | Tamper-evident, queryable audit logging ([Q40](#40)). |
+| Read-heavy key lookup + cache in front of DB | URL shortener ([Q1]({{< ref "interview-prep-system-design-case-studies.md" >}}#1)). |
+| Shared atomic counter (Redis + Lua) | Rate limiting across multiple gateway instances ([Q2]({{< ref "interview-prep-system-design-case-studies.md" >}}#2)). |
+| Bounded parallel fan-out with a deadline | Aggregating many signals under a tight latency SLA ([Q3]({{< ref "interview-prep-system-design-case-studies.md" >}}#3)). |
+| Queue-based fan-out per channel | Notifying millions of users across push/email/SMS ([Q4]({{< ref "interview-prep-system-design-case-studies.md" >}}#4)). |
+| Idempotency key + unique constraint | Payment processing that survives retries without double-charging ([Q5]({{< ref "interview-prep-system-design-case-studies.md" >}}#5)). |
+| Atomic claim + lease/heartbeat | A job scheduler where each job runs exactly once, even across crashes ([Q6]({{< ref "interview-prep-system-design-case-studies.md" >}}#6)). |
+| Consistent hashing + pub/sub | A sharded, horizontally-scalable chat backend ([Q7]({{< ref "interview-prep-system-design-case-studies.md" >}}#7)). |
+| Partition by natural key + idempotent upsert | High-throughput event ingestion without double-counting on reprocess ([Q8]({{< ref "interview-prep-system-design-case-studies.md" >}}#8)). |
+| Strangler fig | Migrating a monolith to microservices incrementally, without a big-bang rewrite ([Q9]({{< ref "interview-prep-system-design-case-studies.md" >}}#9)). |
+| Hash-chained append-only log | Tamper-evident, queryable audit logging ([Q10]({{< ref "interview-prep-system-design-case-studies.md" >}}#10)). |
 
 ---
 
@@ -435,7 +435,7 @@ ON CONFLICT (idempotency_key) DO NOTHING;
 
 The unique constraint is doing the real work here. Two concurrent retries both run this statement, and exactly one of them gets a row back.
 
-**What they're testing:** that the claim happens *before* the charge. Claiming afterwards leaves a window where a retry lands mid-charge, which is the bug this whole design exists to prevent. [Q35](#35) walks the same idea through a full pipeline.
+**What they're testing:** that the claim happens *before* the charge. Claiming afterwards leaves a window where a retry lands mid-charge, which is the bug this whole design exists to prevent. [Q5]({{< ref "interview-prep-system-design-case-studies.md" >}}#5) in Part 5 walks the same idea through a full pipeline.
 
 **Try it:** run the `INSERT ... ON CONFLICT DO NOTHING` statement above twice with the same key from two separate terminals at roughly the same time, and confirm only one reports a row inserted.
 {{% /qa %}}
@@ -594,424 +594,14 @@ graph TD
 
 ---
 
-## System Design Case Studies
-
-*Ten designs you should be able to sketch in five minutes. Try drawing each one before you read the answer, because the drawing is what the interview actually asks for.*
-
-**How to run the 45 minutes.** Every answer below follows the same five steps, and the steps matter more than any single design. Someone asking you to design a URL shortener isn't checking whether you've memorized one. They're watching whether you scope before you build, put numbers on it, and can find the part that's actually hard.
-
-1. **Scope it.** Say what you're building and, just as much, what you're not. Five minutes of "so we don't need analytics or custom domains, right?" saves you from designing the wrong system for the other forty.
-2. **Put numbers on it.** Writes per second, reads per second, storage per year. You don't need to be right, you need the right order of magnitude, because that's what decides whether this is one Postgres box or a sharded fleet.
-3. **Draw the boxes.** Client, load balancer, service, cache, database, queue. Small enough to fit on the board.
-4. **Go deep on the hard part.** There's always one. Find it and spend your time there, because that's what they're grading.
-5. **Say what you gave up.** Every design trades something away. Naming the tradeoff yourself is most of the difference between a senior answer and a confident junior one.
-
-**The numbers worth memorizing.** Back-of-envelope maths is a skill you can practice, and it rests on about eight facts:
-
-| Fact | Value |
-|---|---|
-| Seconds in a day | 86,400, round to 100k |
-| 1M per day | about 12/sec |
-| 100M per day | about 1,200/sec |
-| 1B per day | about 12,000/sec |
-| 1KB × 1M rows | 1GB |
-| 1KB × 1B rows | 1TB |
-| Peak vs average traffic | 2x to 3x |
-| Read:write ratio, typical web app | 10:1 to 1000:1 |
-
-And roughly what things cost in time, which is what tells you where a latency budget goes:
-
-| Operation | Time |
-|---|---|
-| Memory read | 100ns |
-| SSD random read | 100µs |
-| Network round trip, same datacenter | 0.5ms |
-| Network round trip, cross-continent | 150ms |
-
-The point of the second table is that one cross-region hop costs more than a thousand SSD reads. Latency problems are almost always about how many network hops you made, not how fast your code is.
-
-### 31. Design a URL shortener. {#31}
-
-{{% qa %}}
-**The gist:** a key-value lookup with a redirect on top. Reads outnumber writes by orders of magnitude, so the cache *is* the design.
-
-**Scope it:** shorten a long URL, redirect a short code, expire a link. Not in scope unless they ask for it: vanity domains, click analytics, user accounts. Say those out loud so they can pull one back in if they want it.
-
-**The numbers:** call it 10M new links a day, which is about 116 writes a second. At a 100:1 read ratio that's 1B redirects a day, near 11,600 reads a second. At roughly 500 bytes a row you write about 4.7GB a day, so 1.7TB a year. Seven base62 characters gives 3.5 trillion codes, which at this rate lasts 965 years. Six gives 56 billion and runs out in 16. So seven, and you can say why.
-
-**Load balancer:** L7, so it can route `POST /` (write) and `GET /:code` (read) to the same fleet without caring which, since both are stateless HTTP.
-
-**Code generator:** base62-encode an auto-incrementing ID (alphabet `[0-9a-zA-Z]`, repeatedly divide by 62 and map the remainder to a character), or hash the URL and check for a collision. Base62 is unique for free; a hash needs a read before every write to catch collisions.
-
-**Cache:** keyed on `short_code`, value is `long_url`, TTL long (links rarely change) with LRU eviction so the hot tail of recently-created and frequently-hit links stays resident.
-
-**Primary DB + read replica:** the `links` table is just `short_code` (PK), `long_url`, `created_at`, `expires_at`. Reads go to the replica behind the cache; writes go straight to the primary. Replica lag means a link can 404 for a few milliseconds right after creation, which is why a write also seeds the cache directly instead of waiting for the next read to populate it.
-
-```mermaid
-graph TD
-    subgraph "Read path"
-    C1[Client] -->|GET /code| LB[Load Balancer]
-    LB --> App1[App Server]
-    App1 -->|"1: check"| Cache[(Redis Cache)]
-    Cache -->|"2: miss, fallback"| Replica[(Read Replica)]
-    App1 -->|301/302 redirect| C1
-    end
-    subgraph "Write path"
-    C2[Client] -->|POST long URL| App2[App Server]
-    App2 -->|generate code| Primary[(Primary DB)]
-    end
-```
-
-**The part they'll push on:** generating codes without checking for a collision on every write. An auto-incrementing ID that you base62-encode is unique for free, but it leaks how many links exist and makes the next code guessable. A random code needs a uniqueness check, which is a read before every write. The usual answer is to hand each app server a pre-allocated block of IDs from a counter service, so it mints codes locally with no coordination and no collisions.
-
-**What you gave up:** the cache is the entire read path. A cold cache after a restart sends 11,600 requests a second straight at the database, so you warm it from the top-N links before taking traffic.
-{{% /qa %}}
-
-### 32. Design a distributed rate limiter shared across multiple API gateway instances. {#32}
-
-{{% qa %}}
-**The gist:** per-instance counters undercount, because each instance only sees its own share of traffic. The counter has to be shared, and Redis plus one atomic Lua script is the whole answer.
-
-**Scope it:** limit each API client to N requests per window across the whole fleet, and return a 429 with a retry hint. Not in scope: per-endpoint quotas, billing, or fairness between one client's own users.
-
-**The numbers:** 50k requests a second across the fleet means 50k counter operations a second, because every request checks. 10M active clients at about 100 bytes of state each is under 1GB, so the working set fits in memory on a single Redis node. That node is now both your bottleneck and your single point of failure, which is the interesting half of this question.
-
-**Gateway instances:** stateless by design, so they can't hold the count locally, each only sees its own slice of the 50k requests a second and would under-count the client's real total.
-
-**Redis:** one shared store holding a counter per client, key format `rate:{client_id}:{window_start}`, with the key's TTL set to the window length so it expires itself instead of needing a cleanup job.
-
-**The Lua script:** what's shown here is a fixed counter that starts at a limit and decrements, not a true token bucket, there's no refill over time, just a hard reset when the key expires and the window rolls over. A real token bucket would restore tokens gradually based on elapsed time, giving smoother throughput than an all-or-nothing reset.
-
-```lua
--- executed atomically via EVAL, keyed per client
-local tokens = tonumber(redis.call('GET', KEYS[1]) or ARGV[1])
-if tokens > 0 then
-  redis.call('DECRBY', KEYS[1], 1)
-  return 1 -- allowed
-end
-return 0 -- rate limited
-```
-
-```mermaid
-graph LR
-    G1[Gateway Instance 1] --> Redis[(Shared Redis)]
-    G2[Gateway Instance 2] --> Redis
-    G3[Gateway Instance 3] --> Redis
-    Redis -->|"atomic Lua: check + decrement"| Allowed{Allowed?}
-```
-
-**The part they'll push on:** what happens when Redis is unreachable. Fail open and you've removed the limiter during exactly the incident where you need it most. Fail closed and a Redis blip takes down your entire API. The usual answer is fail open with a local per-instance fallback limit, so you degrade to approximate limiting rather than none at all.
-
-**What you gave up:** every request now pays a network round trip, about 0.5ms in the same AZ. At the p99 that's real money. Teams that can't afford it keep a local token bucket synced periodically, trading exactness for latency.
-{{% /qa %}}
-
-### 33. Design a real-time fraud scoring system with a tight latency SLA, adding more signals over time. {#33}
-
-{{% qa %}}
-**The gist:** run every signal at once with a hard deadline, so you pay for the slowest signal rather than the sum of all of them. Anything too slow gets dropped, not waited for.
-
-**Scope it:** score a transaction as approve, review, or decline inside a fixed latency budget, and let new signals be added later without a rewrite. Not in scope: training the model, or the human review queue behind it.
-
-**The numbers:** say 5k transactions a second and a p99 budget of 100ms end to end. With 8 signals where the slowest takes 80ms, running them in series is 640ms and you've already blown it. In parallel it's 80ms and you fit. That one comparison is the entire design, which is why the fan-out is the first thing you draw.
-
-**Fan-out orchestrator:** spins up one goroutine per signal, all sharing a single `context.Context` deadline, so a signal that blows past its share of the budget gets cancelled rather than awaited.
-
-**Signal services:** each computes one feature (device reputation, IP intelligence, velocity) and caches its own result under a key like `signal:device:{device_id}`, with a TTL sized to how fast that signal goes stale: minutes for device reputation, seconds for velocity.
-
-**Aggregator:** combines whichever signals came back in time into a single score, typically a weighted sum against the model's learned weights, then buckets that score against two thresholds into approve, review, or decline.
-
-```mermaid
-graph TD
-    Req["Incoming Request"] --> Fan["Fan out, bounded by ctx deadline"]
-    Fan --> S1["Signal: Device Reputation (cached)"]
-    Fan --> S2["Signal: IP Intelligence (cached)"]
-    Fan --> S3["Signal: Velocity Check"]
-    S3 -. timeout, skipped .-> Agg[Aggregator]
-    S1 --> Agg
-    S2 --> Agg
-    Agg --> Verdict["Risk Verdict, less than 100ms"]
-```
-
-**The part they'll push on:** what a dropped signal does to the score. Silently skipping it means the model sees a different feature set than it was trained on, and the score quietly changes meaning. The honest answer is to pass an explicit "missing" value the model was trained to handle, and to alert on the drop rate, because a signal timing out 30% of the time is a broken signal wearing a working one's name.
-
-**What you gave up:** caching signals ahead of the request means scoring on slightly stale data. For device reputation that's fine. For a velocity check, "how many times has this card been used in the last minute," staleness is the whole signal, so that one has to stay live and inside the budget.
-{{% /qa %}}
-
-### 34. Design a notification system fanning one event out to millions of users via push, email, and SMS. {#34}
-
-{{% qa %}}
-**The gist:** accept the event into a queue immediately, then fan out per user per channel onto separate queues, so a slow SMS provider can't back up your push notifications.
-
-**Scope it:** one event reaches millions of users across push, email and SMS, respecting each channel's rate limits, without duplicate sends. Not in scope: preference management, template rendering, unsubscribe handling.
-
-**The numbers:** one event reaching 10M users across 3 channels is 30M individual messages. Push at 10k/sec clears in about 17 minutes. The same 10M over SMS through a provider capped at 100/sec takes 27.8 hours. That number is the design: the channels cannot share a queue, because the slowest one would hold the others hostage for over a day.
-
-**Kafka ingest:** the triggering event lands as a single message (event type, audience filter, payload), so ingestion cost is constant no matter how many users it'll eventually reach.
-
-**Fan-out worker:** walks the user list in pages (cursor-based, not offset, so a page boundary doesn't shift underneath a long-running walk), and checkpoints the last cursor per range so a crash resumes instead of restarting from user zero.
-
-**Per-channel queues:** one message per user per channel, `{user_id, channel, payload, dedupe_key}`, with the dedupe key (a hash of user, event, and channel) letting a worker skip a duplicate it's already sent.
-
-**Channel worker pools:** each pool runs its own token bucket sized to its provider's actual rate cap, so a slow SMS provider's bucket empties independently of push's, and one channel throttling never blocks another.
-
-```mermaid
-graph LR
-    Event --> Kafka[(Kafka)]
-    Kafka --> FanOut["Fan-out Worker"]
-    FanOut --> UserList["User list, paginated"]
-    UserList --> PushQ[Push Queue]
-    UserList --> EmailQ[Email Queue]
-    UserList --> SMSQ[SMS Queue]
-    PushQ --> PushW[Push Workers] --> APNs["APNs / FCM"]
-    EmailQ --> EmailW[Email Workers] --> SMTP["SMTP Provider"]
-    SMSQ --> SMSW[SMS Workers] --> SMSGW["SMS Gateway"]
-```
-
-**The part they'll push on:** "fan out to 10M users" is not one job. If a single worker walks the user list, it's a single point of failure that starts over from the beginning when it crashes 8M users in. You split the user list into ranges, hand each range to a worker, and checkpoint progress per range, so a crash resumes instead of restarting.
-
-**What you gave up:** at-least-once delivery means some users get a duplicate. Deduping on (user, event, channel) at the worker catches most of it, but a crash after the provider call and before the dedupe write will still double-send. The real fix is an idempotency key on the provider API, and not every provider offers one.
-{{% /qa %}}
-
-### 35. Design an idempotent payment processing pipeline that survives retries without double-charging. {#35}
-
-{{% qa %}}
-**The gist:** the same idempotency key from [Q24](#24), but now wired through the whole pipeline: claim the key, call the processor, store the outcome, and make sure every retry branch has somewhere sensible to land.
-
-**Scope it:** charge a card exactly once even when the client retries, the network drops, or a worker dies mid-call. Not in scope: refunds, multi-currency, or storing card details.
-
-**The numbers:** 1000 charges a second at peak, against a processor that takes 500ms to 2s. At 2s that's 2000 charges in flight simultaneously, which rules out holding a database transaction open around the processor call. Your connection pool gets sized for the claim and the write, each a few milliseconds, not for the seconds you spend waiting on someone else's API.
-
-[Q24](#24) covers the key itself and the `ON CONFLICT DO NOTHING` claim. This question is about what happens around it once a real payment processor is in the loop.
-
-The client sends a request with a client-generated idempotency key. In a single database transaction, the server claims that key with status `processing`, and the unique constraint means a concurrent duplicate fails immediately. Only after the row is claimed does the service call the payment processor.
-
-**Idempotency store:** the `payment_requests` row above, keyed on `idempotency_key`, is the whole lock, no separate locking system needed. **Payment processor call:** made with a short timeout and no automatic retry from this layer, since a retry here is exactly the double-charge risk the key exists to prevent. **Outbox:** the same event table and relay from [Q25](#25), reused rather than reinvented, since a completed payment is just another fact that needs to reach downstream systems reliably. **Reconciliation job:** polls the processor by idempotency key for any row still stuck `processing` past a timeout (a minute or two past the processor's own worst-case latency), and settles the row to whatever the processor actually did.
-
-The part worth rehearsing is the branches:
-
-- **Key already claimed and finished.** Return the stored result. No second charge.
-- **Key already claimed, still processing.** The first attempt is in flight. Return a 409 or poll, don't start a second charge.
-- **Claimed, then the process crashes mid-charge.** The row is stuck in `processing`, so you need reconciliation against the processor rather than a blind retry. This is the case people forget.
-
-On success, update the status and write an outbox event ([Q25](#25)) in the same transaction, so downstream systems hear about the charge exactly as reliably as the charge itself was recorded.
-
-```mermaid
-sequenceDiagram
-    participant Client
-    participant Server
-    participant DB
-    participant Processor
-    Client->>Server: POST /charge (idempotency-key)
-    Server->>DB: INSERT status=processing (unique key)
-    alt key already exists
-        DB-->>Server: conflict
-        Server-->>Client: return stored result
-    else new key claimed
-        Server->>Processor: charge card
-        Processor-->>Server: success
-        Server->>DB: update status=complete + outbox event
-        Server-->>Client: 200 OK
-    end
-```
-
-**The part they'll push on:** the crash-mid-charge branch. Everyone gets the happy path and the duplicate path. The stuck `processing` row is where the real conversation starts, because you genuinely cannot tell from your own database whether the card was charged. Only the processor knows, so you need a reconciliation job that queries them by idempotency key and settles the row, plus a timeout after which a `processing` row is considered suspect.
-
-**What you gave up:** a charge is never synchronously certain. The client gets a definite answer on the happy path, and on the crash path it gets "ask again shortly," which the client's own UI has to handle. Systems that promise a synchronous yes or no are lying about the crash case.
-{{% /qa %}}
-
-### 36. Design a distributed job scheduler where each job runs exactly once even if a node crashes. {#36}
-
-{{% qa %}}
-**The gist:** a conditional `UPDATE` is your lock. The one worker whose update actually affects a row owns the job, and a lease makes sure a crashed worker's job comes back.
-
-**Scope it:** run each scheduled job on time, once, surviving worker crashes. Not in scope: job dependencies and DAGs, backfills, or per-job resource isolation.
-
-**The numbers:** 1M jobs a day averages about 12 a second, which sounds trivial and isn't, because scheduled work clusters. Everything set for midnight fires at midnight, so you size for the spike rather than the mean. With 100 workers polling once a second you're also running 100 mostly-empty queries a second against the jobs table, which is why `FOR UPDATE SKIP LOCKED` or a notify channel beats naive polling well before you think it matters.
-
-**`jobs` table:** `id`, `next_run_at`, `locked_by`, `locked_at`, `lease_expires_at`, `status`. Everything a worker needs to decide whether a job is due and free lives in that one row.
-
-**Polling algorithm:** `SELECT * FROM jobs WHERE next_run_at <= now() AND (locked_by IS NULL OR lease_expires_at < now()) FOR UPDATE SKIP LOCKED LIMIT 1`. `SKIP LOCKED` is what makes concurrent polling cheap: a worker never waits behind another worker's row lock, it just moves to the next candidate.
-
-**Lease and heartbeat:** the claiming worker renews `lease_expires_at` on an interval well under the lease length (a 30-second lease renewed every 10 seconds, say), so a live worker never loses its own job, and a crashed one's lease simply expires and becomes claimable again.
-
-```sql
-UPDATE jobs
-SET locked_by = $1, locked_at = now()
-WHERE id = $2 AND locked_by IS NULL;
-
--- 1 row updated means this worker owns the job.
--- 0 rows updated means another worker already claimed it.
-```
-
-```mermaid
-graph TD
-    W1["Worker 1: poll due jobs"] -->|"atomic claim: UPDATE ... WHERE locked_by IS NULL"| Jobs[(Jobs Table)]
-    W2["Worker 2: poll due jobs"] -. claim fails, already locked .-> Jobs
-    Jobs --> Exec["Execute Job"]
-    Exec -. heartbeat / lease renewal .-> Jobs
-    Exec -. crash, lease expires .-> W2
-```
-
-**The part they'll push on:** "exactly once" isn't actually achievable, and they want to see whether you know that. A worker can finish a job, then die before marking it done, and the next worker will run it again. There's no way to make the side effect and the bookkeeping atomic when the side effect is outside your database. The real answer is at-least-once execution plus idempotent jobs, and saying so plainly is the point of the question.
-
-**What you gave up:** you've made your database a queue. That's a genuinely good choice early, because it's one less system and you get transactions for free, but the polling load and lock contention grow with worker count. Past a few hundred workers you're rebuilding a message broker badly, and should switch to one.
-{{% /qa %}}
-
-### 37. Design a sharded, horizontally-scalable chat backend. {#37}
-
-{{% qa %}}
-**The gist:** consistent-hash conversations onto nodes, and put a gateway in front that knows which node owns which conversation. Pub/sub covers anyone who isn't connected to that node.
-
-**Scope it:** 1:1 and group messages, ordered within a conversation, with offline users catching up on reconnect. Not in scope: voice and video, end-to-end encryption, read receipts, or typing indicators.
-
-**The numbers:** 10M daily users and 50M messages a day is 580 a second on average, about 1,700 at a 3x peak. Message throughput is not your problem. Connections are: 1M concurrent WebSockets at roughly 10KB of kernel and application state each is about 500MB per 50k connections, so you need around 20 nodes purely to hold sockets open. Storage at 1KB a message is 47GB a day and 17TB a year.
-
-**Connection gateway:** places both real nodes and conversation IDs on a hash ring, with each real node claiming several points on the ring (virtual nodes) so load spreads evenly instead of piling onto whichever node happens to own a lucky range.
-
-**Shard nodes:** each holds the live WebSocket connections and in-memory state for the conversations it owns, nothing more, so a node's memory footprint scales with connections, not with total platform history.
-
-**Pub/sub layer:** one topic per conversation rather than one global topic, so a node only subscribes to the conversations it's actively serving and a burst in one busy group chat doesn't fan out to every node in the cluster.
-
-**Message store schema:** `conversation_id`, `seq` (monotonic per conversation), `sender_id`, `body`, `created_at`. `seq` is what makes both in-order delivery and offline catch-up possible: a reconnecting client sends its last-seen `seq`, and the node replays everything after it from the store.
-
-```mermaid
-graph TD
-    Clients --> Gateway["Connection Gateway<br/>(consistent hash on conversation ID)"]
-    Gateway --> N1[Shard Node 1]
-    Gateway --> N2[Shard Node 2]
-    Gateway --> N3[Shard Node 3]
-    N1 --> PubSub[("Pub/Sub: Kafka or Redis")]
-    N2 --> PubSub
-    N3 --> PubSub
-    PubSub --> Store[(Message Store)]
-```
-
-**The part they'll push on:** what happens when a node holding 50k connections dies. All 50k clients reconnect at once, the gateway rehashes them onto the surviving nodes, and those nodes are now carrying extra load while handling a reconnect storm. Without jittered backoff on the client you turn one node failure into a rolling cascade, and this is the failure mode that actually takes chat systems down.
-
-**What you gave up:** hashing on conversation ID keeps ordering trivial, since one node owns the conversation. It also means a single very large group chat is a hotspot that can't be split, so at some size you need a different strategy for those specific conversations.
-{{% /qa %}}
-
-### 38. Design a system for ingesting and aggregating high-throughput event streams with the right delivery semantics. {#38}
-
-{{% qa %}}
-**The gist:** partition by a natural key so ordering holds per entity, accept at-least-once delivery, and make the aggregation an upsert so a replay can't double-count.
-
-**Scope it:** ingest a high-volume event stream and maintain running aggregates that survive consumer restarts. Not in scope: ad-hoc historical queries over raw events, or exactly-once delivery into external systems.
-
-**The numbers:** 500k events a second at 200 bytes each is about 95MB a second, so 7.9TB a day. A Kafka partition handles roughly 10MB/s comfortably, so that's 10 partitions minimum and you'd provision 50 for headroom and consumer parallelism. Seven days of retention is around 55TB, which is a hardware conversation rather than a config line.
-
-**Producers:** compute `hash(game_id) % partition_count` per event, so every event for a given entity always lands on the same partition and ordering holds for that entity specifically.
-
-**Kafka partitions:** sized off the throughput math above (10 minimum, 50 provisioned for headroom and consumer parallelism), since a partition is also the unit of consumer parallelism, more partitions means more consumers can work at once.
-
-**Consumers:** commit offsets only after the aggregate write succeeds, so a crash between processing and committing replays the same event rather than losing it, at-least-once by construction.
-
-**Aggregated state schema:** keyed on `event_id` (or `entity_id + window` for a windowed aggregate), with the write shaped as `INSERT ... ON CONFLICT (event_id) DO UPDATE` so a replayed event updates the same row instead of double-counting.
-
-```mermaid
-graph LR
-    Producers -->|partition by game ID| Kafka[(Kafka Partitions)]
-    Kafka --> Consumers["Consumers, at-least-once"]
-    Consumers -->|idempotent upsert by event ID| State[(Aggregated State)]
-    Consumers -. checkpoint offsets .-> Kafka
-```
-
-**The part they'll push on:** the partition key, twice over. First, whether you picked it deliberately, since ordering only holds within a partition and the key decides what "in order" even means here. Then the hot key: partitioning by game ID is fine until one game has 100x the traffic of the rest, and that partition's consumer falls behind while the others sit idle. You either split the hot key with a composite key and give up strict per-game ordering, or you accept the lag on that one partition.
-
-**What you gave up:** ordering holds inside a partition and nowhere else, so any aggregate spanning multiple keys has no ordering guarantee at all. If the business asks for a globally ordered view later, that's a redesign, not a config change.
-{{% /qa %}}
-
-### 39. How would you evolve a monolith into microservices without a risky big-bang rewrite? {#39}
-
-{{% qa %}}
-**The gist:** put a proxy in front of the monolith and move one feature at a time behind it. The monolith shrinks instead of getting replaced.
-
-**Scope it:** go from one deployable to several without a rewrite and without a feature freeze. Explicitly not in scope: changing database technology at the same time, which is how these migrations turn into the rewrite you were avoiding.
-
-**The numbers:** the number that matters here isn't QPS, it's how long the first extraction takes. Pick a first service you can ship to production within a quarter. If your best candidate needs six months before anything runs for real, it's the wrong candidate, because you'll spend half a year maintaining two systems with nothing to show for it and the appetite will be gone.
-
-**Routing proxy:** a rule table keyed on path or host (`/orders/* → new-service`, everything else → monolith), checked per request, simple enough that adding the next extracted feature is a config change, not a deploy of new routing logic.
-
-**New service:** calls back into the monolith over its API rather than reading its tables directly, so the monolith's schema stays free to change underneath, which is the whole point of not sharing a database mid-migration.
-
-**Data ownership cutover:** backfill the new service's store from the monolith's historical data, dual-write to both during the transition window so neither copy goes stale, then cut reads over to the new service and stop writing to the monolith's copy. Dual-write only earns its keep because the window is short: if the first extraction can't ship within a quarter, the plan already said that's the wrong candidate.
-
-```mermaid
-graph LR
-    Client --> Proxy["Routing Proxy"]
-    Proxy -->|legacy traffic| Monolith
-    Proxy -->|extracted feature| NewService["New Service"]
-    NewService -. via API, not direct DB .-> Monolith
-```
-
-**The part they'll push on:** the database. A service that's been "extracted" but still reads the monolith's tables gives you all the coupling of a distributed monolith and none of the benefits, because you still can't deploy or scale the two independently. The extraction isn't finished until the new service owns its data, and that data migration is usually the expensive part people quietly skip.
-
-**What you gave up:** for the length of the migration you run both systems, with a routing layer and, in places, dual writes. That's more operational surface than you started with, not less, and it stays that way until the last feature moves. Teams that don't finish end up permanently worse off than when they began.
-{{% /qa %}}
-
-### 40. Design a tamper-evident, queryable audit logging system for a fintech platform. {#40}
-
-{{% qa %}}
-**The gist:** append-only, and each entry's hash includes the previous entry's hash. Change anything in the past and every link after it breaks, which is what makes tampering visible.
-
-**Scope it:** append-only, tamper-evident, queryable by actor, resource and time range, retained for the regulatory period. Not in scope: making it tamper-proof, which needs an anchor outside your own infrastructure.
-
-**The numbers:** 50M events a day at 1KB each is 47GB a day and 17TB a year. Fintech retention is commonly seven years, so roughly 119TB. That number is why "put it all in Elasticsearch" is the wrong answer: the append-only log belongs in cheap object storage, and only a recent window needs to sit in the query index.
-
-Write audit events to an append-only store, and make tampering detectable by hash-chaining entries, so each entry's hash includes the previous entry's hash. For queryability, stream and index the same events into a separate query-optimized store asynchronously, keeping the append-only log as the source of truth.
-
-**Log entry schema:** `seq`, `tenant_id`, `payload`, `prev_hash`, `hash`, `written_at`, matching the struct below with one addition, `tenant_id`, needed once the chain is partitioned per tenant.
-
-**Per-tenant partitioning:** each tenant gets its own sequence and its own single writer, so tampering stays detectable within the boundary an auditor actually cares about, one tenant's chain, without forcing every write in the system through one global writer.
-
-**Indexer:** streams new entries out of the log asynchronously, the same shape as the outbox relay in [Q25](#25) (poll for unindexed rows, index them, mark done), rather than writing to both stores in the request path.
-
-**Query store schema:** indexed on `actor`, `resource`, and `time range`, the three dimensions an auditor actually filters by, with the append-only log staying the source of truth if the index and the query store ever disagree.
-
-```go
-type AuditEntry struct {
-    Seq      int64
-    Payload  []byte
-    PrevHash [32]byte
-    Hash     [32]byte
-}
-
-func appendEntry(prev AuditEntry, payload []byte) AuditEntry {
-    h := sha256.Sum256(append(prev.Hash[:], payload...))
-    return AuditEntry{
-        Seq:      prev.Seq + 1,
-        Payload:  payload,
-        PrevHash: prev.Hash,
-        Hash:     h,
-    }
-}
-
-// Altering any past entry changes its Hash, which breaks every
-// later entry's PrevHash link. Tampering becomes detectable.
-```
-
-```mermaid
-graph LR
-    Write["Write Event"] --> Log["Append-only hash-chained log<br/>(source of truth)"]
-    Log -. async stream .-> Indexer
-    Indexer --> Query[(Query store: Elasticsearch)]
-```
-
-**The part they'll push on:** a hash chain needs a strict sequence, and a strict sequence means a single writer. At 580 events a second one writer keeps up fine, but it's a single point of failure and it doesn't scale past a point. You partition the chain per tenant, so each tenant gets its own sequence and its own writer, and tampering stays detectable within the boundary that actually matters to an auditor.
-
-**What you gave up:** hash chaining proves the log is internally consistent. It does not stop someone with write access rebuilding the entire chain from a chosen point forward. To close that, you periodically publish the head hash somewhere you don't control, and that gap is exactly the difference between tamper-evident and tamper-proof. Say it before they ask.
-{{% /qa %}}
-
----
-
 ## What to drill first
 
 **[System Design Fundamentals](#system-design-fundamentals):** [5](#5) (idempotency) turns up in ordinary backend work every week, long before anyone asks you to design a distributed system. Practice actually drawing [8](#8) through [10](#10) from memory, not just describing them out loud. CAP and the three caching strategies are the two most likely to become a whiteboard request. [11](#11) (SQL vs. NoSQL) is worth having an opinion on too, since most system design rounds ask you to pick a database before anything else.
 
 **[Distributed Systems Concepts](#distributed-systems-concepts):** [28](#28) (Raft), [29](#29) (the consistency spectrum), and [30](#30) (bulkhead) are the ones most likely to turn into a follow-up "ok, now what if the leader crashes mid-write" question, so have those diagrams reflexive, not just recitable. [16](#16), [17](#17), and [23](#23) through [27](#27) are worth sketching too.
 
-**[System Design Case Studies](#system-design-case-studies):** [31](#31) through [40](#40) are the whole point of the round. Draw each one on paper before reading the answer, because describing a diagram you can't draw falls apart the moment someone asks a follow-up.
+**System Design Case Studies:** they have their own part now. Start with [Part 5]({{< ref "interview-prep-system-design-case-studies.md" >}}), and draw each design on paper before reading the answer.
 
 ---
 
-Part 4 of 7 · [Interview Prep](/interview-prep/) · ← Previous: [Part 3 — Databases & SQL](/interview-prep-databases-sql/) · Next: [Part 5 — Kafka & Microservices](/interview-prep-kafka-microservices/) →
+Part 4 of 8 · [Interview Prep](/interview-prep/) · ← Previous: [Part 3 — Databases & SQL](/interview-prep-databases-sql/) · Next: [Part 5 — System Design Case Studies](/interview-prep-system-design-case-studies/) →

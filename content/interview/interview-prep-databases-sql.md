@@ -10,7 +10,7 @@ quizmode: true
 mermaid: true
 ---
 
-Part 3 of 7 · [Interview Prep](/interview-prep/) · ← Previous: [Part 2 — Coding Patterns](/interview-prep-coding-patterns/) · Next: [Part 4 — System Design & Distributed Systems](/interview-prep-system-design/) →
+Part 3 of 8 · [Interview Prep](/interview-prep/) · ← Previous: [Part 2 — Coding Patterns](/interview-prep-coding-patterns/) · Next: [Part 4 — System Design & Distributed Systems](/interview-prep-system-design/) →
 
 Most database interviews don't stay at "what's an index." They move fast from schema and indexing into why a specific query is slow, and from there into execution plans, locking, and the storage internals that make Postgres behave the way it does. These 32 questions cover that whole span: the fundamentals you should already have, the query and internals questions that separate a senior answer from a junior one, and how to change a live schema without taking the service down.
 
@@ -744,4 +744,4 @@ If you're short on time otherwise, [25](#25) and [26](#26) pay off fastest. They
 
 ---
 
-Part 3 of 7 · [Interview Prep](/interview-prep/) · ← Previous: [Part 2 — Coding Patterns](/interview-prep-coding-patterns/) · Next: [Part 4 — System Design & Distributed Systems](/interview-prep-system-design/) →
+Part 3 of 8 · [Interview Prep](/interview-prep/) · ← Previous: [Part 2 — Coding Patterns](/interview-prep-coding-patterns/) · Next: [Part 4 — System Design & Distributed Systems](/interview-prep-system-design/) →

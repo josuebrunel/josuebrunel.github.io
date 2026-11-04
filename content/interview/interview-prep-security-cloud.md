@@ -1,5 +1,5 @@
 ---
-title: "Interview Prep — Part 6: Security & Cloud"
+title: "Interview Prep — Part 7: Security & Cloud"
 description: "Security fundamentals and cloud & infrastructure topics for Go architects: 26 interview Q&As with diagrams."
 url: "/interview-prep-security-cloud/"
 aliases: ["/go-interview-prep-security-cloud/"]
@@ -10,7 +10,7 @@ quizmode: true
 mermaid: true
 ---
 
-Part 6 of 7 · [Interview Prep](/interview-prep/) · ← Previous: [Part 5 — Kafka & Microservices](/interview-prep-kafka-microservices/) · Next: [Part 7 — AI Engineering](/interview-prep-ai-engineering/) →
+Part 7 of 8 · [Interview Prep](/interview-prep/) · ← Previous: [Part 6 — Kafka & Microservices](/interview-prep-kafka-microservices/) · Next: [Part 8 — AI Engineering](/interview-prep-ai-engineering/) →
 
 Security is where confident people go vague. Naming a control is easy. Saying what it actually stops, and what it leaves wide open, is the part interviewers listen for. The cloud half has the opposite failure: it's easy to recite service names and never say what you'd pick or why.
 
@@ -234,7 +234,7 @@ token, err := jwt.Parse(tokenString, func(t *jwt.Token) (interface{}, error) {
 
 A leaf certificate is signed by an intermediate CA, which is signed by a root CA that's pre-trusted (shipped in the OS or browser trust store). The client walks that chain up to a trusted root to validate the server's identity, then checks the hostname (or SNI) matches and the cert hasn't expired or been revoked.
 
-Standard TLS only authenticates the server to the client. mTLS adds the reverse: the client also presents a certificate and the server validates it the same way, so both sides cryptographically prove identity. That's the standard approach for service-to-service auth inside a trusted network (see [securing service-to-service communication]({{< ref "interview-prep-kafka-microservices.md" >}}#37) in Part 5).
+Standard TLS only authenticates the server to the client. mTLS adds the reverse: the client also presents a certificate and the server validates it the same way, so both sides cryptographically prove identity. That's the standard approach for service-to-service auth inside a trusted network (see [securing service-to-service communication]({{< ref "interview-prep-kafka-microservices.md" >}}#37) in Part 6).
 
 Certificate rotation matters because a long-lived cert is a long-lived risk if its private key leaks. Short-lived certs issued automatically, for example via a service mesh's built-in CA, shrink that window.
 
@@ -292,7 +292,7 @@ exec.Command("convert", userFile, "out.png")
 
 Defense in depth means no single control is trusted to fully protect the system. Network segmentation, authentication, authorization, input validation, and encryption each independently reduce risk, so one failure doesn't mean total compromise.
 
-The traditional model paired this with a hardened perimeter and an implicitly trusted internal network. Zero trust removes that implicit trust: every request is authenticated and authorized regardless of whether it came from inside or outside the perimeter, on the assumption that the perimeter will eventually be breached. That's why mTLS between internal services (see Part 5) and per-request authorization checks matter even for traffic you'd call internal-only.
+The traditional model paired this with a hardened perimeter and an implicitly trusted internal network. Zero trust removes that implicit trust: every request is authenticated and authorized regardless of whether it came from inside or outside the perimeter, on the assumption that the perimeter will eventually be breached. That's why mTLS between internal services (see Part 6) and per-request authorization checks matter even for traffic you'd call internal-only.
 
 ```mermaid
 graph TD
@@ -515,7 +515,7 @@ graph LR
 {{% qa %}}
 **The gist:** rolling swaps pods a few at a time, blue-green flips everything at once, canary sends a slice of traffic first. You're trading rollback speed against how much infrastructure you run.
 
-**Rolling:** old pods are replaced by new ones gradually, a few at a time. No extra infrastructure cost, but both versions run simultaneously for the whole rollout (see [API versioning during a rolling deployment]({{< ref "interview-prep-kafka-microservices.md" >}}#39) in Part 5), and rolling back means rolling forward again through the same gradual replacement.
+**Rolling:** old pods are replaced by new ones gradually, a few at a time. No extra infrastructure cost, but both versions run simultaneously for the whole rollout (see [API versioning during a rolling deployment]({{< ref "interview-prep-kafka-microservices.md" >}}#39) in Part 6), and rolling back means rolling forward again through the same gradual replacement.
 
 **Blue-green:** a full second environment (green) is deployed alongside the live one (blue), verified, then traffic is switched all at once. Rollback is just switching traffic back, close to instant, at the cost of running two full environments during the switch.
 
@@ -546,10 +546,10 @@ graph TD
 
 **[Security](#security):** worth over-preparing rather than under-preparing. [10](#10) (JWT pitfalls), [12](#12) (Go-specific vulnerabilities) and [6](#6) (XSS vs. CSRF) are the most likely to get a "show me the code" follow-up. Have the vulnerable-versus-safe pattern in [12](#12) ready to write on a whiteboard from memory.
 
-**[Cloud & Infrastructure](#cloud--infrastructure):** [23](#23) (Kubernetes request path) and [24](#24) (multi-region and data residency) are the highest-yield for a regulated-domain role. [26](#26) (deploy strategies) ties directly back to [API versioning during a rolling deployment]({{< ref "interview-prep-kafka-microservices.md" >}}#39) in Part 5, so rehearse them together.
+**[Cloud & Infrastructure](#cloud--infrastructure):** [23](#23) (Kubernetes request path) and [24](#24) (multi-region and data residency) are the highest-yield for a regulated-domain role. [26](#26) (deploy strategies) ties directly back to [API versioning during a rolling deployment]({{< ref "interview-prep-kafka-microservices.md" >}}#39) in Part 6, so rehearse them together.
 
 If you're earlier in your career and short on time, start with [2](#2), [12](#12) and [23](#23). Password hashing and parameterized queries come up in almost every security screen at any level, and the Kubernetes request path is the one cloud question you'll be asked whether or not the role is infrastructure-flavoured.
 
 ---
 
-Part 6 of 7 · [Interview Prep](/interview-prep/) · ← Previous: [Part 5 — Kafka & Microservices](/interview-prep-kafka-microservices/) · Next: [Part 7 — AI Engineering](/interview-prep-ai-engineering/) →
+Part 7 of 8 · [Interview Prep](/interview-prep/) · ← Previous: [Part 6 — Kafka & Microservices](/interview-prep-kafka-microservices/) · Next: [Part 8 — AI Engineering](/interview-prep-ai-engineering/) →

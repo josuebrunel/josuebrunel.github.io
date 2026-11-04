@@ -1,5 +1,5 @@
 ---
-title: "Interview Prep — Part 5: Kafka & Microservices"
+title: "Interview Prep — Part 6: Kafka & Microservices"
 description: "Kafka in depth for Go, and microservices architecture including DDD, CQRS, event sourcing, and event-driven patterns: 41 interview Q&As with diagrams."
 url: "/interview-prep-kafka-microservices/"
 aliases: ["/go-interview-prep-kafka-microservices/"]
@@ -10,7 +10,7 @@ quizmode: true
 mermaid: true
 ---
 
-Part 5 of 7 · [Interview Prep](/interview-prep/) · ← Previous: [Part 4 — System Design & Distributed Systems](/interview-prep-system-design/) · Next: [Part 6 — Security & Cloud](/interview-prep-security-cloud/) →
+Part 6 of 8 · [Interview Prep](/interview-prep/) · ← Previous: [Part 5 — System Design Case Studies](/interview-prep-system-design-case-studies/) · Next: [Part 7 — Security & Cloud](/interview-prep-security-cloud/) →
 
 Kafka looks simple from the outside. Producers write, consumers read, done. Every hard question in this part is about what happens when that tidy picture breaks: a consumer dies halfway through a message, a rebalance fires mid-batch, or two teams discover they've been using the word "customer" to mean two different things.
 
@@ -805,4 +805,4 @@ If you're earlier in your career and short on time, start with [1](#1), [2](#2),
 
 ---
 
-Part 5 of 7 · [Interview Prep](/interview-prep/) · ← Previous: [Part 4 — System Design & Distributed Systems](/interview-prep-system-design/) · Next: [Part 6 — Security & Cloud](/interview-prep-security-cloud/) →
+Part 6 of 8 · [Interview Prep](/interview-prep/) · ← Previous: [Part 5 — System Design Case Studies](/interview-prep-system-design-case-studies/) · Next: [Part 7 — Security & Cloud](/interview-prep-security-cloud/) →

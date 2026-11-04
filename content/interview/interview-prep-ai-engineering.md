@@ -1,5 +1,5 @@
 ---
-title: "Interview Prep — Part 7: AI Engineering"
+title: "Interview Prep — Part 8: AI Engineering"
 description: "LLM fundamentals, prompting, RAG and retrieval systems, and agentic production AI: 36 interview Q&As covering tokenization, embeddings, MCP, evaluation, and guardrails, with diagrams."
 url: "/interview-prep-ai-engineering/"
 nodate: true
@@ -9,7 +9,7 @@ quizmode: true
 mermaid: true
 ---
 
-Part 7 of 7 · [Interview Prep](/interview-prep/) · ← Previous: [Part 6 — Security & Cloud](/interview-prep-security-cloud/)
+Part 8 of 8 · [Interview Prep](/interview-prep/) · ← Previous: [Part 7 — Security & Cloud](/interview-prep-security-cloud/)
 
 Nobody has ten years of experience in this. The field is young enough that someone two years into their career who has read carefully and shipped one small thing can hold their own against a much longer resume. That makes this the most learnable part of the series, and the one where preparation pays off fastest.
 
@@ -686,4 +686,4 @@ The right placement is exactly at the boundary between "the agent can freely rea
 
 ---
 
-Part 7 of 7 · [Interview Prep](/interview-prep/) · ← Previous: [Part 6 — Security & Cloud](/interview-prep-security-cloud/)
+Part 8 of 8 · [Interview Prep](/interview-prep/) · ← Previous: [Part 7 — Security & Cloud](/interview-prep-security-cloud/)
