@@ -34,7 +34,7 @@ Someone asking you to design a URL shortener isn't checking whether you've memor
 
 **What to ask in step 1.** The case studies below spell out the answers. In a real round you have to get them out of the interviewer, so here are the questions. Pick the few that change your design and skip the rest.
 
-*Functional: what does it do?*
+<h3>Functional: what does it do?</h3>
 
 - **Who uses it?** End users, admins, other services? Do roles get different permissions?
 - **What are the two or three core actions?** Cut anything else. If you can't name them, you can't draw the API.
@@ -44,7 +44,9 @@ Someone asking you to design a URL shortener isn't checking whether you've memor
 - **Real time or async?** Push, polling, or "next time they open the app" are three different designs.
 - **What's out of scope?** Say it out loud: "I'll skip analytics and admin tools, OK?"
 
-*Non-functional: how well must it do it?* Always push for a number. If they won't give one, assume one and say so.
+<h3>Non-functional: how well must it do it?</h3>
+
+Always push for a number. If they won't give one, assume one and say so.
 
 | Area | What to ask |
 |---|---|
