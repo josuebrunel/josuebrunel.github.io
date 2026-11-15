@@ -1,6 +1,6 @@
 ---
 title: "Interview Prep — Part 4: System Design & Distributed Systems"
-description: "System design fundamentals, SQL vs. NoSQL, distributed systems concepts, and a pointer to the case studies in Part 5: 30 interview Q&As with diagrams."
+description: "System design fundamentals, SQL vs. NoSQL, distributed systems concepts, and a pointer to the case studies in Part 5: 36 interview Q&As with diagrams."
 url: "/interview-prep-system-design/"
 aliases: ["/interview-prep-databases-systems/", "/go-interview-prep-databases-systems/"]
 nodate: true
@@ -12,13 +12,15 @@ mermaid: true
 
 Part 4 of 8 · [Interview Prep](/interview-prep/) · ← Previous: [Part 3 — Databases & SQL](/interview-prep-databases-sql/) · Next: [Part 5 — System Design Case Studies](/interview-prep-system-design-case-studies/) →
 
-System design is the round people dread, and mostly for the wrong reason. It isn't a memory test. It's a test of whether you can say what breaks first and what you'd do about it. These 30 questions build that up from the fundamentals. The full case studies live in [Part 5]({{< ref "interview-prep-system-design-case-studies.md" >}}).
+System design is the round people dread, and mostly for the wrong reason. It isn't a memory test. It's a test of whether you can say what breaks first and what you'd do about it. These 36 questions build that up from the fundamentals. The full case studies live in [Part 5]({{< ref "interview-prep-system-design-case-studies.md" >}}).
 
 **What this assumes:** you've written an API that talks to a database, and you know what a query, an index, and an HTTP request are. Sharding, quorums, and Raft all get explained here.
 
 **What you should be able to do after:** sketch a system on a whiteboard and defend the three decisions the interviewer will actually push on.
 
 Every answer opens with **The gist**, one or two plain sentences. If the gist is all you have time for, that's still worth more than a half-remembered detail. The full answer underneath is what you say when they ask you to go deeper.
+
+Many answers end with **Ask:**, the clarifying question that tells you this concept is in play. Knowing what a quorum is doesn't help if you never ask the question that calls for one. Those questions are what you take into step 1 of [Part 5]({{< ref "interview-prep-system-design-case-studies.md" >}}).
 
 {{< toc >}}
 
@@ -39,6 +41,8 @@ Each row is a concept and the situation that should make you reach for it, so yo
 | Sharding / horizontal partitioning | A single database's write throughput or storage has become the bottleneck ([Q3](#3)). |
 | Consistent hashing | Nodes get added and removed, and you need only a fraction of keys to remap rather than almost all of them ([Q27](#27)). |
 | Caching: cache-aside / write-through / write-behind | Reads vastly outnumber writes and some staleness is tolerable. Pick the variant by how fresh reads need to be versus how fast writes need to be ([Q10](#10)). |
+| Hot keys and skew | One user, tenant, or item gets far more traffic than the rest, and adding shards doesn't help ([Q36](#36)). |
+| CDN and edge caching | Users are far from your servers and the content is the same for everyone ([Q34](#34)). |
 | L4 vs. L7 load balancing | L4 when you just need fast, protocol-agnostic distribution; L7 when routing needs to look at path, host, or cookies ([Q9](#9)). |
 
 **Consistency & coordination**
@@ -63,6 +67,7 @@ Each row is a concept and the situation that should make you reach for it, so yo
 | Delivery semantics (at-most / at-least / exactly-once) | Deciding what a message queue actually guarantees you, and what your own code still has to guarantee on top ([Q15](#15)). |
 | Outbox pattern | You need a DB write and a message publish to succeed or fail together ([Q25](#25)). |
 | Saga vs. two-phase commit | A transaction spans multiple services and holding locks across all of them (2PC) is too heavyweight ([Q26](#26)). |
+| Polling vs. long polling vs. SSE vs. WebSocket | The server has news for the client. Pick by how fast it must arrive and whether the client talks back ([Q33](#33)). |
 | Kafka vs. RabbitMQ vs. NATS | Kafka for a durable, replayable event log; RabbitMQ for flexible routing and per-message ack/retry; NATS for low-latency, lightweight pub/sub ([Q4](#4)). |
 | Gossip protocols | Detecting node failure across a large cluster without a central bottleneck ([Q21](#21)). |
 
@@ -70,6 +75,9 @@ Each row is a concept and the situation that should make you reach for it, so yo
 
 | Concept | When to reach for it |
 |---|---|
+| p99 and availability nines | Turning "fast" and "always up" into numbers you can design against ([Q31](#31)). |
+| Single point of failure, redundancy, failover | Any box on the diagram that there's only one of ([Q32](#32)). |
+| Rate limiting algorithms | Protecting an endpoint from abuse or overload, and choosing between a smooth rate and an allowed burst ([Q35](#35)). |
 | Thundering herd mitigation (jitter, coalescing) | Many clients would otherwise retry or wake up at the same instant against a recovering resource ([Q17](#17)). |
 | Bulkhead vs. circuit breaker | Bulkhead to stop one dependency's failure from starving resources shared with everything else; circuit breaker to stop calling a dependency that's clearly already failing ([Q30](#30)). |
 | Byzantine vs. crash fault tolerance | Byzantine only matters in adversarial or untrusted settings; infrastructure you control just needs crash-fault tolerance (Raft/Paxos) ([Q18](#18)). |
@@ -103,6 +111,7 @@ Each row is a concept and the situation that should make you reach for it, so yo
 **The gist:** vertical is a bigger machine, horizontal is more machines. Horizontal is easy right up until state enters the picture, and then state is the whole problem.
 
 Vertical scaling means a bigger machine: simple, but it has a hard ceiling. Horizontal scaling means more machines sharing load, and it stops being trivial the moment state enters the picture. Stateless request handling scales linearly, but a stateful component needs partitioning, replication, or coordination logic.
+**Ask:** "How many requests a second at peak, and does any server keep state between requests?"
 {{% /qa %}}
 
 ### 2. Explain eventual consistency with a good-fit and bad-fit example. {#2}
@@ -113,6 +122,7 @@ Vertical scaling means a bigger machine: simple, but it has a hard ceiling. Hori
 Eventual consistency means replicas will converge given enough time without new writes, but reads shortly after a write might see stale data.
 
 Good fit: a like count. Bad fit: an account balance check right before authorizing a large withdrawal.
+**Ask:** "Can this read be stale, and for how long?"
 {{% /qa %}}
 
 ### 3. Difference between horizontal and vertical partitioning (sharding) of a database? {#3}
@@ -123,6 +133,7 @@ Good fit: a like count. Bad fit: an account balance check right before authorizi
 Vertical partitioning splits a table by columns: same rows, different tables. Horizontal partitioning (sharding) splits a table by rows across multiple database instances based on a shard key, so each shard holds a subset of rows but the full schema.
 
 **What they're testing:** whether you keep the two straight under pressure. Part 3 covers [partitioning versus sharding]({{< ref "interview-prep-databases-sql.md" >}}#28) from the single-instance side, and interviewers like asking both.
+**Ask:** "How big does the data get, and which key shows up in every query?"
 {{% /qa %}}
 
 ### 4. When would you choose Kafka vs RabbitMQ vs NATS? {#4}
@@ -131,6 +142,7 @@ Vertical partitioning splits a table by columns: same rows, different tables. Ho
 **The gist:** Kafka is a replayable log, RabbitMQ is a smart work queue, NATS is fast and light. Pick by whether you need history, routing, or raw speed.
 
 **Kafka:** high-throughput, durable, replayable event log, ideal for event sourcing and stream processing. **RabbitMQ:** flexible routing, strong work-queue semantics with per-message ack and retry. **NATS:** extremely low latency, lightweight pub/sub.
+**Ask:** "Do we need to replay old events, or just hand each job to one worker?"
 {{% /qa %}}
 
 ### 5. Explain idempotency and why it matters in distributed systems. {#5}
@@ -141,6 +153,7 @@ Vertical partitioning splits a table by columns: same rows, different tables. Ho
 An idempotent operation produces the same end result no matter how many times it's applied. That's critical because network failures mean clients can't always tell if a request succeeded, so they have to be able to retry safely.
 
 **What they're testing:** whether you connect it to retries. Idempotency isn't a nice property in the abstract, it's what makes a retry safe, and retries are unavoidable.
+**Ask:** "Can the client retry this, and what happens if it runs twice?"
 {{% /qa %}}
 
 ### 6. Synchronous vs asynchronous communication between services: what are the tradeoffs? {#6}
@@ -149,6 +162,7 @@ An idempotent operation produces the same end result no matter how many times it
 **The gist:** sync gives you an answer now and ties your uptime to theirs. Async decouples you, and hands you retries, ordering, and eventual consistency to deal with instead.
 
 Synchronous is simpler and gives immediate feedback, but it couples the caller's availability to the callee's. Asynchronous decouples services in time, at the cost of eventual consistency and more complex failure, retry, and ordering handling.
+**Ask:** "Does the caller need the answer now, or is "accepted, we'll get to it" enough?"
 {{% /qa %}}
 
 ### 7. Explain backpressure and why a fast producer plus a slow consumer needs it. {#7}
@@ -168,6 +182,7 @@ jobs := make(chan Job, 100)
 ```
 
 **Try it:** run the bounded-channel snippet with a producer faster than the consumer, and watch `len(jobs)` climb to the buffer size and stay there instead of growing without bound.
+**Ask:** "When work arrives faster than we can handle it, do we drop it, queue it, or reject it?"
 {{% /qa %}}
 
 ### 8. Explain CAP theorem with a concrete example. {#8}
@@ -190,6 +205,7 @@ graph TD
 ```
 
 **What they're testing:** that you know "CA" isn't a real option. Partitions aren't a design choice, they're weather, so the only question is what you do when one happens.
+**Ask:** "During a network split, do we show an error or old data?"
 {{% /qa %}}
 
 ### 9. Explain L4 vs L7 load balancing. {#9}
@@ -212,6 +228,7 @@ graph TD
     LB2 -->|"/api/v2/*"| SB[Service B]
     end
 ```
+**Ask:** "Do we route by path or host, or just spread connections?"
 {{% /qa %}}
 
 ### 10. Explain caching strategies: cache-aside, write-through, write-behind. {#10}
@@ -239,6 +256,7 @@ graph TD
 ```
 
 **Try it:** implement cache-aside against `redis-cli`: `GET` a key, on a miss read from your database and `SETEX` it with a short TTL, then `GET` it again and confirm the second read never touches the database.
+**Ask:** "How fresh must a read be, and can we ever lose a write?"
 {{% /qa %}}
 
 ### 11. SQL vs. NoSQL: what's actually different, and when would you choose each? {#11}
@@ -255,6 +273,7 @@ Choose SQL when the data has real relationships you'll query across, and correct
 **What they're testing:** whether "NoSQL is for scale" is the whole answer you have, or whether you'll also say what you give up to get it. Plenty of NoSQL migrations get quietly undone once someone needs a join that used to be free.
 
 **Try it:** take one table from a project you know well and write down every join it currently makes. Each one becomes application-code work, or duplicated data to avoid it, the moment that table moves to a non-relational store.
+**Ask:** "What are the queries, and do they join across entities?"
 {{% /qa %}}
 
 ### 12. What are the main types of NoSQL databases, and what does each one actually fit? {#12}
@@ -280,6 +299,7 @@ Graph:       (node)-[relationship]->(node)      relationships are the query
 **What they're testing:** whether you pick the type from the access pattern, not the brand name. "We use MongoDB" doesn't answer "why document over wide-column," and that follow-up is the real question.
 
 **Try it:** take a feature you've built that used a relational table, and work out which of the four types, if any, actually fits its real query pattern better, and specifically why: does that query need a join, a range scan on a partition key, or a graph traversal?
+**Ask:** "What's the one query this store must answer fast?"
 {{% /qa %}}
 
 ---
@@ -296,6 +316,7 @@ Graph:       (node)-[relationship]->(node)      relationships are the query
 A `sync.Mutex` only coordinates goroutines within a single process's memory space. A distributed lock uses a shared external system (Redis Redlock, or etcd and Zookeeper with consensus-backed leases) so multiple independent processes can agree on mutual exclusion, typically with a lease or TTL.
 
 **Try it:** acquire a lock with `SET lock:job1 owner NX EX 10` in `redis-cli` from two terminals. Only one returns `OK`; the other gets `nil` and knows to back off.
+**Ask:** "Can two servers do this at the same time, and what breaks if they do?"
 {{% /qa %}}
 
 ### 14. What's leader election, and how does it typically work? {#14}
@@ -304,6 +325,7 @@ A `sync.Mutex` only coordinates goroutines within a single process's memory spac
 **The gist:** getting a group of nodes to agree on exactly one boss, and to pick a new one quickly when that boss dies.
 
 It's a mechanism for a group of distributed nodes to agree on exactly one leader. Typically it's implemented via a consensus protocol like Raft: nodes propose themselves, a majority quorum must agree, and if the leader fails to renew its lease, a new election triggers.
+**Ask:** "Must exactly one node do this job at a time?"
 {{% /qa %}}
 
 ### 15. At-most-once vs at-least-once vs exactly-once delivery, and why is exactly-once mostly a myth? {#15}
@@ -314,6 +336,7 @@ It's a mechanism for a group of distributed nodes to agree on exactly one leader
 At-most-once means a message might be lost. At-least-once means it's guaranteed delivered, but possibly more than once. Exactly-once is extremely hard end to end. In practice, systems achieve "effectively exactly-once" by combining at-least-once delivery with idempotent processing.
 
 **What they're testing:** whether you push back on the phrase. A broker that advertises exactly-once is describing its own hop, not your handler, and your handler still has to be idempotent.
+**Ask:** "Which is worse here: a lost message or a duplicate?"
 {{% /qa %}}
 
 ### 16. How do clock skew and distributed time affect ordering of events across services? {#16}
@@ -322,6 +345,7 @@ At-most-once means a message might be lost. At-least-once means it's guaranteed 
 **The gist:** two machines' clocks disagree, so you can't order events by comparing timestamps. Use logical clocks, or one thing that hands out the order.
 
 Wall-clock timestamps from different machines aren't reliably comparable, because of clock drift. The solutions are logical clocks (Lamport or vector clocks) that capture causal ordering, or a centralized sequencer or monotonic ID source when a single global order is genuinely required.
+**Ask:** "Does order matter across the whole system, or only per user or per conversation?"
 {{% /qa %}}
 
 ### 17. What is the thundering herd problem, and how do jitter and coalescing prevent it? {#17}
@@ -336,6 +360,7 @@ Jittered backoff randomizes retry timing. Request coalescing (single-flight) mak
 **What they're testing:** whether you'd catch it in your own retry code. Plain exponential backoff without jitter still synchronizes every client on the same schedule, which is the trap.
 
 **Try it:** wrap a cache-refill call in Go's `singleflight.Group`, fire 50 concurrent goroutines requesting the same key on a miss, and confirm only one of them actually reaches the database.
+**Ask:** "What happens when the cache is empty, or when every client reconnects at once?"
 {{% /qa %}}
 
 ### 18. What's the difference between Byzantine and crash-fault tolerance, and why do Raft and Paxos only handle the latter? {#18}
@@ -368,6 +393,7 @@ A Conflict-free Replicated Data Type is a data structure (counter, set, map) des
 Reach for one when replicas need to accept writes independently (offline-first apps, multi-region writes) and eventual convergence is good enough. Skip it when you need a strict invariant a CRDT can't express, like "balance never goes negative."
 
 **Try it:** implement a grow-only counter as a map of replica ID to count, merge two replicas' maps by taking the max per key, and confirm the result is the same no matter which order you merge them in.
+**Ask:** "Can users write while offline, or in two regions at once?"
 {{% /qa %}}
 
 ### 21. How does a gossip protocol detect node failure, and how does that differ from a centralized health check? {#21}
@@ -438,6 +464,7 @@ The unique constraint is doing the real work here. Two concurrent retries both r
 **What they're testing:** that the claim happens *before* the charge. Claiming afterwards leaves a window where a retry lands mid-charge, which is the bug this whole design exists to prevent. [Q5]({{< ref "interview-prep-system-design-case-studies.md" >}}#5) in Part 5 walks the same idea through a full pipeline.
 
 **Try it:** run the `INSERT ... ON CONFLICT DO NOTHING` statement above twice with the same key from two separate terminals at roughly the same time, and confirm only one reports a row inserted.
+**Ask:** "If the client times out and sends it again, do we charge twice?"
 {{% /qa %}}
 
 ### 25. Explain the outbox pattern for reliably publishing events after a DB write. {#25}
@@ -471,6 +498,7 @@ graph LR
 **What they're testing:** whether you can name the dual-write problem. Two writes to two systems can't both be guaranteed, so the trick is to make it one write and move the second one downstream.
 
 **Try it:** insert a business row and an outbox row in one transaction, then run the relay's `SELECT * FROM outbox WHERE published = false` by hand and confirm your new event is sitting there waiting to be published.
+**Ask:** "Does another service need to hear about this write, and can it ever miss it?"
 {{% /qa %}}
 
 ### 26. What is a saga pattern, and when would you use it instead of 2PC? {#26}
@@ -497,6 +525,7 @@ graph TD
     S3 -. failure .-> C2["Compensate: Refund Payment"]
     end
 ```
+**Ask:** "Does one user action change data in more than one service?"
 {{% /qa %}}
 
 ### 27. Explain consistent hashing and why it's used for sharding and caching. {#27}
@@ -514,6 +543,7 @@ graph LR
 ```
 
 **Try it:** hash 10 keys against `hash(key) % 4` and again against `% 5`, and count how many land on a different node. Then put the same 4 nodes on a ring and add a fifth: far fewer keys move.
+**Ask:** "Will nodes be added or removed while it's running?"
 {{% /qa %}}
 
 ### 28. Walk through Raft leader election and log replication in more depth. {#28}
@@ -560,6 +590,7 @@ graph LR
     Strong["Strong<br/>(linearizable)"] --> Causal["Causal<br/>(preserves cause→effect order)"] --> RYW["Read-your-writes<br/>(session-scoped)"] --> Eventual["Eventual<br/>(converges, no ordering guarantee)"]
     Strong -.->|"more coordination, higher latency"| Eventual
 ```
+**Ask:** "Does a user need to see their own change right away, even if others see it later?"
 {{% /qa %}}
 
 ### 30. Explain the bulkhead pattern, and how it differs from a circuit breaker. {#30}
@@ -590,6 +621,149 @@ graph TD
 **What they're testing:** whether you see them as complementary rather than alternatives. Answering "a bulkhead instead of a circuit breaker" is the wrong shape, you want both.
 
 **Try it:** create two separate bounded worker pools in Go, saturate one with slow fake calls, and confirm requests to the other pool still complete on time.
+**Ask:** "If one dependency gets slow, what else is allowed to slow down?"
+{{% /qa %}}
+
+---
+
+## From Requirements to Design
+
+*Six concepts that turn a requirement into a design choice. Each one sits behind a question you'll ask in step 1 of [Part 5]({{< ref "interview-prep-system-design-case-studies.md" >}}), and each one shows up in at least one case study there.*
+
+### 31. What do p50 and p99 mean, and what does 99.9% availability actually allow? {#31}
+
+{{% qa %}}
+**The gist:** p99 is the latency that 99 requests out of 100 beat. Design for it, because the average hides the slow ones. And each extra nine of availability cuts your allowed downtime by ten.
+
+**Percentiles.** Sort every request by how long it took. p50 is the middle one. p99 is the one slower than 99% of the rest. An average of 50ms can hide one request in a hundred taking 3 seconds.
+
+The tail matters more than it looks. A page that makes 20 requests has an 18% chance of hitting at least one p99-slow request. So your p99 is what a lot of users feel on every page load.
+
+**Nines.** Availability is the share of time the system answers:
+
+| Availability | Downtime a year |
+|---|---|
+| 99% | 3.65 days |
+| 99.9% | 8.8 hours |
+| 99.99% | 53 minutes |
+| 99.999% | 5 minutes |
+
+99.9% lets you restart a box by hand. 99.99% doesn't: nobody wakes up, logs in, and fixes anything inside 53 minutes a year, so failover has to be automatic.
+
+Nines also multiply. A request that passes through four services in a row, each at 99.9%, gets about 99.6%. Every sync hop you add costs availability.
+
+**What they're testing:** whether you ask "p99 or average?" before you accept a latency target, and whether you know a chain is less available than its weakest link.
+
+**Ask:** "Is that latency target the average or the p99, and how many nines do we need?"
+{{% /qa %}}
+
+### 32. What's a single point of failure, and how do you remove one? {#32}
+
+{{% qa %}}
+**The gist:** any box whose death stops the system. You remove it by running more than one, and by deciding ahead of time how the others take over.
+
+**Stateless boxes are easy.** Run several app servers behind a load balancer. One dies, the others carry on.
+
+**Stateful boxes are the real work.** A database needs a copy, which is [replication]({{< ref "interview-prep-databases-sql.md" >}}#10) (Part 3), and then a plan for the takeover:
+
+- **Active-passive:** one node serves, a standby follows it. On failure the standby is promoted. It's simple, but there's a gap during the switch, and with async replication the last few writes can be lost.
+- **Active-active:** every node serves. There's no gap, but two nodes can accept conflicting writes, and now you have to resolve them.
+
+The takeover itself needs care. If two nodes both think they're the primary, you have split brain, which is why failover leans on [leader election](#14) and a majority vote.
+
+Don't stop at the database. The load balancer, the one Redis, the DNS provider, and the region itself are all single points of failure until you've said otherwise.
+
+**What they're testing:** whether you find them without being asked. Walk the diagram box by box and ask "what if this dies?" out loud.
+
+**Ask:** "If this box dies, what stops, and how long is it allowed to stay stopped?"
+{{% /qa %}}
+
+### 33. Polling, long polling, SSE, WebSocket: how does a server get news to a client? {#33}
+
+{{% qa %}}
+**The gist:** four ways to do it, from simplest to most capable. Pick by how fast the update must arrive and whether the client needs to talk back on the same connection.
+
+| Option | How it works | Fits |
+|---|---|---|
+| **Polling** | The client asks every N seconds. | Updates that can be N seconds late: a dashboard, a notification badge. |
+| **Long polling** | The server holds the request open until it has news or a timeout. | Near real time over plain HTTP, when you can't use anything newer. |
+| **SSE** | One long-lived HTTP response, and the server pushes events down it. One way only. | Live feeds, progress bars, streamed LLM output. |
+| **WebSocket** | One long-lived connection, both sides send whenever they like. | Chat, games, collaborative editing. |
+
+Polling is stateless, so it scales like any other HTTP endpoint. Its cost is wasted requests and a delay of up to N seconds.
+
+The other three hold a connection open per client, and that changes your design. Servers now hold memory per connection, the load balancer has to handle long-lived connections, and a deploy or a crash drops thousands of clients at once. They all reconnect together, which is a [thundering herd](#17).
+
+**What they're testing:** that you don't reach for WebSockets by reflex. A badge that updates every 30 seconds is a polling problem, and polling is a lot less to run.
+
+**Ask:** "How fast must the update reach the user, and does the client need to send things back on the same channel?"
+{{% /qa %}}
+
+### 34. What is a CDN, and what should and shouldn't go behind one? {#34}
+
+{{% qa %}}
+**The gist:** a cache that sits close to the user. Great for anything many people fetch and few people change. No help for data that's personal or changes every second.
+
+A CDN keeps copies of your content in edge locations around the world, and sends each request to the nearest one. A 150ms round trip across a continent becomes a few milliseconds. On a miss, the edge fetches from your servers (the origin), stores the response for as long as the `Cache-Control` header allows, and serves the next request itself.
+
+**What fits:** images, video, JS and CSS, downloads, and public API responses that are the same for everyone.
+
+**What doesn't:** per-user responses, writes, and anything that must be fresh to the second.
+
+The hard part is the same as any cache: getting rid of stale copies. The clean trick is to never need to. Put a hash in the filename (`app.3f9a.js`), cache it for a year, and ship a new filename when the content changes. Purging by hand is for the things you can't version.
+
+A CDN also absorbs spikes. A launch that would flatten your origin is mostly cache hits at the edge.
+
+**What they're testing:** whether you know what it can't cache. "Put a CDN in front" isn't an answer until you've said which responses are the same for every user.
+
+**Ask:** "Are users spread across regions, and is the content the same for everyone?"
+{{% /qa %}}
+
+### 35. Compare rate limiting algorithms: fixed window, sliding window, token bucket. {#35}
+
+{{% qa %}}
+**The gist:** fixed window is the simplest, and it lets a double burst through at the boundary. Sliding window fixes the boundary. Token bucket allows a burst on purpose, and it's the usual default.
+
+- **Fixed window:** one counter per client per minute. Cheap, one key. The flaw: a client sends N requests at 11:59:59 and N more at 12:00:00, so 2N in two seconds.
+- **Sliding window log:** store the timestamp of every request and count the ones in the last minute. Exact, but memory grows with traffic.
+- **Sliding window counter:** keep this window's count and the last one's, and weight the last one by how much of it still overlaps. Close to exact, two counters.
+- **Token bucket:** a bucket holds up to `capacity` tokens and refills at a steady rate. Each request spends one. The capacity is the burst you allow, the refill rate is the long-run limit.
+- **Leaky bucket:** requests wait in a queue that drains at a fixed rate. The output is perfectly smooth, and the price is added delay.
+
+```
+limit: 100 a minute
+
+fixed window   |....100....|....100....|   200 can land around the boundary
+token bucket   capacity 100, refill 1.67/sec: one burst of 100, then 1.67/sec
+```
+
+Inside one Go process, that's `golang.org/x/time/rate` ([Part 1, Q71]({{< ref "interview-prep-language.md" >}}#71)). Across a fleet the counter has to be shared, which is the whole of [Part 5, Q2]({{< ref "interview-prep-system-design-case-studies.md" >}}#2).
+
+**What they're testing:** that you can name the boundary problem, and that you see a limit as two numbers, the burst and the sustained rate, not one.
+
+**Ask:** "Is a short burst OK, or must the rate be smooth?"
+{{% /qa %}}
+
+### 36. What's a hot key, and why doesn't adding shards fix it? {#36}
+
+{{% qa %}}
+**The gist:** sharding assumes every key is about as busy as the next. One celebrity, one big tenant, or one viral item breaks that, because all of its traffic lands on one node no matter how many nodes you add.
+
+**How you spot it:** uneven load. One shard's CPU is pinned, or one partition's consumer lag keeps growing, while the rest sit idle.
+
+**What you do depends on whether it's hot for reads or writes:**
+
+- **Hot read:** cache it, and keep a short-lived copy inside each app server so most reads never leave the process.
+- **Hot write:** split the key with a suffix (`game42#0` to `game42#9`) so writes spread over ten places, and merge them on read. You give up strict ordering for that key.
+- **Hot counter:** count in memory and flush once a second. A million likes become one write.
+- **Hot tenant:** give it its own shard, and keep the small tenants together.
+- **A different path for the big ones:** a feed that copies each post to every follower works for normal users. For a celebrity with 50M followers, you fetch their posts at read time instead.
+
+A good [shard key](#3) helps before any of this: many distinct values, spread evenly. But real traffic is rarely even, so plan for the outlier.
+
+**What they're testing:** whether you say "add more shards." That's the wrong answer, and the interviewer is waiting for it.
+
+**Ask:** "Is the traffic spread evenly, or does one user, tenant, or item get most of it?"
 {{% /qa %}}
 
 ---
@@ -599,6 +773,10 @@ graph TD
 **[System Design Fundamentals](#system-design-fundamentals):** [5](#5) (idempotency) turns up in ordinary backend work every week, long before anyone asks you to design a distributed system. Practice actually drawing [8](#8) through [10](#10) from memory, not just describing them out loud. CAP and the three caching strategies are the two most likely to become a whiteboard request. [11](#11) (SQL vs. NoSQL) is worth having an opinion on too, since most system design rounds ask you to pick a database before anything else.
 
 **[Distributed Systems Concepts](#distributed-systems-concepts):** [28](#28) (Raft), [29](#29) (the consistency spectrum), and [30](#30) (bulkhead) are the ones most likely to turn into a follow-up "ok, now what if the leader crashes mid-write" question, so have those diagrams reflexive, not just recitable. [16](#16), [17](#17), and [23](#23) through [27](#27) are worth sketching too.
+
+**[From Requirements to Design](#from-requirements-to-design):** [31](#31) (p99 and nines) and [32](#32) (single points of failure) come up in every design round, usually in the first five minutes. [36](#36) (hot keys) is the follow-up to almost any sharding answer.
+
+**The Ask lines:** read down them once without the answers. If you can say what a yes and a no would change in your design, you own the concept. If you can't, reread that answer.
 
 **System Design Case Studies:** they have their own part now. Start with [Part 5]({{< ref "interview-prep-system-design-case-studies.md" >}}), and draw each design on paper before reading the answer.
 
