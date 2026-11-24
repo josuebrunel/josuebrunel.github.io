@@ -1,6 +1,6 @@
 ---
 title: "Interview Prep — Part 5: System Design Case Studies"
-description: "Ten system design case studies, each walked through in four steps: clarification, high-level design, deep dive, and wrap up. 10 interview Q&As with diagrams."
+description: "Nine system design patterns and when to use each, then ten case studies walked through in four steps: clarification, high-level design, deep dive, and wrap up."
 url: "/interview-prep-system-design-case-studies/"
 nodate: true
 hidemeta: true
@@ -25,7 +25,7 @@ Every answer opens with **The gist**, one or two plain sentences. If the gist is
 
 ## The four steps
 
-Someone asking you to design a URL shortener isn't checking whether you've memorized one. They're watching whether you clarify before you build, pick storage you can defend, find the part that's actually hard, and close the loop. Every answer below follows the same four steps, and the steps matter more than any single design. Each case also lists the patterns it uses, linked to the [Part 4]({{< ref "interview-prep-system-design.md" >}}) question that explains each one. The steps are the plan, and the patterns are what you reach for inside it.
+Someone asking you to design a URL shortener isn't checking whether you've memorized one. They're watching whether you clarify before you build, pick storage you can defend, find the part that's actually hard, and close the loop. Every answer below follows the same four steps, and the steps matter more than any single design. Each case also lists the [patterns](#patterns-when-to-reach-for-what) it uses, and the [Part 4]({{< ref "interview-prep-system-design.md" >}}) concepts behind them. The steps are the plan, and the patterns are what you reach for inside it.
 
 1. **Clarification, about 5 minutes.** Say what the system must do (functional), the core entities it stores, how well it must do it (non-functional, with numbers), and what you're leaving out. Five minutes of "so we don't need analytics or custom domains, right?" saves you from designing the wrong system for the other forty.
 2. **High-level design, 10 to 15 minutes.** The API, the path the data takes, and where it's stored. For each store, say why that one. Keep it small enough to fit on the board.
@@ -131,6 +131,274 @@ The point of the second table is that one cross-region hop costs more than a tho
 
 ---
 
+## Patterns: when to reach for what
+
+*Nine problems that show up again and again, whatever the system is called. Learn to spot them in step 1, and you walk into step 3 already knowing your options.*
+
+The concepts in [Part 4]({{< ref "interview-prep-system-design.md" >}}) are the tools. These patterns are the jobs. "Design Ticketmaster" and "design a payment system" sound different, but both are a contention problem underneath, and the answer is the same ladder.
+
+Each pattern follows one shape:
+
+- **You'll hear it as:** the words in the prompt that tell you it's in play.
+- **The ladder:** the options from simplest to heaviest. Climb only as far as the numbers force you. Every rung adds moving parts, and an interviewer will ask why you didn't stop one lower.
+- **Watch out:** the follow-up they'll push on.
+- **Ask:** the clarifying question that decides how high you climb.
+
+### Real-time updates: getting news to the client fast {#p-realtime}
+
+{{% qa %}}
+**The gist:** first pick how the server talks to the client, then how the servers talk to each other. The second half is the part people forget.
+
+**You'll hear it as:** "live", "instantly", chat, typing indicators, live scores, a ride's car moving on the map, "notify the user when...".
+
+**The ladder:**
+
+| Rung | What it is | Reach for it when |
+|---|---|---|
+| Polling | The client asks every N seconds. | N seconds late is fine. A badge count, a dashboard. |
+| Long polling | The server holds the request until there's news. | Near real time, and you're stuck on plain HTTP. |
+| SSE | One open HTTP response the server pushes down. | Server to client only: feeds, progress, streamed LLM output. |
+| WebSocket | One open connection, both sides talk. | The client talks back a lot: chat, games, shared editing. |
+| Pub/sub between servers | Redis pub/sub or Kafka routes a message to the server holding the user's connection. | More than one server holds connections, which is always, past the demo. |
+
+**Why that order:** polling is plain stateless HTTP, so it scales like everything else. Every rung above it holds a connection open per user, and now servers have state, deploys drop thousands of users at once, and the load balancer has to keep long-lived connections alive.
+
+**Watch out:** "user A is on server 3, user B is on server 7, how does A's message get to B?" That's the last rung. Keep a map from user to server (or [consistent hashing]({{< ref "interview-prep-system-design.md" >}}#27)), and publish to that server's channel. Also say what happens when everyone reconnects after a deploy: a [thundering herd]({{< ref "interview-prep-system-design.md" >}}#17), so add jitter.
+
+**Builds on:** [Part 4, Q33]({{< ref "interview-prep-system-design.md" >}}#33). **Used in:** [chat](#7), [notifications](#4).
+
+**Ask:** "How late can an update be, and does the client send things back on the same channel?"
+{{% /qa %}}
+
+### Dealing with contention: two people want the last seat {#p-contention}
+
+{{% qa %}}
+**The gist:** when many requests fight over one row, the database is still your best referee. Reach for a distributed lock only when the thing you're protecting isn't in one database.
+
+**You'll hear it as:** tickets, seats, the last item in stock, flash sales, auctions, "never double charge", "a job must run only once".
+
+**The ladder:**
+
+| Rung | What it is | Reach for it when |
+|---|---|---|
+| Atomic update | `UPDATE stock SET n = n - 1 WHERE id = ? AND n > 0`, then check the rows changed. | One row, one simple rule. This covers most cases. |
+| Unique constraint | Let the database reject the second insert. | "Only one of these may exist": one booking per seat, one charge per key. |
+| Optimistic locking | Read a `version`, write `WHERE version = ?`, retry on a miss. | Conflicts are rare and the logic is too complex for one statement. |
+| Pessimistic locking | `SELECT ... FOR UPDATE` inside a transaction. | Conflicts are common, and retries would just burn work. |
+| Distributed lock with a lease | A lock in Redis or etcd that expires on its own. | The resource spans services or isn't a database row at all. |
+| Single writer per key | Route every request for one key to one queue partition or one worker. | Extreme contention on one key: a hot auction, a flash sale. |
+
+**Why that order:** the first four rungs live inside one transaction, so a crash can't leave things half done. A distributed lock adds a network call, an expiry to tune, and a new failure: the lock expires while the holder is still working. Single writer removes the fight entirely, at the price of a queue and the delay that comes with it.
+
+**Watch out:** "what if the lock holder pauses for 30 seconds and the lease runs out?" The answer is a fencing token: a number that goes up with every lock grant, which the storage checks so a stale holder's write is rejected. And for seat booking, say how you hold a seat while the user pays: a `reserved_until` column, released by a sweep or a check on read.
+
+**Builds on:** [distributed locks]({{< ref "interview-prep-system-design.md" >}}#13), [idempotency keys]({{< ref "interview-prep-system-design.md" >}}#24). **Used in:** [payments](#5), [job scheduler](#6), [rate limiter](#2).
+
+**Ask:** "How many people go for the same item at the same moment, and can we ever sell it twice?"
+{{% /qa %}}
+
+### Multi-step processes: when one request is really five {#p-multistep}
+
+{{% qa %}}
+**The gist:** if a flow touches several services or takes several steps, write down its state, so a crash halfway through has somewhere to resume from.
+
+**You'll hear it as:** order checkout (reserve stock, charge, ship), onboarding, a payment that calls a bank, "what if it fails halfway?".
+
+**The ladder:**
+
+| Rung | What it is | Reach for it when |
+|---|---|---|
+| One transaction | Every step in one database transaction. | All the data lives in one database. Stop here if you can. |
+| Status column as a state machine | `pending → charged → shipped`, each step moves it forward. | Steps are slow or call outside systems, and a worker picks up where it left off. |
+| Outbox plus events | Write the state change and the event in one transaction, publish after. | The next step lives in another service. |
+| Saga | Each step has an undo step, run in reverse on failure. | Several services each own their data, and there's no shared transaction. |
+| Workflow engine | Temporal, River, Step Functions: the engine stores each step's result and retries for you. | Many steps, long waits (days), timers, human approvals. |
+
+**Why that order:** a transaction gives you all or nothing for free. Every rung above it gives that up and makes you build it back by hand, with retries, undo steps, and idempotent handlers. A workflow engine does that bookkeeping for you, but it's one more system to run.
+
+**Watch out:** "the charge succeeded but we crashed before saving it." Every step has to be safe to run twice, which means an [idempotency key]({{< ref "interview-prep-system-design.md" >}}#5) on every outside call. And some steps can't be undone (an email sent): put them last.
+
+**Builds on:** [outbox]({{< ref "interview-prep-system-design.md" >}}#25), [saga vs. 2PC]({{< ref "interview-prep-system-design.md" >}}#26). **Used in:** [payments](#5), [monolith to microservices](#9).
+
+**Ask:** "How many services does this flow touch, and which steps can't be undone?"
+{{% /qa %}}
+
+### Scaling reads: the database can't keep up with lookups {#p-reads}
+
+{{% qa %}}
+**The gist:** most systems read far more than they write. Make each read cheaper first, then copy the data closer to the reader.
+
+**You'll hear it as:** a 100:1 read ratio, "millions of views", product pages, profiles, redirects, a timeline everyone opens.
+
+**The ladder:**
+
+| Rung | What it is | Reach for it when |
+|---|---|---|
+| Fix the query | An index, no N+1, select only the columns you need. | Always first. It's free. |
+| Read replicas | Copies of the database that serve reads. | One box's CPU is the limit and a little lag is OK. |
+| Cache-aside | Redis in front: check, miss, load, store with a TTL. | The same keys get read again and again. |
+| CDN or edge cache | Copies near the user. | The response is the same for everyone, and users are far away. |
+| Precompute | Build the answer at write time: a denormalized table, a counter, a ready-made feed. | The read is a heavy join or aggregate that a cache can't save. |
+
+**Why that order:** every rung past the first adds a copy of the data, and every copy can be stale. Replicas lag by milliseconds, a cache by its TTL, a CDN by minutes. Precompute moves the cost to the write path, which is fine only while writes stay rare.
+
+**Watch out:** "what happens when the cache is cold, or one key gets a million hits?" A cold cache sends everything to the database at once, so warm it before taking traffic. A [hot key]({{< ref "interview-prep-system-design.md" >}}#36) needs a copy in each app server's memory, and coalescing so only one miss goes to the database.
+
+**Builds on:** [caching strategies]({{< ref "interview-prep-system-design.md" >}}#10), [CDN]({{< ref "interview-prep-system-design.md" >}}#34). **Used in:** [URL shortener](#1), [fraud scoring](#3).
+
+**Ask:** "What's the read to write ratio, and how stale can a read be?"
+{{% /qa %}}
+
+### Scaling writes: more data coming in than one box can take {#p-writes}
+
+{{% qa %}}
+**The gist:** reads you can copy, writes you have to split. Do less work per write first, then spread the writes over many machines.
+
+**You'll hear it as:** clicks, metrics, logs, IoT sensors, "a million events a second", likes on a viral post.
+
+**The ladder:**
+
+| Rung | What it is | Reach for it when |
+|---|---|---|
+| Batch | Group many writes into one insert or one flush. | Each write is small and a short delay is OK. |
+| Queue in front | Kafka or a queue takes the spike, workers drain it at a steady rate. | Traffic comes in bursts, and the writer doesn't need the result now. |
+| Pick a write-friendly store | An append-only log or an LSM store (Cassandra, ClickHouse) over a B-tree. | Mostly inserts, few updates, reads by time range. |
+| Shard | Split the data by a key across many databases. | One primary's write rate or disk is the limit. |
+| Split hot keys and count in memory | `post42#0..9`, or sum in memory and flush once a second. | One key takes most of the writes. |
+
+**Why that order:** batching and a queue keep one database and just smooth the load. Sharding is the big step: cross-shard queries, rebalancing, and a shard key you can't easily change later. So you do it when the [maths](#the-four-steps) says one box won't last, not before.
+
+**Watch out:** "what's your shard key?" A good one has many values and spreads evenly. A user ID usually works. A timestamp is the classic wrong answer: every write lands on today's shard.
+
+**Builds on:** [sharding]({{< ref "interview-prep-system-design.md" >}}#3), [backpressure]({{< ref "interview-prep-system-design.md" >}}#7), [hot keys]({{< ref "interview-prep-system-design.md" >}}#36). **Used in:** [event ingestion](#8), [audit log](#10), [rate limiter](#2).
+
+**Ask:** "How many writes a second at peak, and does the writer need to see the result straight away?"
+{{% /qa %}}
+
+### Handling large blobs: files don't belong in your API {#p-blobs}
+
+{{% qa %}}
+**The gist:** big files go straight from the client to object storage, never through your app servers. The database only keeps a row that describes the file.
+
+**You'll hear it as:** photo or video upload, Dropbox, attachments, "files up to 10GB", streaming video.
+
+**The ladder:**
+
+| Rung | What it is | Reach for it when |
+|---|---|---|
+| Object storage plus a metadata row | S3 or similar for the bytes, a DB row with key, size, owner, status. | Always. Never put large files in the database. |
+| Presigned URLs | The API hands out a short-lived URL, and the client uploads or downloads directly. | Files are more than a few MB. Your servers stop moving bytes. |
+| Multipart and resumable upload | Split the file into chunks, upload in parallel, retry only the failed chunk. | Large files or flaky mobile networks. |
+| CDN for downloads | Serve the files from the edge. | Many people fetch the same file. |
+| Processing on upload-complete | Storage fires an event, workers make thumbnails or transcode. | The file needs work after upload. |
+
+**Why that order:** sending a 5GB file through an app server ties up a connection and its memory for minutes, and it gains you nothing. Each rung after that fixes one specific pain: big files, bad networks, far-away users, extra processing.
+
+**Watch out:** "how does the database know the upload finished?" The row starts as `pending`. The storage event (or the client confirming) flips it to `uploaded`. A sweep cleans up rows stuck in `pending` and their half-finished uploads.
+
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant A as API
+    participant S as Object storage
+    participant W as Worker
+    C->>A: POST /files (name, size)
+    A->>A: insert row, status pending
+    A-->>C: presigned upload URL
+    C->>S: PUT bytes (chunked)
+    S->>W: upload complete event
+    W->>A: mark uploaded, start processing
+```
+
+**Builds on:** [CDN]({{< ref "interview-prep-system-design.md" >}}#34), [long-running tasks](#p-longtasks).
+
+**Ask:** "How big can a file get, and does it need processing after upload?"
+{{% /qa %}}
+
+### Managing long-running tasks: don't make the user wait on the request {#p-longtasks}
+
+{{% qa %}}
+**The gist:** if the work takes more than a second or two, accept the request, hand back a job ID, and do the work somewhere else.
+
+**You'll hear it as:** video transcoding, report generation, sending a campaign, an LLM pipeline, "it takes a few minutes", scheduled jobs.
+
+**The ladder:**
+
+| Rung | What it is | Reach for it when |
+|---|---|---|
+| Return `202` and a job ID | Store the job, reply at once, the client checks back later. | The work outlives a normal HTTP timeout. |
+| Worker queue | Workers pull jobs from a queue (River, SQS, RabbitMQ) and record the status. | Always, once you've done the step above. |
+| Progress back to the client | Polling on `GET /jobs/:id`, or SSE for live progress. | The user is watching and wants to see it move. |
+| Retries with idempotency | Failed jobs retry with backoff, and the handler is safe to run twice. | The work calls anything that can fail, which is everything. |
+| Heartbeat and lease | A worker renews its claim while it works. A job whose lease runs out goes back in the queue. | Workers can crash mid-job and the job must still finish. |
+
+**Why that order:** the first two rungs keep your API fast and let you scale workers on their own. The rest is about failure: a job that's retried has to be idempotent, and a job whose worker died has to be noticed. Most queue libraries give you both, so name the library and say what it handles.
+
+**Watch out:** "a worker crashes halfway, what happens?" The lease runs out, another worker takes the job, and it runs again from the start, or from its last checkpoint. That's why the handler must be idempotent, and why long jobs should save progress as they go.
+
+**Builds on:** [delivery semantics]({{< ref "interview-prep-system-design.md" >}}#15), [sync vs. async]({{< ref "interview-prep-system-design.md" >}}#6). **Used in:** [job scheduler](#6), [notifications](#4).
+
+**Ask:** "How long does the work take, and what happens if it runs twice?"
+{{% /qa %}}
+
+### Fan-out: push or pull a feed {#p-fanout}
+
+{{% qa %}}
+**The gist:** when one event has many readers, you either copy it to every reader when it's written (push) or gather it when someone reads (pull). Most real systems do both, split by how many followers a user has.
+
+**You'll hear it as:** news feed, Twitter or Instagram timeline, followers, group chat, "notify all subscribers".
+
+**The ladder:**
+
+| Rung | What it is | Reach for it when |
+|---|---|---|
+| Pull (fan-out on read) | At read time, fetch recent posts from everyone you follow and merge. | Few reads, or follow lists are small. Simple, and nothing is wasted. |
+| Push (fan-out on write) | At write time, add the post to every follower's feed list. | Reads must be fast and most users have a modest number of followers. |
+| Hybrid | Push for normal users, pull for celebrities, merge both at read time. | A few accounts have millions of followers. |
+
+**Why that order:** pull is cheap to write and costly to read. Push is the reverse: one read of a ready-made list, but one post from a user with 50M followers turns into 50M writes. The hybrid exists because of that one user.
+
+**Watch out:** "what about the celebrity?" That's the whole question, so get there before they do. Also say that push wastes work on followers who never log in, which is why some systems only push to recently active users.
+
+**Builds on:** [hot keys]({{< ref "interview-prep-system-design.md" >}}#36), [Kafka]({{< ref "interview-prep-system-design.md" >}}#4). **Used in:** [notifications](#4), [chat](#7).
+
+**Ask:** "What's the biggest follower count, and how fast must a new post show up?"
+{{% /qa %}}
+
+### Search and geospatial lookups: queries a primary key can't answer {#p-search}
+
+{{% qa %}}
+**The gist:** "find by ID" is easy. "Find by words" and "find near me" need a different index, and usually a second copy of the data built just for that query.
+
+**You'll hear it as:** search bar, autocomplete, "filter by tag", "restaurants near me", "drivers within 2km", Yelp, Uber.
+
+**The ladder, for text:**
+
+| Rung | What it is | Reach for it when |
+|---|---|---|
+| `LIKE 'abc%'` with an index | A prefix match on a B-tree. | Prefix search only, like simple autocomplete. |
+| Postgres full-text or trigram | `tsvector` with a GIN index, or `pg_trgm` for fuzzy matching. | Moderate data, and you'd rather not run another system. |
+| A search engine | Elasticsearch or OpenSearch, fed from the database through CDC or an outbox. | Ranking, typo tolerance, facets, or a lot of data. |
+
+**The ladder, for location:**
+
+| Rung | What it is | Reach for it when |
+|---|---|---|
+| A bounding box on lat and lng | `WHERE lat BETWEEN ... AND lng BETWEEN ...` with an index. | Small data and rough results are fine. |
+| PostGIS or Redis GEO | A real geo index: "within 2km of this point". | Most cases. Redis when the points move every few seconds, like drivers. |
+| Geohash or quadtree | Split the map into cells, store each point under its cell, search nearby cells. | You need to shard by location, or explain how the index works. |
+
+**Why that order:** every rung past Postgres is a second copy of your data that can drift from the first. That's fine, but it means a pipeline to keep it in sync and an answer for "what if the index is behind?".
+
+**Watch out:** "how does the search index stay in sync?" Not by writing to both from the app, since one write can fail. Write to the database, publish through the [outbox]({{< ref "interview-prep-system-design.md" >}}#25) or CDC, and let an indexer catch up. Search results are a few seconds stale, and you say so.
+
+**Builds on:** [SQL vs. NoSQL]({{< ref "interview-prep-system-design.md" >}}#11), [the outbox pattern]({{< ref "interview-prep-system-design.md" >}}#25). **Used in:** [audit log](#10).
+
+**Ask:** "What do users search by, and how fresh must the results be?"
+{{% /qa %}}
+
+---
+
 ## Case Studies
 
 ### 1. Design a URL shortener. {#1}
@@ -138,7 +406,7 @@ The point of the second table is that one cross-region hop costs more than a tho
 {{% qa %}}
 **The gist:** a key-value lookup with a redirect on top. Reads outnumber writes by orders of magnitude, so the cache *is* the design.
 
-**Patterns used:** [cache-aside caching]({{< ref "interview-prep-system-design.md" >}}#10), [sharding]({{< ref "interview-prep-system-design.md" >}}#3), [L7 load balancing]({{< ref "interview-prep-system-design.md" >}}#9), [SQL vs. NoSQL]({{< ref "interview-prep-system-design.md" >}}#11).
+**Patterns used:** [scaling reads](#p-reads). **Concepts:** [cache-aside caching]({{< ref "interview-prep-system-design.md" >}}#10), [sharding]({{< ref "interview-prep-system-design.md" >}}#3), [L7 load balancing]({{< ref "interview-prep-system-design.md" >}}#9), [SQL vs. NoSQL]({{< ref "interview-prep-system-design.md" >}}#11).
 
 **1. Clarification**
 
@@ -205,7 +473,7 @@ Before encoding, run the ID through a reversible scramble (multiply by a large o
 {{% qa %}}
 **The gist:** per-instance counters undercount, because each instance only sees its own share of traffic. The counter has to be shared, and Redis plus one atomic Lua script is the whole answer.
 
-**Patterns used:** [rate limiting algorithms]({{< ref "interview-prep-system-design.md" >}}#35), [shared state instead of local mutexes]({{< ref "interview-prep-system-design.md" >}}#13), [CAP, for the fail open or closed choice]({{< ref "interview-prep-system-design.md" >}}#8), [sharding]({{< ref "interview-prep-system-design.md" >}}#3).
+**Patterns used:** [contention](#p-contention), [scaling writes](#p-writes). **Concepts:** [rate limiting algorithms]({{< ref "interview-prep-system-design.md" >}}#35), [shared state instead of local mutexes]({{< ref "interview-prep-system-design.md" >}}#13), [CAP, for the fail open or closed choice]({{< ref "interview-prep-system-design.md" >}}#8), [sharding]({{< ref "interview-prep-system-design.md" >}}#3).
 
 **1. Clarification**
 
@@ -283,7 +551,7 @@ Capacity is the burst a client may spend at once, and the refill rate is the sus
 {{% qa %}}
 **The gist:** run every signal at once with a hard deadline, so you pay for the slowest signal rather than the sum of all of them. Anything too slow gets dropped, not waited for.
 
-**Patterns used:** [sync vs. async calls]({{< ref "interview-prep-system-design.md" >}}#6), [bulkheads]({{< ref "interview-prep-system-design.md" >}}#30), [caching]({{< ref "interview-prep-system-design.md" >}}#10).
+**Patterns used:** [scaling reads](#p-reads). **Concepts:** [sync vs. async calls]({{< ref "interview-prep-system-design.md" >}}#6), [bulkheads]({{< ref "interview-prep-system-design.md" >}}#30), [caching]({{< ref "interview-prep-system-design.md" >}}#10).
 
 **1. Clarification**
 
@@ -365,7 +633,7 @@ Three details matter. The channel is buffered, so a signal that finishes after t
 {{% qa %}}
 **The gist:** accept the event into a queue immediately, then fan out per user per channel onto separate queues, so a slow SMS provider can't back up your push notifications.
 
-**Patterns used:** [Kafka vs. RabbitMQ]({{< ref "interview-prep-system-design.md" >}}#4), [backpressure]({{< ref "interview-prep-system-design.md" >}}#7), [delivery semantics]({{< ref "interview-prep-system-design.md" >}}#15), [idempotency]({{< ref "interview-prep-system-design.md" >}}#5).
+**Patterns used:** [fan-out](#p-fanout), [real-time updates](#p-realtime), [long-running tasks](#p-longtasks). **Concepts:** [Kafka vs. RabbitMQ]({{< ref "interview-prep-system-design.md" >}}#4), [backpressure]({{< ref "interview-prep-system-design.md" >}}#7), [delivery semantics]({{< ref "interview-prep-system-design.md" >}}#15), [idempotency]({{< ref "interview-prep-system-design.md" >}}#5).
 
 **1. Clarification**
 
@@ -429,7 +697,7 @@ Cursor paging matters because offset paging rereads and skips rows when users si
 {{% qa %}}
 **The gist:** the same idempotency key from [Q24]({{< ref "interview-prep-system-design.md" >}}#24), but now wired through the whole pipeline: claim the key, call the processor, store the outcome, and make sure every retry branch has somewhere sensible to land.
 
-**Patterns used:** [idempotency keys]({{< ref "interview-prep-system-design.md" >}}#24), [the outbox pattern]({{< ref "interview-prep-system-design.md" >}}#25), [delivery semantics]({{< ref "interview-prep-system-design.md" >}}#15).
+**Patterns used:** [contention](#p-contention), [multi-step processes](#p-multistep). **Concepts:** [idempotency keys]({{< ref "interview-prep-system-design.md" >}}#24), [the outbox pattern]({{< ref "interview-prep-system-design.md" >}}#25), [delivery semantics]({{< ref "interview-prep-system-design.md" >}}#15).
 
 **1. Clarification**
 
@@ -513,7 +781,7 @@ The part worth rehearsing is the branches:
 {{% qa %}}
 **The gist:** a conditional `UPDATE` is your lock. The one worker whose update actually affects a row owns the job, and a lease makes sure a crashed worker's job comes back.
 
-**Patterns used:** [distributed locks]({{< ref "interview-prep-system-design.md" >}}#13), [clock skew]({{< ref "interview-prep-system-design.md" >}}#16), [delivery semantics]({{< ref "interview-prep-system-design.md" >}}#15).
+**Patterns used:** [long-running tasks](#p-longtasks), [contention](#p-contention). **Concepts:** [distributed locks]({{< ref "interview-prep-system-design.md" >}}#13), [clock skew]({{< ref "interview-prep-system-design.md" >}}#16), [delivery semantics]({{< ref "interview-prep-system-design.md" >}}#15).
 
 **1. Clarification**
 
@@ -587,7 +855,7 @@ The worker keeps the returned `attempt` and sends it with every write it makes: 
 {{% qa %}}
 **The gist:** consistent-hash conversations onto nodes, and put a gateway in front that knows which node owns which conversation. Pub/sub covers anyone who isn't connected to that node.
 
-**Patterns used:** [WebSockets]({{< ref "interview-prep-system-design.md" >}}#33), [consistent hashing]({{< ref "interview-prep-system-design.md" >}}#27), [the thundering herd]({{< ref "interview-prep-system-design.md" >}}#17), [hot keys]({{< ref "interview-prep-system-design.md" >}}#36), [consistency models]({{< ref "interview-prep-system-design.md" >}}#29).
+**Patterns used:** [real-time updates](#p-realtime), [fan-out](#p-fanout). **Concepts:** [WebSockets]({{< ref "interview-prep-system-design.md" >}}#33), [consistent hashing]({{< ref "interview-prep-system-design.md" >}}#27), [the thundering herd]({{< ref "interview-prep-system-design.md" >}}#17), [hot keys]({{< ref "interview-prep-system-design.md" >}}#36), [consistency models]({{< ref "interview-prep-system-design.md" >}}#29).
 
 **1. Clarification**
 
@@ -652,7 +920,7 @@ A client that sees a gap in `seq` (got 41, then 43) knows it missed one and asks
 {{% qa %}}
 **The gist:** partition by a natural key so ordering holds per entity, accept at-least-once delivery, and key every write on the event ID so a replay can't double-count.
 
-**Patterns used:** [Kafka]({{< ref "interview-prep-system-design.md" >}}#4), [delivery semantics]({{< ref "interview-prep-system-design.md" >}}#15), [idempotency]({{< ref "interview-prep-system-design.md" >}}#5), [sharding]({{< ref "interview-prep-system-design.md" >}}#3), [hot keys]({{< ref "interview-prep-system-design.md" >}}#36).
+**Patterns used:** [scaling writes](#p-writes). **Concepts:** [Kafka]({{< ref "interview-prep-system-design.md" >}}#4), [delivery semantics]({{< ref "interview-prep-system-design.md" >}}#15), [idempotency]({{< ref "interview-prep-system-design.md" >}}#5), [sharding]({{< ref "interview-prep-system-design.md" >}}#3), [hot keys]({{< ref "interview-prep-system-design.md" >}}#36).
 
 **1. Clarification**
 
@@ -721,7 +989,7 @@ Batching turns 500 round trips into one, which is where most of the throughput c
 {{% qa %}}
 **The gist:** put a proxy in front of the monolith and move one feature at a time behind it. The monolith shrinks instead of getting replaced.
 
-**Patterns used:** [sync vs. async calls]({{< ref "interview-prep-system-design.md" >}}#6), [consistency models]({{< ref "interview-prep-system-design.md" >}}#29), [the outbox pattern]({{< ref "interview-prep-system-design.md" >}}#25).
+**Patterns used:** [multi-step processes](#p-multistep). **Concepts:** [sync vs. async calls]({{< ref "interview-prep-system-design.md" >}}#6), [consistency models]({{< ref "interview-prep-system-design.md" >}}#29), [the outbox pattern]({{< ref "interview-prep-system-design.md" >}}#25).
 
 **1. Clarification**
 
@@ -780,7 +1048,7 @@ Prefer change data capture over application dual writes when you can. Dual write
 {{% qa %}}
 **The gist:** append-only, and each entry's hash includes the previous entry's hash. Change anything in the past and every link after it breaks, which is what makes tampering visible.
 
-**Patterns used:** [the outbox pattern]({{< ref "interview-prep-system-design.md" >}}#25), [leader election]({{< ref "interview-prep-system-design.md" >}}#14), [sharding]({{< ref "interview-prep-system-design.md" >}}#3).
+**Patterns used:** [scaling writes](#p-writes), [search](#p-search). **Concepts:** [the outbox pattern]({{< ref "interview-prep-system-design.md" >}}#25), [leader election]({{< ref "interview-prep-system-design.md" >}}#14), [sharding]({{< ref "interview-prep-system-design.md" >}}#3).
 
 **1. Clarification**
 
@@ -870,6 +1138,8 @@ The verifier is a separate process with read-only access. It walks a tenant's ro
 ---
 
 ## What to drill first
+
+**[Patterns](#patterns-when-to-reach-for-what):** [contention](#p-contention) and [scaling reads](#p-reads) come up in more rounds than the other seven put together, so know those two ladders cold. For the rest, cover the table and say the rungs in order, with one reason to climb each one.
 
 **[Case Studies](#case-studies):** [1](#1) (URL shortener) is the warm-up, and the right one to run end to end with a timer. [5](#5) (payments) and [6](#6) (job scheduler) are where interviewers go next, because both turn on the crash case. Draw each one on paper before reading the answer, because describing a diagram you can't draw falls apart the moment someone asks a follow-up.
 

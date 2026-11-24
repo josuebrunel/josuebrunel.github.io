@@ -86,6 +86,8 @@ Each row is a concept and the situation that should make you reach for it, so yo
 
 **Applied patterns (case studies in Part 5)**
 
+For the problem-level patterns behind these, like scaling reads or dealing with contention, and when to reach for each, see [the patterns in Part 5]({{< ref "interview-prep-system-design-case-studies.md" >}}#patterns-when-to-reach-for-what).
+
 | Pattern | Use case it solves |
 |---|---|
 | Read-heavy key lookup + cache in front of DB | URL shortener ([Q1]({{< ref "interview-prep-system-design-case-studies.md" >}}#1)). |
